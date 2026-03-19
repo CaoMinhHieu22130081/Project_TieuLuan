@@ -1,20 +1,39 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { ALL_PRODUCTS } from "../data/Products";
 import "./css/CheckoutPage.css";
 
-const CART_ITEMS = [
-  { id: 1, name: "Urban Minimal Tee", price: 299000, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=100&h=125&fit=crop", color: "Đen", size: "M", qty: 1 },
-  { id: 2, name: "Acid Wash Street", price: 349000, image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=100&h=125&fit=crop", color: "Tím", size: "L", qty: 2 },
-];
+
+const buildCheckoutItems = () =>
+  [
+    { productId: 1, color: "Đen", size: "M",  qty: 1 },
+    { productId: 2, color: "Tím", size: "L",  qty: 2 },
+  ].map(({ productId, color, size, qty }) => {
+    const p = ALL_PRODUCTS.find((x) => x.id === productId);
+    return {
+      id:    p.id,
+      name:  p.name,
+      price: p.price,
+      image: Array.isArray(p.images)
+               ? p.images[0].split("?")[0] + "?w=100&h=125&fit=crop"
+               : p.image,
+      color,
+      size,
+      qty,
+    };
+  });
 
 const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
 
 const STEPS = ["Thông tin", "Thanh toán", "Xác nhận"];
 
 export default function CheckoutPage() {
-  const [step, setStep] = useState(0);
-  const [payMethod, setPayMethod] = useState("momo");
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const CART_ITEMS = buildCheckoutItems();
+
+  const [step,       setStep]       = useState(0);
+  const [payMethod,  setPayMethod]  = useState("momo");
+  const [success,    setSuccess]    = useState(false);
+  const [loading,    setLoading]    = useState(false);
 
   const [shippingForm, setShippingForm] = useState({
     fullName: "", phone: "", email: "",
@@ -23,12 +42,11 @@ export default function CheckoutPage() {
   });
 
   const subtotal = CART_ITEMS.reduce((s, i) => s + i.price * i.qty, 0);
-  const shipping = subtotal >= 299000 ? 0 : 30000;
-  const total = subtotal + shipping;
+  const shipping  = subtotal >= 299000 ? 0 : 30000;
+  const total     = subtotal + shipping;
 
-  const handleShipChange = (e) => {
+  const handleShipChange = (e) =>
     setShippingForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
 
   const handlePlaceOrder = () => {
     setLoading(true);
@@ -43,11 +61,13 @@ export default function CheckoutPage() {
             <div className="success-animation">🌸</div>
             <h2>Đặt hàng thành công!</h2>
             <p>Cảm ơn bạn đã mua sắm tại <strong>UniqTee</strong></p>
-            <p>Đơn hàng của bạn đang được xử lý và sẽ giao trong 1–3 ngày làm việc.</p>
-            <div className="order-code">Mã đơn hàng: #UNQ{Math.random().toString(36).slice(2,8).toUpperCase()}</div>
+            <p>Đơn hàng sẽ được giao trong 1–3 ngày làm việc.</p>
+            <div className="order-code">
+              Mã đơn hàng: #UNQ{Math.random().toString(36).slice(2, 8).toUpperCase()}
+            </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <a href="/profile" className="btn-primary">Xem đơn hàng</a>
-              <a href="/" className="btn-secondary">Về trang chủ</a>
+              <Link to="/profile"  className="btn-primary">Xem đơn hàng</Link>
+              <Link to="/"         className="btn-secondary">Về trang chủ</Link>
             </div>
           </div>
         </div>
@@ -58,26 +78,34 @@ export default function CheckoutPage() {
   return (
     <div className="checkout-page">
       <div className="checkout-inner">
-        <div className="checkout-header">
-          <h1 className="checkout-title">Thanh toán <span className="accent">đơn hàng</span></h1>
 
-          {/* Steps */}
+        <div className="checkout-header">
+          <h1 className="checkout-title">
+            Thanh toán <span className="accent">đơn hàng</span>
+          </h1>
+
+          {/* Steps indicator */}
           <div className="checkout-steps">
             {STEPS.map((s, i) => (
-              <>
-                <div key={s} className={`step-item ${step === i ? "active" : ""} ${step > i ? "done" : ""}`}>
+              <div key={s} style={{ display: "contents" }}>
+                <div className={`step-item ${step === i ? "active" : ""} ${step > i ? "done" : ""}`}>
                   <div className="step-circle">{step > i ? "✓" : i + 1}</div>
                   <span className="step-label">{s}</span>
                 </div>
-                {i < STEPS.length - 1 && <div className={`step-line ${step > i ? "done" : ""}`} key={"line"+i} />}
-              </>
+                {i < STEPS.length - 1 && (
+                  <div className={`step-line ${step > i ? "done" : ""}`} />
+                )}
+              </div>
             ))}
           </div>
         </div>
 
         <div className="checkout-layout">
-          {/* Form */}
+
+          {/* ── Form col ── */}
           <div className="checkout-form-col">
+
+            {/* STEP 0: Thông tin giao hàng */}
             {step === 0 && (
               <>
                 <div className="form-section">
@@ -90,30 +118,37 @@ export default function CheckoutPage() {
                     </span>
                     Thông tin giao hàng
                   </p>
+
                   <div className="form-grid">
                     <div className="form-group">
                       <label className="form-label">Họ và tên</label>
-                      <input className="form-input" name="fullName" placeholder="Nguyễn Văn A" value={shippingForm.fullName} onChange={handleShipChange} />
+                      <input className="form-input" name="fullName" placeholder="Nguyễn Văn A"
+                        value={shippingForm.fullName} onChange={handleShipChange} />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Số điện thoại</label>
-                      <input className="form-input" name="phone" placeholder="0901 234 567" value={shippingForm.phone} onChange={handleShipChange} />
+                      <input className="form-input" name="phone" placeholder="0901 234 567"
+                        value={shippingForm.phone} onChange={handleShipChange} />
                     </div>
                     <div className="form-group span-2">
                       <label className="form-label">Email</label>
-                      <input className="form-input" name="email" placeholder="example@email.com" value={shippingForm.email} onChange={handleShipChange} />
+                      <input className="form-input" name="email" placeholder="example@email.com"
+                        value={shippingForm.email} onChange={handleShipChange} />
                     </div>
                     <div className="form-group span-2">
                       <label className="form-label">Địa chỉ</label>
-                      <input className="form-input" name="address" placeholder="Số nhà, tên đường, tòa nhà..." value={shippingForm.address} onChange={handleShipChange} />
+                      <input className="form-input" name="address" placeholder="Số nhà, tên đường..."
+                        value={shippingForm.address} onChange={handleShipChange} />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Phường/Xã</label>
-                      <input className="form-input" name="ward" placeholder="Phường Bến Nghé" value={shippingForm.ward} onChange={handleShipChange} />
+                      <input className="form-input" name="ward" placeholder="Phường Bến Nghé"
+                        value={shippingForm.ward} onChange={handleShipChange} />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Quận/Huyện</label>
-                      <input className="form-input" name="district" placeholder="Quận 1" value={shippingForm.district} onChange={handleShipChange} />
+                      <input className="form-input" name="district" placeholder="Quận 1"
+                        value={shippingForm.district} onChange={handleShipChange} />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Tỉnh/Thành phố</label>
@@ -125,8 +160,10 @@ export default function CheckoutPage() {
                       </select>
                     </div>
                     <div className="form-group span-2">
-                      <label className="form-label">Ghi chú đơn hàng (tùy chọn)</label>
-                      <input className="form-input" name="note" placeholder="Giao giờ hành chính, gọi trước khi giao..." value={shippingForm.note} onChange={handleShipChange} />
+                      <label className="form-label">Ghi chú (tùy chọn)</label>
+                      <input className="form-input" name="note"
+                        placeholder="Giao giờ hành chính, gọi trước khi giao..."
+                        value={shippingForm.note} onChange={handleShipChange} />
                     </div>
                   </div>
                 </div>
@@ -137,6 +174,7 @@ export default function CheckoutPage() {
               </>
             )}
 
+            {/* STEP 1: Thanh toán */}
             {step === 1 && (
               <>
                 <div className="form-section">
@@ -149,12 +187,13 @@ export default function CheckoutPage() {
                     </span>
                     Phương thức thanh toán
                   </p>
+
                   <div className="payment-methods">
                     {[
-                      { id: "momo", icon: "💜", name: "Ví MoMo", sub: "Thanh toán nhanh qua ví điện tử", recommended: true },
-                      { id: "vnpay", icon: "🔵", name: "VNPAY", sub: "QR code hoặc ATM nội địa" },
-                      { id: "cod", icon: "💵", name: "Thanh toán khi nhận hàng (COD)", sub: "Trả tiền mặt khi nhận hàng" },
-                      { id: "card", icon: "💳", name: "Thẻ tín dụng / ghi nợ", sub: "Visa, Mastercard, JCB" },
+                      { id: "momo",  icon: "💜", name: "Ví MoMo",                       sub: "Thanh toán nhanh qua ví điện tử",        recommended: true  },
+                      { id: "vnpay", icon: "🔵", name: "VNPAY",                          sub: "QR code hoặc ATM nội địa"                                    },
+                      { id: "cod",   icon: "💵", name: "Thanh toán khi nhận hàng (COD)", sub: "Trả tiền mặt khi nhận hàng"                                  },
+                      { id: "card",  icon: "💳", name: "Thẻ tín dụng / ghi nợ",         sub: "Visa, Mastercard, JCB"                                        },
                     ].map((pm) => (
                       <div
                         key={pm.id}
@@ -169,7 +208,9 @@ export default function CheckoutPage() {
                           <p className="payment-name">{pm.name}</p>
                           <p className="payment-sub">{pm.sub}</p>
                         </div>
-                        {pm.recommended && <span className="payment-recommended">Phổ biến</span>}
+                        {pm.recommended && (
+                          <span className="payment-recommended">Phổ biến</span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -195,8 +236,19 @@ export default function CheckoutPage() {
                 </div>
 
                 <div style={{ display: "flex", gap: 12 }}>
-                  <button className="btn-secondary" style={{ flex: "0 0 auto" }} onClick={() => setStep(0)}>← Quay lại</button>
-                  <button className={`btn-place-order ${loading ? "loading" : ""}`} onClick={handlePlaceOrder} disabled={loading} style={{ flex: 1 }}>
+                  <button
+                    className="btn-secondary"
+                    style={{ flex: "0 0 auto" }}
+                    onClick={() => setStep(0)}
+                  >
+                    ← Quay lại
+                  </button>
+                  <button
+                    className={`btn-place-order ${loading ? "loading" : ""}`}
+                    onClick={handlePlaceOrder}
+                    disabled={loading}
+                    style={{ flex: 1 }}
+                  >
                     {loading ? "Đang xử lý…" : "🌸 Đặt hàng ngay"}
                   </button>
                 </div>
@@ -204,12 +256,13 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {/* Summary */}
+          {/* ── Order summary ── */}
           <div className="checkout-summary">
             <p className="checkout-summary-title">Đơn hàng của bạn</p>
+
             <div className="checkout-items">
               {CART_ITEMS.map((item) => (
-                <div key={item.id} className="checkout-item">
+                <div key={`${item.id}-${item.size}`} className="checkout-item">
                   <div className="checkout-item-img">
                     <img src={item.image} alt={item.name} />
                     <span className="checkout-item-qty-badge">{item.qty}</span>
@@ -218,7 +271,9 @@ export default function CheckoutPage() {
                     <p className="checkout-item-name">{item.name}</p>
                     <p className="checkout-item-meta">{item.color} · Size {item.size}</p>
                   </div>
-                  <span className="checkout-item-price">{formatPrice(item.price * item.qty)}</span>
+                  <span className="checkout-item-price">
+                    {formatPrice(item.price * item.qty)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -230,17 +285,20 @@ export default function CheckoutPage() {
               </div>
               <div className="summary-line green">
                 <span className="label">Phí vận chuyển</span>
-                <span className="value">{shipping === 0 ? "Miễn phí 🎉" : formatPrice(shipping)}</span>
+                <span className="value">
+                  {shipping === 0 ? "Miễn phí 🎉" : formatPrice(shipping)}
+                </span>
               </div>
             </div>
 
             <div className="summary-divider" />
+
             <div className="summary-total-row">
               <span className="summary-total-label">Tổng cộng</span>
               <span className="summary-total-amount">{formatPrice(total)}</span>
             </div>
 
-            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", textAlign: "center" }}>
+            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", textAlign: "center", marginTop: 12 }}>
               🔒 Thông tin thanh toán được mã hóa SSL
             </div>
           </div>

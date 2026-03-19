@@ -1,89 +1,28 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
+import { ALL_PRODUCTS } from "../data/Products";
 import "./css/HomePage.css";
 
-const FEATURED_PRODUCTS = [
-  {
-    id: 1,
-    name: "Urban Minimal Tee",
-    price: 299000,
-    originalPrice: 399000,
-    image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=500&fit=crop",
-    tag: "Bán chạy",
-    colors: ["#1a1a1a", "#ffffff", "#4A90E2"],
-    sizes: ["S", "M", "L", "XL"],
-    rating: 4.8,
-    reviews: 124,
-  },
-  {
-    id: 2,
-    name: "Acid Wash Street",
-    price: 349000,
-    originalPrice: null,
-    image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400&h=500&fit=crop",
-    tag: "Mới",
-    colors: ["#7B68EE", "#F5F5DC"],
-    sizes: ["S", "M", "L"],
-    rating: 4.6,
-    reviews: 89,
-  },
-  {
-    id: 3,
-    name: "Oversized Graphic Tee",
-    price: 379000,
-    originalPrice: 450000,
-    image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&h=500&fit=crop",
-    tag: "Sale",
-    colors: ["#2C2C2C", "#E8DCC8"],
-    sizes: ["M", "L", "XL", "XXL"],
-    rating: 4.9,
-    reviews: 201,
-  },
-  {
-    id: 4,
-    name: "Clean Line Unisex",
-    price: 259000,
-    originalPrice: null,
-    image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=400&h=500&fit=crop",
-    tag: null,
-    colors: ["#ffffff", "#F0E68C", "#90EE90"],
-    sizes: ["S", "M", "L"],
-    rating: 4.7,
-    reviews: 67,
-  },
-];
+/* ── Lấy 4 sản phẩm nổi bật từ data dùng chung ── */
+const FEATURED_PRODUCTS = ALL_PRODUCTS.slice(0, 4);
 
 const CATEGORIES = [
-  { id: 1, name: "Cơ bản", icon: "◻", count: 48 },
-  { id: 2, name: "Graphic", icon: "◈", count: 32 },
-  { id: 3, name: "Oversized", icon: "▣", count: 27 },
-  { id: 4, name: "Vintage", icon: "◉", count: 19 },
-  { id: 5, name: "Thể thao", icon: "◆", count: 23 },
-  { id: 6, name: "Sọc kẻ", icon: "☰", count: 15 },
+  { id: 1, name: "Cơ bản",   icon: "◻", count: ALL_PRODUCTS.filter(p => p.category === "Cơ bản").length   },
+  { id: 2, name: "Graphic",  icon: "◈", count: ALL_PRODUCTS.filter(p => p.category === "Graphic").length  },
+  { id: 3, name: "Oversized",icon: "▣", count: ALL_PRODUCTS.filter(p => p.category === "Oversized").length},
+  { id: 4, name: "Vintage",  icon: "◉", count: ALL_PRODUCTS.filter(p => p.category === "Vintage").length  },
+  { id: 5, name: "Thể thao", icon: "◆", count: ALL_PRODUCTS.filter(p => p.category === "Thể thao").length },
+  { id: 6, name: "Sọc kẻ",   icon: "☰", count: ALL_PRODUCTS.filter(p => p.category === "Sọc kẻ").length   },
 ];
 
-const AI_RESULTS = [
-  {
-    id: 5,
-    name: "Tee Tương Tự #1",
-    price: 320000,
-    similarity: 97,
-    image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=300&h=350&fit=crop",
-  },
-  {
-    id: 6,
-    name: "Tee Tương Tự #2",
-    price: 299000,
-    similarity: 91,
-    image: "https://images.unsplash.com/photo-1618453292459-37cb0d0af8f1?w=300&h=350&fit=crop",
-  },
-  {
-    id: 7,
-    name: "Tee Tương Tự #3",
-    price: 279000,
-    similarity: 86,
-    image: "https://images.unsplash.com/photo-1529374255404-311a2a4f1fd9?w=300&h=350&fit=crop",
-  },
-];
+/* AI demo results dùng data thật từ Products.js */
+const AI_RESULTS = ALL_PRODUCTS.slice(4, 7).map((p, i) => ({
+  id: p.id,
+  name: p.name,
+  price: p.price,
+  similarity: [97, 91, 86][i],
+  image: Array.isArray(p.images) ? p.images[0] : p.image,
+}));
 
 const SEARCH_HINTS = ["Oversized", "Graphic", "Vintage", "Áo trắng", "Sale"];
 
@@ -101,11 +40,15 @@ function StarRating({ rating }) {
 }
 
 function ProductCard({ product }) {
-  const [hovered, setHovered] = useState(false);
+  const [hovered,     setHovered]     = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
+
+  /* Hỗ trợ cả images[] (data mới) lẫn image (data cũ) */
+  const thumb = Array.isArray(product.images) ? product.images[0] : product.image;
 
   const handleCart = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 1800);
   };
@@ -115,13 +58,16 @@ function ProductCard({ product }) {
     : null;
 
   return (
-    <div
+    /* ── Bọc trong Link → click card sẽ vào trang chi tiết ── */
+    <Link
+      to={`/products/${product.id}`}
       className={`product-card ${hovered ? "hovered" : ""}`}
+      style={{ textDecoration: "none", display: "block" }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div className="product-img-wrap">
-        <img src={product.image} alt={product.name} className="product-img" />
+        <img src={thumb} alt={product.name} className="product-img" />
         {product.tag && (
           <span className={`product-badge badge-${product.tag === "Sale" ? "sale" : product.tag === "Mới" ? "new" : "hot"}`}>
             {product.tag}
@@ -140,8 +86,12 @@ function ProductCard({ product }) {
         <StarRating rating={product.rating} />
         <span className="review-count">({product.reviews} đánh giá)</span>
         <div className="color-swatches">
-          {product.colors.map((c, i) => (
-            <span key={i} className="swatch" style={{ background: c }} />
+          {(product.colors || []).map((c, i) => (
+            <span
+              key={i}
+              className="swatch"
+              style={{ background: typeof c === "string" ? c : c.hex }}
+            />
           ))}
         </div>
         <div className="price-row">
@@ -151,16 +101,16 @@ function ProductCard({ product }) {
           )}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
 function AiSearchPanel() {
-  const [dragOver, setDragOver] = useState(false);
-  const [preview, setPreview] = useState(null);
+  const [dragOver,  setDragOver]  = useState(false);
+  const [preview,   setPreview]   = useState(null);
   const [searching, setSearching] = useState(false);
-  const [results, setResults] = useState(null);
-  const [progress, setProgress] = useState(0);
+  const [results,   setResults]   = useState(null);
+  const [progress,  setProgress]  = useState(0);
   const inputRef = useRef(null);
 
   const handleFile = (file) => {
@@ -191,7 +141,10 @@ function AiSearchPanel() {
           </p>
         </div>
 
+        {/* ── 2 cột: trái = upload/preview | phải = how-steps / loading / kết quả ── */}
         <div className="ai-content">
+
+          {/* CỘT TRÁI: drop zone hoặc ảnh preview */}
           <div className="upload-col">
             {!preview ? (
               <div
@@ -208,24 +161,29 @@ function AiSearchPanel() {
                     <path d="M14 38h24" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" />
                   </svg>
                 </div>
-                <p className="drop-label">Kéo thả ảnh vào đây</p>
+                <p className="drop-title">Kéo thả ảnh vào đây</p>
                 <p className="drop-sub">hoặc click để chọn ảnh từ máy tính</p>
-                <span className="drop-hint">Hỗ trợ JPG, PNG, WEBP</span>
-                <input ref={inputRef} type="file" accept="image/*" hidden
-                  onChange={(e) => handleFile(e.target.files[0])} />
+                <p className="drop-hint">Hỗ trợ JPG, PNG, WEBP · Tối đa 10MB</p>
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleFile(e.target.files[0])}
+                />
               </div>
             ) : (
-              <div className="preview-box">
+              <div className="preview-wrap" style={{ position: "relative" }}>
                 <img src={preview} alt="preview" className="preview-img" />
-                <button className="btn-reset" onClick={reset}>✕ Đặt lại</button>
+                <button className="btn-reset" onClick={reset}>✕ Đổi ảnh</button>
                 {searching && (
                   <div className="progress-wrap">
                     <div className="progress-label">
-                      <span>Đang tìm sản phẩm phù hợp…</span>
+                      <span>Đang phân tích ảnh…</span>
                       <span>{progress}%</span>
                     </div>
                     <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${progress}%` }} />
+                      <div className="progress-fill" style={{ width: progress + "%" }} />
                     </div>
                   </div>
                 )}
@@ -233,12 +191,15 @@ function AiSearchPanel() {
             )}
           </div>
 
+          {/* CỘT PHẢI: hướng dẫn → loading → kết quả */}
           <div className="results-col">
-            {!results && !searching && (
+
+            {/* Trạng thái ban đầu: hiện 3 bước hướng dẫn */}
+            {!preview && !searching && !results && (
               <div className="ai-idle">
                 <div className="ai-how-it-works">
                   {[
-                    { icon: "📸", title: "Tải ảnh lên", desc: "Chụp hoặc chọn ảnh áo thun bạn thích từ bất kỳ đâu" },
+                    { icon: "📤", title: "Tải ảnh lên",  desc: "Chọn hoặc kéo thả ảnh chiếc áo bạn thích" },
                     { icon: "🔍", title: "AI phân tích", desc: "Hệ thống nhận diện màu sắc, kiểu dáng, họa tiết tự động" },
                     { icon: "🛍️", title: "Xem kết quả", desc: "Nhận ngay danh sách sản phẩm tương tự để chọn mua" },
                   ].map((step) => (
@@ -254,6 +215,7 @@ function AiSearchPanel() {
               </div>
             )}
 
+            {/* Đang tìm kiếm (preview đã có, loading overlay ở cột trái) */}
             {searching && (
               <div className="ai-loading">
                 <div className="spinner" />
@@ -261,12 +223,13 @@ function AiSearchPanel() {
               </div>
             )}
 
+            {/* Kết quả xuất hiện bên phải */}
             {results && (
               <div className="ai-results">
                 <p className="results-label">✦ Tìm thấy {results.length} sản phẩm tương tự</p>
                 <div className="ai-result-list">
                   {results.map((r) => (
-                    <div key={r.id} className="ai-result-card">
+                    <Link key={r.id} to={`/products/${r.id}`} className="ai-result-card" style={{ textDecoration: "none" }}>
                       <img src={r.image} alt={r.name} className="ai-result-img" />
                       <div className="ai-result-info">
                         <p className="ai-result-name">{r.name}</p>
@@ -279,29 +242,28 @@ function AiSearchPanel() {
                           <span className="sim-pct">{r.similarity}%</span>
                         </div>
                       </div>
-                      <button className="btn-view-sm">Xem</button>
-                    </div>
+                      <span className="btn-view-sm">Xem</span>
+                    </Link>
                   ))}
                 </div>
               </div>
             )}
           </div>
+
         </div>
       </div>
     </section>
   );
 }
 
-
-
 export default function HomePage() {
   const [heroVisible, setHeroVisible] = useState(false);
-
   useEffect(() => { setTimeout(() => setHeroVisible(true), 100); }, []);
 
   return (
     <div className="page-wrapper">
 
+      {/* ── Hero ── */}
       <section className={`hero ${heroVisible ? "visible" : ""}`}>
         <div className="hero-bg-grid" />
         <div className="hero-inner">
@@ -316,7 +278,7 @@ export default function HomePage() {
               chỉ bằng một tấm ảnh — nhanh chóng, dễ dàng, chính xác.
             </p>
             <div className="hero-cta">
-              <a href="#products" className="btn-primary">Mua ngay</a>
+              <Link to="/products" className="btn-primary">Mua ngay</Link>
               <a href="#ai-search" className="btn-secondary">
                 <span className="btn-ai-icon">📷</span> Tìm bằng ảnh
               </a>
@@ -363,35 +325,37 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Categories ── */}
       <section className="categories-section" id="categories">
         <div className="section-inner">
           <div className="section-header">
             <h2 className="section-title">Danh mục <span className="accent">áo thun</span></h2>
-            <a href="#" className="see-all">Xem tất cả →</a>
+            <Link to="/products" className="see-all">Xem tất cả →</Link>
           </div>
           <div className="categories-grid">
             {CATEGORIES.map((cat) => (
-              <button key={cat.id} className="category-chip">
+              <Link
+                key={cat.id}
+                to={`/products?category=${encodeURIComponent(cat.name)}`}
+                className="category-chip"
+                style={{ textDecoration: "none" }}
+              >
                 <span className="cat-icon">{cat.icon}</span>
                 <span className="cat-name">{cat.name}</span>
                 <span className="cat-count">{cat.count}</span>
-              </button>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
+      {/* ── Featured Products ── */}
       <section className="products-section" id="products">
         <div className="section-inner">
           <div className="section-header">
             <h2 className="section-title">Sản phẩm <span className="accent">nổi bật</span></h2>
             <div className="filter-row">
-              <select className="sort-select">
-                <option>Phổ biến nhất</option>
-                <option>Giá thấp → cao</option>
-                <option>Giá cao → thấp</option>
-                <option>Mới nhất</option>
-              </select>
+              <Link to="/products" className="see-all">Xem tất cả →</Link>
             </div>
           </div>
           <div className="products-grid">
@@ -400,21 +364,25 @@ export default function HomePage() {
             ))}
           </div>
           <div className="load-more-wrap">
-            <button className="btn-load-more">Xem thêm sản phẩm</button>
+            <Link to="/products" className="btn-load-more" style={{ textDecoration: "none" }}>
+              Xem thêm sản phẩm
+            </Link>
           </div>
         </div>
       </section>
 
+      {/* ── AI Search ── */}
       <AiSearchPanel />
 
+      {/* ── Footer ── */}
       <footer className="footer">
         <div className="section-inner">
           <div className="footer-grid">
             <div className="footer-brand">
-              <a href="#" className="nav-logo footer-logo">
+              <Link to="/" className="nav-logo footer-logo" style={{ textDecoration: "none" }}>
                 <span className="logo-mark">U</span>
                 <span className="logo-text">UNIQ<em>TEE</em></span>
-              </a>
+              </Link>
               <p className="footer-tagline">
                 Thời trang unisex hiện đại — chất lượng, phong cách, giá tốt.
               </p>

@@ -1,38 +1,48 @@
 import { useState } from "react";
+import { ALL_PRODUCTS } from "../data/Products";
 import "./css/ProfilePage.css";
 
+// Lấy ảnh thumbnail từ sản phẩm (hỗ trợ cả images[] lẫn image)
+const getThumb = (p) => (Array.isArray(p.images) ? p.images[0] : p.image);
+
+// Đơn hàng giả lập — ảnh lấy từ ALL_PRODUCTS
 const ORDERS = [
   {
     id: "UNQ7F3K2", date: "15/03/2025", status: "delivered",
     items: [
-      { image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=100&h=125&fit=crop" },
-      { image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=100&h=125&fit=crop" },
+      { image: getThumb(ALL_PRODUCTS[0]) },
+      { image: getThumb(ALL_PRODUCTS[1]) },
     ],
-    total: 947000, itemCount: 3,
+    total: ALL_PRODUCTS[0].price + ALL_PRODUCTS[1].price + ALL_PRODUCTS[2].price,
+    itemCount: 3,
   },
   {
     id: "UNQ2M9P1", date: "08/03/2025", status: "shipping",
     items: [
-      { image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=100&h=125&fit=crop" },
+      { image: getThumb(ALL_PRODUCTS[2]) },
     ],
-    total: 379000, itemCount: 1,
+    total: ALL_PRODUCTS[2].price,
+    itemCount: 1,
   },
   {
     id: "UNQ5X8Q4", date: "01/03/2025", status: "processing",
     items: [
-      { image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=100&h=125&fit=crop" },
-      { image: "https://images.unsplash.com/photo-1529374255404-311a2a4f1fd9?w=100&h=125&fit=crop" },
-      { image: "https://images.unsplash.com/photo-1618453292459-37cb0d0af8f1?w=100&h=125&fit=crop" },
+      { image: getThumb(ALL_PRODUCTS[3]) },
+      { image: getThumb(ALL_PRODUCTS[4]) },
+      { image: getThumb(ALL_PRODUCTS[5]) },
     ],
-    total: 967000, itemCount: 4,
+    total: ALL_PRODUCTS[3].price + ALL_PRODUCTS[4].price + ALL_PRODUCTS[5].price + ALL_PRODUCTS[6].price,
+    itemCount: 4,
   },
 ];
 
-const WISHLIST = [
-  { id: 1, name: "Bold Print Tee", price: 289000, image: "https://images.unsplash.com/photo-1618453292459-37cb0d0af8f1?w=200&h=250&fit=crop" },
-  { id: 2, name: "Vintage Wash Crop", price: 319000, image: "https://images.unsplash.com/photo-1529374255404-311a2a4f1fd9?w=200&h=250&fit=crop" },
-  { id: 3, name: "Sport Performance", price: 369000, image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=200&h=250&fit=crop" },
-];
+// Danh sách yêu thích — lấy từ ALL_PRODUCTS (sản phẩm 6, 5, 7)
+const WISHLIST = ALL_PRODUCTS.filter((p) => [6, 5, 7].includes(p.id)).map((p) => ({
+  id: p.id,
+  name: p.name,
+  price: p.price,
+  image: getThumb(p),
+}));
 
 const STATUS_MAP = {
   delivered: { label: "Đã giao hàng", cls: "status-delivered" },

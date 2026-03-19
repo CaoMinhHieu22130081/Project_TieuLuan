@@ -499,6 +499,20 @@ ul { list-style: none; }
   align-items: start;
 }
 
+/* Cột trái: vùng upload / preview ảnh */
+.upload-col {
+  position: sticky;
+  top: 88px;
+}
+
+/* Cột phải: hiển thị how-steps / loading / kết quả tìm kiếm */
+.results-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 300px;
+}
+
 .drop-zone {
   border: 2px dashed var(--border-2);
   border-radius: var(--radius-lg);
@@ -741,6 +755,7 @@ ul { list-style: none; }
   .hero-img-col { justify-content: flex-start; }
   .hero-img-frame { max-width: 380px; }
   .ai-content { grid-template-columns: 1fr; }
+  .upload-col { position: static; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
 }
 
