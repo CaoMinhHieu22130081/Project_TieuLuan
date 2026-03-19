@@ -217,9 +217,9 @@
 }
 
 .header-search-close:hover {
-  background: rgba(200, 255, 87, 0.1);
+  background: rgba(255, 95, 163, 0.1);
   color: var(--accent);
-  border-color: rgba(200, 255, 87, 0.3);
+  border-color: rgba(255, 95, 163, 0.3);
 }
 
 .header-search-hint {
@@ -241,8 +241,8 @@
 }
 
 .search-hint-tag:hover {
-  background: rgba(200, 255, 87, 0.08);
-  border-color: rgba(200, 255, 87, 0.25);
+  background: rgba(255, 95, 163, 0.08);
+  border-color: rgba(255, 95, 163, 0.25);
   color: var(--accent);
 }
 

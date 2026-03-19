@@ -14,7 +14,7 @@
   --surface-2:     #26262d;
   --border:        rgba(255, 255, 255, 0.08);
   --border-2:      rgba(255, 255, 255, 0.15);
-  --border-focus:  rgba(200, 255, 87, 0.6);
+  --border-focus:  rgba(255, 95, 163, 0.6);
 
   /* edgy neon accent */
   --accent:        #ff2d95;
@@ -81,8 +81,8 @@ img { display: block; max-width: 100%; object-fit: cover; }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 55% at 70% 15%, rgba(200, 255, 87, 0.07) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 60% at 20% 75%, rgba(200, 255, 87, 0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 60% 55% at 70% 15%, rgba(255, 95, 163, 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 20% 75%, rgba(255, 95, 163, 0.04) 0%, transparent 60%);
   background-color: var(--bg-3);
 }
 
@@ -92,8 +92,8 @@ img { display: block; max-width: 100%; object-fit: cover; }
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(200, 255, 87, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(200, 255, 87, 0.02) 1px, transparent 1px);
+    linear-gradient(rgba(255, 95, 163, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 95, 163, 0.02) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
@@ -130,7 +130,7 @@ img { display: block; max-width: 100%; object-fit: cover; }
   width: 34px;
   height: 34px;
   background: var(--accent);
-  color: var(--bg);
+  color: #fff;
   border-radius: 9px;
   display: grid;
   place-items: center;
@@ -290,13 +290,13 @@ img { display: block; max-width: 100%; object-fit: cover; }
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-dim);
-  box-shadow: 0 0 0 3px rgba(200, 255, 87, 0.1);
+  box-shadow: 0 0 0 3px rgba(255, 95, 163, 0.1);
 }
 
 .step-dot.done {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--bg);
+  color: #fff;
   font-size: 0.8rem;
 }
 
@@ -584,7 +584,7 @@ input[type="date"].form-input {
   place-items: center;
   font-size: 0.68rem;
   font-weight: 900;
-  color: var(--bg);
+  color: #fff;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -596,7 +596,7 @@ input[type="date"].form-input {
   width: 100%;
   padding: 14px;
   background: linear-gradient(90deg, var(--accent), rgba(var(--accent-rgb),0.8));
-  color: var(--bg);
+  color: #fff;
   border-radius: var(--radius);
   font-family: var(--font-display);
   font-weight: 700;
@@ -656,7 +656,7 @@ input[type="date"].form-input {
   width: 18px;
   height: 18px;
   border: 2.5px solid rgba(10, 10, 12, 0.3);
-  border-top-color: var(--bg);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -731,7 +731,7 @@ input[type="date"].form-input {
   height: 72px;
   border-radius: 50%;
   background: var(--accent);
-  color: var(--bg);
+  color: #fff;
   font-size: 2rem;
   font-weight: 900;
   display: grid;

@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+/* ── Global Pink Theme ── */
+:root {
+  --bg:          #0a0a0c;
+  --bg-2:        #111114;
+  --bg-3:        #18181c;
+  --surface:     #1e1e23;
+  --surface-2:   #26262d;
+  --border:      rgba(255, 255, 255, 0.08);
+  --border-2:    rgba(255, 255, 255, 0.14);
+
+  /* 🌸 Pink Accent */
+  --accent:      #ff5fa3;
+  --accent-rgb:  255, 95, 163;
+  --accent-dim:  rgba(255, 95, 163, 0.12);
+  --accent-glow: 0 0 32px rgba(255, 95, 163, 0.4);
+  --accent-2:    #ff85bd;
+  --accent-dark: #d63e84;
+
+  --text-primary:   #f0f0f2;
+  --text-secondary: #8b8b96;
+  --text-muted:     #55555e;
+
+  --font-display: 'Syne', sans-serif;
+  --font-mono:    'Space Mono', monospace;
+  --font-body:    'DM Sans', sans-serif;
+
+  --radius:    12px;
+  --radius-lg: 20px;
+  --transition: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-card: 0 4px 32px rgba(0, 0, 0, 0.4);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+img { display: block; width: 100%; height: 100%; object-fit: cover; }
+ul { list-style: none; }
+
+.section-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+.accent { color: var(--accent); }
+.page-wrapper { min-height: 100vh; overflow-x: hidden; }
+
+/* ── Shared Buttons ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 28px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: box-shadow var(--transition), transform var(--transition), background var(--transition);
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+.btn-primary:hover {
+  box-shadow: var(--accent-glow);
+  transform: translateY(-2px);
+  background: var(--accent-2);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 28px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: border-color var(--transition), background var(--transition);
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+.btn-secondary:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
