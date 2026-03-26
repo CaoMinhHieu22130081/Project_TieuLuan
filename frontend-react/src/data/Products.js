@@ -1,9 +1,14 @@
 // ── Shared Product Data ──────────────────────────────────────────────────────
 // Dùng chung cho ProductsPage, ProductDetailPage, HomePage
+// Bao gồm cả Áo và Quần
 
 export const ALL_PRODUCTS = [
+  // ══════════════════════════════════════════════════════════════
+  //  ÁO THUN
+  // ══════════════════════════════════════════════════════════════
   {
     id: 1,
+    type: "Áo",
     name: "Urban Minimal Tee",
     price: 299000,
     originalPrice: 399000,
@@ -44,6 +49,7 @@ export const ALL_PRODUCTS = [
   },
   {
     id: 2,
+    type: "Áo",
     name: "Acid Wash Street",
     price: 349000,
     originalPrice: null,
@@ -81,6 +87,7 @@ export const ALL_PRODUCTS = [
   },
   {
     id: 3,
+    type: "Áo",
     name: "Oversized Graphic Tee",
     price: 379000,
     originalPrice: 450000,
@@ -120,6 +127,7 @@ export const ALL_PRODUCTS = [
   },
   {
     id: 4,
+    type: "Áo",
     name: "Clean Line Unisex",
     price: 259000,
     originalPrice: null,
@@ -158,6 +166,7 @@ export const ALL_PRODUCTS = [
   },
   {
     id: 5,
+    type: "Áo",
     name: "Vintage Wash Crop",
     price: 319000,
     originalPrice: 380000,
@@ -194,6 +203,7 @@ export const ALL_PRODUCTS = [
   },
   {
     id: 6,
+    type: "Áo",
     name: "Bold Print Tee",
     price: 289000,
     originalPrice: null,
@@ -231,6 +241,7 @@ export const ALL_PRODUCTS = [
   },
   {
     id: 7,
+    type: "Áo",
     name: "Sport Performance Tee",
     price: 369000,
     originalPrice: null,
@@ -269,6 +280,7 @@ export const ALL_PRODUCTS = [
   },
   {
     id: 8,
+    type: "Áo",
     name: "Stripe Nautical Tee",
     price: 279000,
     originalPrice: 329000,
@@ -303,14 +315,262 @@ export const ALL_PRODUCTS = [
       { id: 1, name: "Vũ Ngọc Hân", rating: 4, date: "07/03/2025", text: "Áo đẹp kiểu dáng cổ điển. Chất vải tốt, không bị bai sau giặt." },
     ],
   },
+
+  // ══════════════════════════════════════════════════════════════
+  //  QUẦN
+  // ══════════════════════════════════════════════════════════════
+  {
+    id: 9,
+    type: "Quần",
+    name: "Slim Fit Jeans",
+    price: 499000,
+    originalPrice: 620000,
+    tag: "Bán chạy",
+    category: "Jeans",
+    rating: 4.8,
+    reviews: 156,
+    sold: 289,
+    sku: "SFJ-009",
+    material: "Denim Cotton 98% / Elastane 2%, 12oz",
+    description:
+      "Quần jeans slim fit dáng ôm vừa phải, tôn dáng mà vẫn thoải mái khi vận động. Chất denim cao cấp pha elastane giúp co giãn nhẹ, không bó cứng. Màu xanh chàm đặc trưng, fade tự nhiên sau nhiều lần giặt tạo nét vintage riêng.",
+    images: [
+      "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1604176354204-9268737828e4?w=600&h=750&fit=crop",
+    ],
+    colors: [
+      { hex: "#1a3a5c", name: "Xanh chàm" },
+      { hex: "#1a1a1a", name: "Đen" },
+      { hex: "#6b93c4", name: "Xanh nhạt" },
+    ],
+    sizes: ["28", "29", "30", "31", "32", "34"],
+    unavailSizes: [],
+    features: [
+      "Chất liệu: Denim Cotton 98% / Elastane 2%, 12oz",
+      "Dáng slim fit tôn dáng, không bó cứng",
+      "5 túi cổ điển, khóa kim loại bền chắc",
+      "Fade tự nhiên theo thời gian tạo nét vintage",
+    ],
+    reviewList: [
+      { id: 1, name: "Nguyễn Hoàng Nam", rating: 5, date: "15/03/2025", text: "Quần jeans chất lượng cao, vải dày dặn không bị bai. Size 30 vừa chuẩn người 65kg." },
+      { id: 2, name: "Trần Thị Mai", rating: 5, date: "10/03/2025", text: "Mặc đi làm, đi chơi đều ổn. Vải có độ co giãn nhẹ rất thoải mái." },
+      { id: 3, name: "Lê Văn Hùng", rating: 4, date: "05/03/2025", text: "Chất lượng tốt, giao hàng nhanh. Màu xanh chàm rất đẹp, đúng như hình." },
+    ],
+  },
+  {
+    id: 10,
+    type: "Quần",
+    name: "Jogger Streetwear",
+    price: 389000,
+    originalPrice: null,
+    tag: "Mới",
+    category: "Jogger",
+    rating: 4.7,
+    reviews: 98,
+    sold: 187,
+    sku: "JSW-010",
+    material: "French Terry Cotton 280gsm",
+    description:
+      "Quần jogger streetwear với thiết kế thun gấu co dãn thoải mái, túi hộp tiện dụng. Chất french terry dày dặn giữ form tốt, không bai không nhăn. Phù hợp mặc thường ngày hoặc dạo phố phong cách.",
+    images: [
+      "https://images.unsplash.com/photo-1548883354-7622d03aca27?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1509551388413-e18d0ac5d495?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=600&h=750&fit=crop",
+    ],
+    colors: [
+      { hex: "#1a1a1a", name: "Đen" },
+      { hex: "#5a5a6e", name: "Xám đậm" },
+      { hex: "#2d4a3e", name: "Xanh rêu" },
+      { hex: "#c8a882", name: "Be khói" },
+    ],
+    sizes: ["S", "M", "L", "XL", "XXL"],
+    unavailSizes: [],
+    features: [
+      "Chất liệu: French Terry Cotton 280gsm",
+      "Thun gấu co dãn thoải mái, không bó cổ chân",
+      "Túi hộp 2 bên + túi kéo khóa sau",
+      "Dây rút lưng điều chỉnh, khóa inox",
+    ],
+    reviewList: [
+      { id: 1, name: "Phạm Quang Khải", rating: 5, date: "14/03/2025", text: "Quần mặc siêu thoải mái, chất dày vừa phải. Mua 2 cái luôn!" },
+      { id: 2, name: "Đỗ Thùy Linh", rating: 4, date: "08/03/2025", text: "Màu đen rất đẹp, không bị bạc sau giặt máy. Giao hàng đúng hẹn." },
+    ],
+  },
+  {
+    id: 11,
+    type: "Quần",
+    name: "Wide Leg Cargo",
+    price: 549000,
+    originalPrice: 649000,
+    tag: "Sale",
+    category: "Cargo",
+    rating: 4.6,
+    reviews: 73,
+    sold: 142,
+    sku: "WLC-011",
+    material: "Cotton Twill 240gsm",
+    description:
+      "Quần cargo wide leg phong cách Y2K trở lại mạnh mẽ. Thiết kế ống rộng, túi hộp 2 bên to bản thực dụng, lưng thun phối dây rút. Chất cotton twill dày dặn, giữ form, không bị xô lệch sau nhiều lần mặc.",
+    images: [
+      "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1548883354-7622d03aca27?w=600&h=750&fit=crop",
+    ],
+    colors: [
+      { hex: "#556b2f", name: "Xanh olive" },
+      { hex: "#1a1a1a", name: "Đen" },
+      { hex: "#c8a882", name: "Be cát" },
+      { hex: "#5a4a3a", name: "Nâu đất" },
+    ],
+    sizes: ["XS", "S", "M", "L", "XL"],
+    unavailSizes: ["XS"],
+    features: [
+      "Chất liệu: Cotton Twill 240gsm dày dặn",
+      "Dáng wide leg, ống quần rộng thoải mái",
+      "6 túi: 2 túi chéo trước, 2 túi hộp bên, 2 túi sau",
+      "Lưng thun phối dây rút điều chỉnh",
+    ],
+    reviewList: [
+      { id: 1, name: "Hoàng Văn Minh", rating: 5, date: "13/03/2025", text: "Quần cargo này chuẩn trend! Phối cùng crop tee trông rất xịn." },
+      { id: 2, name: "Nguyễn Thị Bảo", rating: 4, date: "07/03/2025", text: "Chất dày, đứng form đẹp. Màu olive nhìn thực tế đẹp hơn ảnh nhiều." },
+    ],
+  },
+  {
+    id: 12,
+    type: "Quần",
+    name: "Shorts Thể Thao DryFit",
+    price: 249000,
+    originalPrice: null,
+    tag: null,
+    category: "Shorts",
+    rating: 4.5,
+    reviews: 61,
+    sold: 119,
+    sku: "STD-012",
+    material: "Polyester DryFit 130gsm",
+    description:
+      "Quần shorts thể thao công nghệ DryFit thấm hút mồ hôi nhanh, khô ngay khi vận động. Lót lưới thoáng mát bên trong, thun lưng co giãn 4 chiều. Phù hợp gym, chạy bộ, đá bóng hay đơn giản là mặc thường ngày.",
+    images: [
+      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1509551388413-e18d0ac5d495?w=600&h=750&fit=crop",
+    ],
+    colors: [
+      { hex: "#1a1a1a", name: "Đen" },
+      { hex: "#0077b6", name: "Xanh navy" },
+      { hex: "#ef233c", name: "Đỏ" },
+      { hex: "#2d7a2d", name: "Xanh lá" },
+    ],
+    sizes: ["S", "M", "L", "XL", "XXL"],
+    unavailSizes: [],
+    features: [
+      "Chất liệu: Polyester DryFit 130gsm siêu nhẹ",
+      "Công nghệ thấm hút mồ hôi, khô nhanh",
+      "Lót lưới thoáng mát, túi kéo khóa bên",
+      "Co giãn 4 chiều tự do vận động",
+    ],
+    reviewList: [
+      { id: 1, name: "Trần Quốc Dũng", rating: 5, date: "12/03/2025", text: "Mặc đi gym mỗi ngày, khô rất nhanh. Mua 3 cái luôn!" },
+      { id: 2, name: "Lê Thị Hoa", rating: 4, date: "06/03/2025", text: "Nhẹ thoáng, thoải mái. Mặc mùa hè rất phù hợp." },
+    ],
+  },
+  {
+    id: 13,
+    type: "Quần",
+    name: "Kaki Straight Fit",
+    price: 459000,
+    originalPrice: 530000,
+    tag: "Bán chạy",
+    category: "Kaki",
+    rating: 4.7,
+    reviews: 84,
+    sold: 163,
+    sku: "KSF-013",
+    material: "Cotton Kaki 260gsm",
+    description:
+      "Quần kaki straight fit thanh lịch, đa năng phối được cả outfits đi làm lẫn dạo phố. Chất cotton kaki dày dặn, không nhăn, giữ form cả ngày. Đường may tinh tế, phom chuẩn không lỗi mốt.",
+    images: [
+      "https://images.unsplash.com/photo-1604176354204-9268737828e4?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=600&h=750&fit=crop",
+    ],
+    colors: [
+      { hex: "#c8a882", name: "Be cát" },
+      { hex: "#556b2f", name: "Xanh olive" },
+      { hex: "#1a1a1a", name: "Đen" },
+      { hex: "#8B7355", name: "Nâu" },
+    ],
+    sizes: ["28", "29", "30", "31", "32", "34"],
+    unavailSizes: [],
+    features: [
+      "Chất liệu: Cotton Kaki 260gsm cao cấp",
+      "Dáng straight fit đứng form, không nhăn",
+      "Túi chéo trước, túi mổ sau tinh tế",
+      "Phù hợp đi làm, đi chơi, đi tiệc",
+    ],
+    reviewList: [
+      { id: 1, name: "Võ Thành Long", rating: 5, date: "11/03/2025", text: "Quần kaki chất lượng thật sự. Mặc đi làm ai cũng khen." },
+      { id: 2, name: "Nguyễn Thu Nga", rating: 4, date: "04/03/2025", text: "Màu be rất đẹp, dễ phối đồ. Chất không nhăn sau nguyên ngày mặc." },
+    ],
+  },
+  {
+    id: 14,
+    type: "Quần",
+    name: "Denim Baggy Y2K",
+    price: 529000,
+    originalPrice: null,
+    tag: "Mới",
+    category: "Jeans",
+    rating: 4.5,
+    reviews: 47,
+    sold: 89,
+    sku: "DBY-014",
+    material: "Denim Cotton 100%, 14oz",
+    description:
+      "Quần jeans baggy phong cách Y2K đang cực hot. Ống quần rộng, độ dài vừa phải, wash màu xanh nhạt vintage đặc trưng. Chất denim 14oz dày dặn đứng form, không bai. Mặc cùng sneaker hay boots đều đỉnh.",
+    images: [
+      "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=750&fit=crop",
+      "https://images.unsplash.com/photo-1604176354204-9268737828e4?w=600&h=750&fit=crop",
+    ],
+    colors: [
+      { hex: "#6b93c4", name: "Xanh nhạt" },
+      { hex: "#3a5a8a", name: "Xanh wash" },
+      { hex: "#1a1a1a", name: "Đen" },
+    ],
+    sizes: ["28", "29", "30", "31", "32"],
+    unavailSizes: ["28"],
+    features: [
+      "Chất liệu: Denim Cotton 100%, 14oz dày",
+      "Dáng baggy ống rộng phong cách Y2K",
+      "Màu wash vintage, fade đẹp theo thời gian",
+      "5 túi cổ điển, nút kim loại bền",
+    ],
+    reviewList: [
+      { id: 1, name: "Cao Thị Lan", rating: 5, date: "10/03/2025", text: "Quần Y2K chuẩn luôn! Mặc phối áo crop tee trông rất chill." },
+      { id: 2, name: "Bùi Quốc Huy", rating: 4, date: "03/03/2025", text: "Denim dày, form đứng đẹp. Màu wash nhạt rất vintage." },
+    ],
+  },
 ];
 
-// Helper: lấy sản phẩm theo id
+// ── Category definitions (dùng cho filter) ─────────────────────────────────
+export const CATEGORIES_AO = ["Cơ bản", "Graphic", "Oversized", "Vintage", "Thể thao", "Sọc kẻ"];
+export const CATEGORIES_QUAN = ["Jeans", "Jogger", "Cargo", "Shorts", "Kaki"];
+export const ALL_CATEGORIES = ["Tất cả", ...CATEGORIES_AO, ...CATEGORIES_QUAN];
+
+// ── Helper: lấy sản phẩm theo id ──────────────────────────────────────────
 export const getProductById = (id) =>
   ALL_PRODUCTS.find((p) => p.id === Number(id)) || null;
 
-// Helper: sản phẩm liên quan (cùng category, khác id)
-export const getRelatedProducts = (product, limit = 4) =>
-  ALL_PRODUCTS.filter(
+// ── Helper: sản phẩm liên quan (cùng type + category ưu tiên, khác id) ───
+export const getRelatedProducts = (product, limit = 4) => {
+  const sameCat = ALL_PRODUCTS.filter(
     (p) => p.category === product.category && p.id !== product.id
-  ).slice(0, limit);
+  );
+  if (sameCat.length >= limit) return sameCat.slice(0, limit);
+  const sameType = ALL_PRODUCTS.filter(
+    (p) => p.type === product.type && p.id !== product.id && p.category !== product.category
+  );
+  return [...sameCat, ...sameType].slice(0, limit);
+};

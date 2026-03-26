@@ -1,11 +1,20 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { ALL_PRODUCTS } from "../data/Products";
 import "./css/ProductsPage.css";
 
-const CATEGORIES = ["Tất cả", "Cơ bản", "Graphic", "Oversized", "Vintage", "Thể thao", "Sọc kẻ"];
-const SIZES     = ["XS", "S", "M", "L", "XL", "XXL"];
-const COLORS    = [
+const TYPES = ["Tất cả", "Áo", "Quần"];
+
+const CATEGORIES_BY_TYPE = {
+  "Tất cả": ["Tất cả", "Cơ bản", "Graphic", "Oversized", "Vintage", "Thể thao", "Sọc kẻ", "Jeans", "Jogger", "Cargo", "Shorts", "Kaki"],
+  "Áo":     ["Tất cả", "Cơ bản", "Graphic", "Oversized", "Vintage", "Thể thao", "Sọc kẻ"],
+  "Quần":   ["Tất cả", "Jeans", "Jogger", "Cargo", "Shorts", "Kaki"],
+};
+
+const SIZES_AO   = ["XS", "S", "M", "L", "XL", "XXL"];
+const SIZES_QUAN = ["28", "29", "30", "31", "32", "34", "S", "M", "L", "XL"];
+
+const COLORS = [
   { hex: "#1a1a1a", name: "Đen"     },
   { hex: "#ffffff", name: "Trắng"   },
   { hex: "#4A90E2", name: "Xanh"    },
@@ -27,7 +36,6 @@ function StarRating({ rating }) {
   );
 }
 
-/* ── Card: bọc trong <Link> để click → trang chi tiết ── */
 function ProductCard({ product }) {
   const [added,   setAdded]   = useState(false);
   const [loved,   setLoved]   = useState(false);
@@ -37,7 +45,6 @@ function ProductCard({ product }) {
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : null;
 
-  /* ảnh thumbnail: data mới dùng images[], data cũ dùng image */
   const thumb = Array.isArray(product.images) ? product.images[0] : product.image;
 
   const stopAndRun = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
@@ -60,7 +67,11 @@ function ProductCard({ product }) {
         )}
         {discount && <span className="product-discount">-{discount}%</span>}
 
-        {/* Wishlist btn — dừng navigate */}
+        {/* Type chip */}
+        <span className={`product-type-chip ${product.type === "Quần" ? "type-quan" : "type-ao"}`}>
+          {product.type}
+        </span>
+
         <button
           className={`wishlist-btn ${loved ? "loved" : ""}`}
           onClick={stopAndRun(() => setLoved((v) => !v))}
@@ -71,7 +82,6 @@ function ProductCard({ product }) {
           </svg>
         </button>
 
-        {/* Thêm giỏ — dừng navigate */}
         <button
           className={`btn-cart-overlay ${added ? "added" : ""}`}
           onClick={stopAndRun(() => { setAdded(true); setTimeout(() => setAdded(false), 1800); })}
@@ -100,25 +110,57 @@ function ProductCard({ product }) {
 
 /* ── Trang chính ─────────────────────────────────────── */
 export default function ProductsPage() {
+  const [searchParams] = useSearchParams();
+
+  const [typeFilter, setTypeFilter] = useState("Tất cả");
   const [category,   setCategory]   = useState("Tất cả");
-  const [sizes,      setSizes]      = useState([]);
-  const [colors,     setColors]     = useState([]);
-  const [sortBy,     setSortBy]     = useState("popular");
-  const [page,       setPage]       = useState(1);
-  const [viewMode,   setViewMode]   = useState("grid");
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sizes,      setSizes]       = useState([]);
+  const [colors,     setColors]      = useState([]);
+  const [sortBy,     setSortBy]      = useState("popular");
+  const [page,       setPage]        = useState(1);
+  const [viewMode,   setViewMode]    = useState("grid");
+  const [mobileOpen, setMobileOpen]  = useState(false);
+
+  /* Đọc query param từ URL (category hoặc type) */
+  useEffect(() => {
+    const cat  = searchParams.get("category");
+    const type = searchParams.get("type");
+    if (type)  { setTypeFilter(type); setCategory("Tất cả"); }
+    if (cat)   { setCategory(cat); }
+  }, [searchParams]);
+
+  /* Khi đổi typeFilter thì reset category về Tất cả */
+  const handleTypeChange = (t) => {
+    setTypeFilter(t);
+    setCategory("Tất cả");
+    setSizes([]);
+  };
+
+  const CATEGORIES = CATEGORIES_BY_TYPE[typeFilter] || CATEGORIES_BY_TYPE["Tất cả"];
+  const SIZES = typeFilter === "Quần" ? SIZES_QUAN
+              : typeFilter === "Áo"   ? SIZES_AO
+              : [...SIZES_AO, ...SIZES_QUAN.filter(s => !SIZES_AO.includes(s))];
 
   const toggleArr = (setter, val) =>
     setter((prev) => prev.includes(val) ? prev.filter((x) => x !== val) : [...prev, val]);
 
   let filtered = ALL_PRODUCTS;
-  if (category !== "Tất cả") filtered = filtered.filter((p) => p.category === category);
-  if (sizes.length)           filtered = filtered.filter((p) => p.sizes.some((s) => sizes.includes(s)));
 
+  /* Filter type */
+  if (typeFilter !== "Tất cả") filtered = filtered.filter((p) => p.type === typeFilter);
+  /* Filter category */
+  if (category !== "Tất cả")   filtered = filtered.filter((p) => p.category === category);
+  /* Filter sizes */
+  if (sizes.length)             filtered = filtered.filter((p) => p.sizes.some((s) => sizes.includes(s)));
+
+  /* Sort */
   if (sortBy === "price_asc")  filtered = [...filtered].sort((a, b) => a.price - b.price);
   if (sortBy === "price_desc") filtered = [...filtered].sort((a, b) => b.price - a.price);
   if (sortBy === "rating")     filtered = [...filtered].sort((a, b) => b.rating - a.rating);
   if (sortBy === "newest")     filtered = [...filtered].sort((a, b) => b.id - a.id);
+
+  const totalAo   = ALL_PRODUCTS.filter(p => p.type === "Áo").length;
+  const totalQuan = ALL_PRODUCTS.filter(p => p.type === "Quần").length;
 
   return (
     <div className="products-page">
@@ -127,9 +169,17 @@ export default function ProductsPage() {
           <Link to="/">Trang chủ</Link>
           <span className="breadcrumb-sep">/</span>
           <span>Sản phẩm</span>
+          {typeFilter !== "Tất cả" && (
+            <><span className="breadcrumb-sep">/</span><span>{typeFilter}</span></>
+          )}
         </div>
-        <h1 className="products-page-title">Áo thun <span className="accent">UniqTee</span></h1>
-        <p className="products-page-sub">Khám phá {ALL_PRODUCTS.length}+ mẫu áo thun unisex đa dạng phong cách</p>
+        <h1 className="products-page-title">
+          Thời trang <span className="accent">UniqTee</span>
+        </h1>
+        <p className="products-page-sub">
+          Khám phá {ALL_PRODUCTS.length}+ sản phẩm unisex —&nbsp;
+          {totalAo} mẫu áo · {totalQuan} mẫu quần · đa dạng phong cách
+        </p>
       </div>
 
       <div className="products-layout">
@@ -137,24 +187,29 @@ export default function ProductsPage() {
         <aside className={`filters-sidebar ${mobileOpen ? "mobile-open" : ""}`}>
           <div className="filters-title">
             Bộ lọc
-            <button className="filters-reset" onClick={() => { setSizes([]); setColors([]); setCategory("Tất cả"); }}>
+            <button className="filters-reset" onClick={() => { setSizes([]); setColors([]); setCategory("Tất cả"); setTypeFilter("Tất cả"); }}>
               Xóa tất cả
             </button>
           </div>
+
+          
 
           {/* Category */}
           <div className="filter-group">
             <p className="filter-group-label">Danh mục</p>
             <div className="filter-options">
-              {CATEGORIES.map((cat) => (
-                <label key={cat} className={`filter-option ${category === cat ? "checked" : ""}`} onClick={() => setCategory(cat)}>
-                  <div className="filter-checkbox">{category === cat && <span className="filter-check-mark">✓</span>}</div>
-                  <span className="filter-option-name">{cat}</span>
-                  <span className="filter-option-count">
-                    {cat === "Tất cả" ? ALL_PRODUCTS.length : ALL_PRODUCTS.filter((p) => p.category === cat).length}
-                  </span>
-                </label>
-              ))}
+              {CATEGORIES.map((cat) => {
+                const count = cat === "Tất cả"
+                  ? (typeFilter === "Tất cả" ? ALL_PRODUCTS.length : ALL_PRODUCTS.filter(p => p.type === typeFilter).length)
+                  : ALL_PRODUCTS.filter((p) => p.category === cat).length;
+                return (
+                  <label key={cat} className={`filter-option ${category === cat ? "checked" : ""}`} onClick={() => setCategory(cat)}>
+                    <div className="filter-checkbox">{category === cat && <span className="filter-check-mark">✓</span>}</div>
+                    <span className="filter-option-name">{cat}</span>
+                    <span className="filter-option-count">{count}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -185,13 +240,30 @@ export default function ProductsPage() {
             <div className="price-range-inputs">
               <input type="number" placeholder="150.000" />
               <span className="price-range-sep">—</span>
-              <input type="number" placeholder="500.000" />
+              <input type="number" placeholder="700.000" />
             </div>
           </div>
         </aside>
 
         {/* ── Grid ── */}
         <div className="products-grid-area">
+          {/* Type tabs nhanh */}
+          <div className="type-quick-tabs">
+            {TYPES.map((t) => {
+              const cnt = t === "Tất cả" ? ALL_PRODUCTS.length : ALL_PRODUCTS.filter(p => p.type === t).length;
+              return (
+                <button
+                  key={t}
+                  className={`type-quick-tab ${typeFilter === t ? "active" : ""}`}
+                  onClick={() => handleTypeChange(t)}
+                >
+                  {t === "Áo" ? "👕" : t === "Quần" ? "👖" : "🛍️"} {t}
+                  <span className="type-quick-count">{cnt}</span>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="products-toolbar">
             <p className="products-count">Hiển thị <strong>{filtered.length}</strong> sản phẩm</p>
             <div className="toolbar-right">
@@ -224,9 +296,22 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          <div className={`p-grid ${viewMode === "list" ? "list-view" : ""}`}>
-            {filtered.map((p) => <ProductCard key={p.id} product={p} />)}
-          </div>
+          {filtered.length === 0 ? (
+            <div className="products-empty">
+              <p style={{ fontSize: "2.5rem", marginBottom: 16 }}>🔍</p>
+              <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>Không tìm thấy sản phẩm phù hợp</p>
+              <button
+                style={{ marginTop: 16, padding: "9px 20px", background: "var(--accent)", color: "#fff", borderRadius: 10, fontWeight: 700, fontSize: "0.875rem", cursor: "pointer", border: "none" }}
+                onClick={() => { setTypeFilter("Tất cả"); setCategory("Tất cả"); setSizes([]); setColors([]); }}
+              >
+                Xóa bộ lọc
+              </button>
+            </div>
+          ) : (
+            <div className={`p-grid ${viewMode === "list" ? "list-view" : ""}`}>
+              {filtered.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          )}
 
           <div className="pagination">
             {[1, 2, 3, 4].map((p) => (

@@ -1,7 +1,17 @@
 import { Link } from "react-router-dom";
-import { ALL_PRODUCTS } from "../data/Products";
 import { AdminLayout } from "./Adminheader";
 import "./css/Admin.css";
+import {
+  DASHBOARD_STATS,
+  MONTHLY_REVENUE,
+  RECENT_ORDERS,
+  getTopProducts,
+  SHIRT_CATEGORIES,
+  PANTS_CATEGORIES,
+  getCategoryCount,
+  DASH_STATUS_MAP,
+} from "../data/AdminDashboardData";
+import { ALL_PRODUCTS } from "../data/Products";
 
 function Sparkline({ data, color = "var(--accent)" }) {
   const max = Math.max(...data), min = Math.min(...data);
@@ -13,7 +23,7 @@ function Sparkline({ data, color = "var(--accent)" }) {
     return `${x},${y}`;
   });
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow:"visible" }}>
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: "visible" }}>
       <polyline points={pts.join(" ")} fill="none" stroke={color}
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -26,7 +36,7 @@ function BarChart({ data, labels }) {
     <div className="bar-chart">
       {data.map((v, i) => (
         <div key={i} className="bar-col">
-          <div className="bar-fill" style={{ height:`${(v/max)*100}%` }} />
+          <div className="bar-fill" style={{ height: `${(v / max) * 100}%` }} />
           <span className="bar-label">{labels[i]}</span>
         </div>
       ))}
@@ -35,33 +45,17 @@ function BarChart({ data, labels }) {
 }
 
 export default function AdminDashboard() {
-  const stats = [
-    { label:"Doanh thu tháng", value:"48.350.000đ", change:"+12.4%", up:true,  spark:[28,35,30,42,38,45,48],           color:"var(--accent)" },
-    { label:"Đơn hàng mới",   value:"134",          change:"+8.1%",  up:true,  spark:[80,95,88,110,102,120,134],        color:"#60a5fa"       },
-    { label:"Sản phẩm",       value:ALL_PRODUCTS.length, change:"0%", up:true, spark:[6,6,7,7,8,8,ALL_PRODUCTS.length], color:"#a78bfa"       },
-    { label:"Khách hàng",     value:"1.024",         change:"+5.3%", up:true,  spark:[600,700,750,820,880,960,1024],     color:"#34d399"       },
-  ];
+  const topProducts = getTopProducts(5);
+  const totalAo   = ALL_PRODUCTS.filter((p) => p.type === "Áo").length;
+  const totalQuan = ALL_PRODUCTS.filter((p) => p.type === "Quần").length;
 
-  const recentOrders = [
-    { id:"UNQ7F3K2", customer:"Nguyễn Thị Lan",  total:"648.000đ",   status:"delivered",  date:"15/03" },
-    { id:"UNQ2M9P1", customer:"Trần Quốc Bảo",   total:"379.000đ",   status:"shipping",   date:"14/03" },
-    { id:"UNQ5X8Q4", customer:"Lê Mỹ Duyên",     total:"1.278.000đ", status:"processing", date:"14/03" },
-    { id:"UNQ9R1Z7", customer:"Phạm Minh Tuấn",  total:"299.000đ",   status:"delivered",  date:"13/03" },
-    { id:"UNQ4K2W3", customer:"Hoàng Thu Hương",  total:"697.000đ",   status:"cancelled",  date:"12/03" },
-  ];
-
-  const topProducts = ALL_PRODUCTS.slice(0,5).map((p) => ({
-    name:p.name, sold:p.sold,
-    revenue:(p.price * p.sold).toLocaleString("vi-VN")+"đ",
-    img:Array.isArray(p.images) ? p.images[0] : p.image,
-  }));
-
-  const STATUS_MAP = {
-    delivered:  { label:"Đã giao",   cls:"st-delivered"  },
-    shipping:   { label:"Đang giao", cls:"st-shipping"   },
-    processing: { label:"Xử lý",     cls:"st-processing" },
-    cancelled:  { label:"Đã hủy",    cls:"st-cancelled"  },
-  };
+  const resolvedStats = DASHBOARD_STATS.map((s) => {
+    if (s.getValue) {
+      const { display, spark } = s.getValue();
+      return { ...s, value: display, spark };
+    }
+    return s;
+  });
 
   return (
     <AdminLayout
@@ -71,8 +65,8 @@ export default function AdminDashboard() {
     >
       {/* Stats */}
       <div className="stats-grid">
-        {stats.map((s,i) => (
-          <div key={i} className="stat-card" style={{"--card-accent":s.color}}>
+        {resolvedStats.map((s, i) => (
+          <div key={i} className="stat-card" style={{ "--card-accent": s.color }}>
             <div className="stat-top">
               <div>
                 <p className="stat-label">{s.label}</p>
@@ -80,11 +74,49 @@ export default function AdminDashboard() {
               </div>
               <Sparkline data={s.spark} color={s.color} />
             </div>
-            <p className={`stat-change ${s.up?"up":"down"}`}>
-              {s.up?"↑":"↓"} {s.change} so với tháng trước
+            <p className={`stat-change ${s.up ? "up" : "down"}`}>
+              {s.up ? "↑" : "↓"} {s.change} so với tháng trước
             </p>
           </div>
         ))}
+      </div>
+
+      {/* Phân loại Áo / Quần */}
+      <div className="stats-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="admin-card" style={{ borderTop: "2px solid #ff5fa3" }}>
+          <div className="card-header">
+            <p className="card-title">👕 Áo thun</p>
+            <span className="card-tag">{totalAo} sản phẩm</span>
+          </div>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {SHIRT_CATEGORIES.map((cat) => (
+              <div key={cat} style={{ textAlign: "center" }}>
+                <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem", color: "var(--accent)" }}>
+                  {getCategoryCount(cat)}
+                </p>
+                <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{cat}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="admin-card" style={{ borderTop: "2px solid #60a5fa" }}>
+          <div className="card-header">
+            <p className="card-title">👖 Quần</p>
+            <span className="card-tag" style={{ color: "#60a5fa", background: "rgba(96,165,250,.12)", border: "1px solid rgba(96,165,250,.2)" }}>
+              {totalQuan} sản phẩm
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {PANTS_CATEGORIES.map((cat) => (
+              <div key={cat} style={{ textAlign: "center" }}>
+                <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem", color: "#60a5fa" }}>
+                  {getCategoryCount(cat)}
+                </p>
+                <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{cat}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Revenue + Orders */}
@@ -92,28 +124,26 @@ export default function AdminDashboard() {
         <div className="admin-card">
           <div className="card-header">
             <p className="card-title">Doanh thu theo tháng</p>
-            <span className="card-tag">2025</span>
+            <span className="card-tag">{MONTHLY_REVENUE.year}</span>
           </div>
-          <BarChart data={[18,22,19,28,24,32,29,38,34,42,39,48]}
-            labels={["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12"]} />
+          <BarChart data={MONTHLY_REVENUE.data} labels={MONTHLY_REVENUE.labels} />
         </div>
-
         <div className="admin-card">
           <div className="card-header">
             <p className="card-title">Đơn hàng gần đây</p>
             <Link to="/admin/orders" className="card-link">Xem tất cả →</Link>
           </div>
           <div className="order-mini-list">
-            {recentOrders.map((o) => (
+            {RECENT_ORDERS.map((o) => (
               <div key={o.id} className="order-mini-row">
                 <div>
                   <p className="omr-id">#{o.id}</p>
                   <p className="omr-name">{o.customer}</p>
                 </div>
-                <div style={{textAlign:"right"}}>
+                <div style={{ textAlign: "right" }}>
                   <p className="omr-total">{o.total}</p>
-                  <span className={`omr-status ${STATUS_MAP[o.status].cls}`}>
-                    {STATUS_MAP[o.status].label}
+                  <span className={`omr-status ${DASH_STATUS_MAP[o.status].cls}`}>
+                    {DASH_STATUS_MAP[o.status].label}
                   </span>
                 </div>
               </div>
@@ -129,14 +159,30 @@ export default function AdminDashboard() {
           <Link to="/admin/products" className="card-link">Quản lý →</Link>
         </div>
         <table className="admin-table">
-          <thead><tr><th>Sản phẩm</th><th>Đã bán</th><th>Doanh thu</th><th>Xếp hạng</th></tr></thead>
+          <thead>
+            <tr><th>Sản phẩm</th><th>Loại</th><th>Đã bán</th><th>Doanh thu</th><th>Xếp hạng</th></tr>
+          </thead>
           <tbody>
-            {topProducts.map((p,i) => (
+            {topProducts.map((p, i) => (
               <tr key={i}>
-                <td><div className="tp-product-cell"><img src={p.img} alt={p.name} className="tp-img"/><span>{p.name}</span></div></td>
+                <td>
+                  <div className="tp-product-cell">
+                    <img src={p.img} alt={p.name} className="tp-img" />
+                    <span>{p.name}</span>
+                  </div>
+                </td>
+                <td>
+                  <span className={`role-badge ${p.type === "Quần" ? "role-staff" : "role-customer"}`}>
+                    {p.type === "Áo" ? "👕" : "👖"} {p.type}
+                  </span>
+                </td>
                 <td><span className="tp-sold">{p.sold}</span></td>
                 <td><span className="tp-revenue">{p.revenue}</span></td>
-                <td><div className="tp-rank-bar"><div className="tp-rank-fill" style={{width:`${(p.sold/topProducts[0].sold)*100}%`}}/></div></td>
+                <td>
+                  <div className="tp-rank-bar">
+                    <div className="tp-rank-fill" style={{ width: `${(p.sold / topProducts[0].sold) * 100}%` }} />
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
