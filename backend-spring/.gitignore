@@ -1,0 +1,47 @@
+# Maven build files
+target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+
+# IDE specific files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dependencies
+.mvn/
+mvnw
+mvnw.cmd
+
+# Logging
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS specific
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Project specific
+node_modules/
+.npm
+.gradle
+build/

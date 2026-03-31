@@ -282,7 +282,7 @@ img { display: block; max-width: 100%; object-fit: cover; }
 }
 .input-icon {
   position: absolute; left: 16px;
-  width: 36px; /* reserve space so text does not overlap */
+  width: 60px; /* reserve space so text does not overlap */
   color: var(--text-muted);
   pointer-events: none;
   display: flex; align-items: center;
@@ -293,7 +293,7 @@ img { display: block; max-width: 100%; object-fit: cover; }
 .form-input {
   width: 100%;
   /* reserve wider left padding so icon never overlaps input text */
-  padding: 12px 52px 12px 64px;
+  padding: 14px 60px 14px 85px;
   background: var(--surface);
   border: 1px solid var(--border-2);
   border-radius: var(--radius);
@@ -304,7 +304,7 @@ img { display: block; max-width: 100%; object-fit: cover; }
 }
 
 /* stronger selector to avoid overrides from generic input rules */
-.auth-form .form-input { padding-left: 64px; }
+.auth-form .form-input { padding-left: 85px; }
 .form-input::placeholder { color: var(--text-muted); }
 .form-input:focus {
   border-color: var(--accent);

@@ -1,12 +1,16 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { userAPI } from "../services/api";
 import "./css/Loginpage.css";
 
 export default function Loginpage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const validate = () => {
     const e = {};
@@ -20,14 +24,38 @@ export default function Loginpage() {
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     if (errors[e.target.name]) setErrors((prev) => ({ ...prev, [e.target.name]: "" }));
+    if (serverError) setServerError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) { 
+      setErrors(errs); 
+      return; 
+    }
+    
     setLoading(true);
-    setTimeout(() => { setLoading(false); setSuccess(true); }, 1800);
+    setServerError("");
+    
+    try {
+      // Gọi API login
+      const response = await userAPI.login(form.email, form.password);
+      
+      // Nếu login thành công
+      if (response && response.token) {
+        setSuccess(true);
+        setLoading(false);
+        
+        // Redirect về homepage sau 1.5 giây
+        setTimeout(() => {
+          navigate("/");
+        }, 1500);
+      }
+    } catch (error) {
+      setServerError(error.message || "Đăng nhập thất bại. Vui lòng thử lại.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,9 +101,25 @@ export default function Loginpage() {
                 </p>
               </div>
 
+              {/* Server error message */}
+              {serverError && (
+                <div className="server-error-msg" style={{
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  backgroundColor: 'rgba(248, 113, 113, 0.12)',
+                  border: '1px solid #f87171',
+                  borderRadius: 'var(--radius)',
+                  color: '#f87171',
+                  fontSize: '14px',
+                  lineHeight: 1.5
+                }}>
+                  {serverError}
+                </div>
+              )}
+
               {/* Social login */}
               <div className="social-btns">
-                <button className="btn-social">
+                <button type="button" className="btn-social" disabled={loading}>
                   <svg width="18" height="18" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -84,7 +128,7 @@ export default function Loginpage() {
                   </svg>
                   Tiếp tục với Google
                 </button>
-                <button className="btn-social">
+                <button type="button" className="btn-social" disabled={loading}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                   </svg>
@@ -113,6 +157,7 @@ export default function Loginpage() {
                       value={form.email}
                       onChange={handleChange}
                       autoComplete="email"
+                      disabled={loading}
                     />
                   </div>
                   {errors.email && <p className="form-error">{errors.email}</p>}
@@ -138,12 +183,14 @@ export default function Loginpage() {
                       value={form.password}
                       onChange={handleChange}
                       autoComplete="current-password"
+                      disabled={loading}
                     />
                     <button
                       type="button"
                       className="input-toggle"
                       onClick={() => setShowPass(!showPass)}
                       aria-label="Toggle password"
+                      disabled={loading}
                     >
                       {showPass ? (
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24">

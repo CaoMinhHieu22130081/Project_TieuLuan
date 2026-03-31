@@ -375,8 +375,8 @@ img { display: block; max-width: 100%; object-fit: cover; }
 
 .input-icon {
   position: absolute;
-  left: 14px;
-  width: 36px; /* reserve space for the icon */
+  left: 16px;
+  width: 60px; /* reserve space for the icon */
   color: var(--text-muted);
   pointer-events: none;
   display: flex;
@@ -390,7 +390,7 @@ img { display: block; max-width: 100%; object-fit: cover; }
 .form-input {
   width: 100%;
   /* more left padding so text won't sit under the icon */
-  padding: 12px 44px 12px 64px;
+padding: 14px 60px 14px 85px;
   background: var(--surface);
   border: 1px solid var(--border-2);
   border-radius: var(--radius);
@@ -402,7 +402,7 @@ img { display: block; max-width: 100%; object-fit: cover; }
 }
 
 /* ensure specificity over generic selectors */
-.auth-form .form-input { padding-left: 64px; }
+.auth-form .form-input { padding-left: 85px; }
 
 .form-input::placeholder { color: var(--text-muted); }
 

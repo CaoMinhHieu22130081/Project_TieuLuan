@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { userAPI } from "../services/api";
 import "./css/Registerpage.css";
 
 const STEPS = ["Tài khoản", "Cá nhân", "Xong"];
@@ -39,6 +41,7 @@ function PasswordStrength({ password }) {
 }
 
 export default function Registerpage() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -46,24 +49,36 @@ export default function Registerpage() {
   const [done, setDone] = useState(false);
   const [errors, setErrors] = useState({});
   const [agree, setAgree] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const [form, setForm] = useState({
     email: "", password: "", confirm: "",
     fullName: "", phone: "", gender: "", dob: "",
+    name: "", // name field for API
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    if (serverError) setServerError("");
   };
 
   const validateStep0 = () => {
     const e = {};
     if (!form.email) e.email = "Vui lòng nhập email";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email không hợp lệ";
+    
     if (!form.password) e.password = "Vui lòng nhập mật khẩu";
-    else if (form.password.length < 8) e.password = "Mật khẩu phải ít nhất 8 ký tự";
+    else {
+      const passErrors = [];
+      if (form.password.length < 8) passErrors.push("Ít nhất 8 ký tự");
+      if (!/[A-Z]/.test(form.password)) passErrors.push("Ít nhất 1 chữ hoa");
+      if (!/[0-9]/.test(form.password)) passErrors.push("Ít nhất 1 số");
+      if (!/[^A-Za-z0-9]/.test(form.password)) passErrors.push("Ít nhất 1 ký tự đặc biệt");
+      if (passErrors.length > 0) e.password = `Mật khẩu phải có: ${passErrors.join(", ")}`;
+    }
+    
     if (!form.confirm) e.confirm = "Vui lòng xác nhận mật khẩu";
     else if (form.confirm !== form.password) e.confirm = "Mật khẩu không khớp";
     if (!agree) e.agree = "Bạn phải đồng ý điều khoản";
@@ -75,20 +90,52 @@ export default function Registerpage() {
     if (!form.fullName.trim()) e.fullName = "Vui lòng nhập họ tên";
     if (!form.phone) e.phone = "Vui lòng nhập số điện thoại";
     else if (!/^0\d{9}$/.test(form.phone)) e.phone = "Số điện thoại không hợp lệ (VD: 0912345678)";
+    if (!form.gender) e.gender = "Vui lòng chọn giới tính";
+    if (!form.dob) e.dob = "Vui lòng chọn ngày sinh";
     return e;
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     const errs = step === 0 ? validateStep0() : validateStep1();
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
+    
     if (step < 1) { setStep((s) => s + 1); return; }
-    // final submit
+    
+    // Final submit - call API
     setLoading(true);
-    setTimeout(() => { setLoading(false); setDone(true); }, 2000);
+    setServerError("");
+    
+    try {
+      // Prepare user data for API
+      const userData = {
+        email: form.email,
+        password: form.password,
+        name: form.fullName,
+        phone: form.phone,
+        gender: form.gender || null,
+        dob: form.dob || null,
+      };
+      
+      // Call register API
+      const response = await userAPI.register(userData);
+      
+      if (response && response.token) {
+        setDone(true);
+        setLoading(false);
+        
+        // Redirect to login page after 2 seconds
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
+      }
+    } catch (error) {
+      setServerError(error.message || "Đăng ký thất bại. Vui lòng thử lại.");
+      setLoading(false);
+    }
   };
 
-  const prevStep = () => { setErrors({}); setStep((s) => s - 1); };
+  const prevStep = () => { setErrors({}); setServerError(""); setStep((s) => s - 1); };
 
   if (done) {
     return (
@@ -174,6 +221,22 @@ export default function Registerpage() {
             ))}
           </div>
 
+          {/* Server error message */}
+          {serverError && (
+            <div className="server-error-msg" style={{
+              padding: '12px 16px',
+              marginBottom: '16px',
+              backgroundColor: 'rgba(248, 113, 113, 0.12)',
+              border: '1px solid #f87171',
+              borderRadius: 'var(--radius)',
+              color: '#f87171',
+              fontSize: '14px',
+              lineHeight: 1.5
+            }}>
+              {serverError}
+            </div>
+          )}
+
           {/* ── Step 0: Account ── */}
           {step === 0 && (
             <div className="form-step">
@@ -188,7 +251,7 @@ export default function Registerpage() {
                   </span>
                   <input type="email" name="email" className="form-input"
                     placeholder="example@email.com"
-                    value={form.email} onChange={handleChange} autoComplete="email" />
+                    value={form.email} onChange={handleChange} autoComplete="email" disabled={loading} />
                 </div>
                 {errors.email && <p className="form-error">{errors.email}</p>}
               </div>
@@ -204,8 +267,8 @@ export default function Registerpage() {
                   </span>
                   <input type={showPass ? "text" : "password"} name="password" className="form-input"
                     placeholder="Ít nhất 8 ký tự"
-                    value={form.password} onChange={handleChange} autoComplete="new-password" />
-                  <button type="button" className="input-toggle" onClick={() => setShowPass(!showPass)}>
+                    value={form.password} onChange={handleChange} autoComplete="new-password" disabled={loading} />
+                  <button type="button" className="input-toggle" onClick={() => setShowPass(!showPass)} disabled={loading}>
                     {showPass
                       ? <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                       : <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
@@ -228,8 +291,8 @@ export default function Registerpage() {
                   </span>
                   <input type={showConfirm ? "text" : "password"} name="confirm" className="form-input"
                     placeholder="Nhập lại mật khẩu"
-                    value={form.confirm} onChange={handleChange} autoComplete="new-password" />
-                  <button type="button" className="input-toggle" onClick={() => setShowConfirm(!showConfirm)}>
+                    value={form.confirm} onChange={handleChange} autoComplete="new-password" disabled={loading} />
+                  <button type="button" className="input-toggle" onClick={() => setShowConfirm(!showConfirm)} disabled={loading}>
                     {showConfirm
                       ? <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M1 1l22 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                       : <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
@@ -244,20 +307,20 @@ export default function Registerpage() {
 
               <div className={`form-group checkbox-group ${errors.agree ? "has-error" : ""}`}>
                 <label className="checkbox-label">
-                  <input type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); if (errors.agree) setErrors(p => ({...p, agree:""})); }} />
+                  <input type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); if (errors.agree) setErrors(p => ({...p, agree:""})); }} disabled={loading} />
                   <span className="checkbox-box" />
                   <span>Tôi đồng ý với <a href="#" className="auth-switch-link">Điều khoản dịch vụ</a> và <a href="#" className="auth-switch-link">Chính sách bảo mật</a></span>
                 </label>
                 {errors.agree && <p className="form-error">{errors.agree}</p>}
               </div>
 
-              <button type="button" className="btn-submit" onClick={nextStep}>
+              <button type="button" className="btn-submit" onClick={nextStep} disabled={loading}>
                 Tiếp theo →
               </button>
 
               <div className="divider"><span>hoặc đăng ký với</span></div>
               <div className="social-btns">
-                <button className="btn-social">
+                <button type="button" className="btn-social" disabled={loading}>
                   <svg width="18" height="18" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -266,7 +329,7 @@ export default function Registerpage() {
                   </svg>
                   Google
                 </button>
-                <button className="btn-social">
+                <button type="button" className="btn-social" disabled={loading}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                   </svg>
@@ -290,7 +353,7 @@ export default function Registerpage() {
                   </span>
                   <input type="text" name="fullName" className="form-input"
                     placeholder="Nguyễn Văn A"
-                    value={form.fullName} onChange={handleChange} autoComplete="name" />
+                    value={form.fullName} onChange={handleChange} autoComplete="name" disabled={loading} />
                 </div>
                 {errors.fullName && <p className="form-error">{errors.fullName}</p>}
               </div>
@@ -305,23 +368,24 @@ export default function Registerpage() {
                   </span>
                   <input type="tel" name="phone" className="form-input"
                     placeholder="0912 345 678"
-                    value={form.phone} onChange={handleChange} autoComplete="tel" />
+                    value={form.phone} onChange={handleChange} autoComplete="tel" disabled={loading} />
                 </div>
                 {errors.phone && <p className="form-error">{errors.phone}</p>}
               </div>
 
               <div className="form-row-2">
-                <div className="form-group">
-                  <label className="form-label">Giới tính <span className="optional">(tuỳ chọn)</span></label>
-                  <select name="gender" className="form-select" value={form.gender} onChange={handleChange}>
+                <div className={`form-group ${errors.gender ? "has-error" : ""}`}>
+                  <label className="form-label">Giới tính</label>
+                  <select name="gender" className="form-select" value={form.gender} onChange={handleChange} disabled={loading}>
                     <option value="">Chọn giới tính</option>
                     <option value="male">Nam</option>
                     <option value="female">Nữ</option>
                     <option value="other">Khác</option>
                   </select>
+                  {errors.gender && <p className="form-error">{errors.gender}</p>}
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Ngày sinh <span className="optional">(tuỳ chọn)</span></label>
+                <div className={`form-group ${errors.dob ? "has-error" : ""}`}>
+                  <label className="form-label">Ngày sinh</label>
                   <div className="input-wrap">
                     <span className="input-icon">
                       <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
@@ -332,13 +396,14 @@ export default function Registerpage() {
                       </svg>
                     </span>
                     <input type="date" name="dob" className="form-input"
-                      value={form.dob} onChange={handleChange} />
+                      value={form.dob} onChange={handleChange} disabled={loading} />
                   </div>
+                  {errors.dob && <p className="form-error">{errors.dob}</p>}
                 </div>
               </div>
 
               <div className="form-step-actions">
-                <button type="button" className="btn-back" onClick={prevStep}>← Quay lại</button>
+                <button type="button" className="btn-back" onClick={prevStep} disabled={loading}>← Quay lại</button>
                 <button
                   type="button"
                   className={`btn-submit flex-1 ${loading ? "loading" : ""}`}

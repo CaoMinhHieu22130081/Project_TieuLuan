@@ -151,7 +151,7 @@
 }
 
 .form-input {
-  padding: 11px 14px;
+  padding: 11px 40px;
   background: var(--surface);
   border: 1px solid var(--border-2);
   border-radius: 10px;
