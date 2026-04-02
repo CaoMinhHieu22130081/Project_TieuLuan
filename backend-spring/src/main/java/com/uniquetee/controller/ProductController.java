@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.uniquetee.annotation.RequiredRole;
 import com.uniquetee.entity.Product;
 import com.uniquetee.service.ProductService;
 
@@ -53,12 +54,14 @@ public class ProductController {
     }
 
     @PostMapping
+    @RequiredRole({"admin"})
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         Product createdProduct = productService.createProduct(product);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
     }
 
     @PutMapping("/{id}")
+    @RequiredRole({"admin"})
     public ResponseEntity<Product> updateProduct(@PathVariable Integer id, @RequestBody Product productDetails) {
         Product updatedProduct = productService.updateProduct(id, productDetails);
         if (updatedProduct != null) {
@@ -68,6 +71,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @RequiredRole({"admin"})
     public ResponseEntity<Void> deleteProduct(@PathVariable Integer id) {
         if (productService.deleteProduct(id)) {
             return ResponseEntity.noContent().build();

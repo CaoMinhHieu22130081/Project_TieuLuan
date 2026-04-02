@@ -31,15 +31,15 @@ logging.level.org.springframework.security.oauth2=DEBUG
 # App
 spring.application.name=UniqueTee Backend
 
-# JWT Configuration
+# JWT Configuration (set via environment variables)
 jwt.secret=${JWT_SECRET:mySecretKeyForSigningJWTTokensForUniqueTeeApplicationPleaseChangeInProduction}
 jwt.expiration=${JWT_EXPIRATION:86400000}
 
-# Gmail Mail Configuration
+# Gmail Mail Configuration (set via environment variables)
 spring.mail.host=smtp.gmail.com
 spring.mail.port=587
-spring.mail.username=${GMAIL_USERNAME:caominhhieunq@gmail.com}
-spring.mail.password=${GMAIL_PASSWORD:}
+spring.mail.username=${GMAIL_USERNAME:your-email@gmail.com}
+spring.mail.password=${GMAIL_PASSWORD:your-app-password}
 spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true
 spring.mail.properties.mail.smtp.starttls.required=true
@@ -50,9 +50,9 @@ spring.mail.properties.mail.smtp.writetimeout=5000
 # Password Reset Token Expiration (in minutes)
 password.reset.token.expiration=30
 
-# OAuth2 Configuration for Google
-spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID:}
-spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET:}
+# OAuth2 Configuration for Google (set via environment variables)
+spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID:your-client-id}
+spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET:your-client-secret}
 spring.security.oauth2.client.registration.google.scope=profile,email
 spring.security.oauth2.client.registration.google.redirect-uri=http://localhost:8080/api/login/oauth2/code/google
 

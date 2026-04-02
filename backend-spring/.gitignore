@@ -45,3 +45,9 @@ node_modules/
 .npm
 .gradle
 build/
+
+# Configuration files with sensitive data
+src/main/resources/application.properties
+src/main/resources/application-dev.properties
+src/main/resources/application-prod.properties
+!src/main/resources/application.properties.example

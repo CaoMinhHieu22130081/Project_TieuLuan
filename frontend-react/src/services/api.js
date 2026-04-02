@@ -25,6 +25,8 @@ export const removeToken = () => {
   localStorage.removeItem('authToken');
   localStorage.removeItem('userId');
   localStorage.removeItem('userEmail');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('userData');
 };
 
 /**
@@ -164,12 +166,14 @@ export const userAPI = {
       
       const data = await response.json();
       
-      // Save token and user info
-      if (data.token) {
+      // Save token and full user info
+      if (data.token && data.user) {
         saveToken(data.token);
         localStorage.setItem('userId', data.user.id);
         localStorage.setItem('userEmail', data.user.email);
         localStorage.setItem('userName', data.user.name);
+        // Lưu toàn bộ user object
+        localStorage.setItem('userData', JSON.stringify(data.user));
       }
       
       return data;
@@ -197,12 +201,14 @@ export const userAPI = {
       
       const data = await response.json();
       
-      // Save token and user info
-      if (data.token) {
+      // Save token and full user info
+      if (data.token && data.user) {
         saveToken(data.token);
         localStorage.setItem('userId', data.user.id);
         localStorage.setItem('userEmail', data.user.email);
         localStorage.setItem('userName', data.user.name);
+        // Lưu toàn bộ user object
+        localStorage.setItem('userData', JSON.stringify(data.user));
       }
       
       return data;
@@ -245,6 +251,52 @@ export const userAPI = {
       return await response.json();
     } catch (error) {
       console.error('Error updating profile:', error);
+      throw error;
+    }
+  },
+
+  // Forgot password - request reset token
+  forgotPassword: async (email) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to request password reset');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error requesting password reset:', error);
+      throw error;
+    }
+  },
+
+  // Reset password - verify token and set new password
+  resetPassword: async (token, newPassword) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, newPassword }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to reset password');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error resetting password:', error);
       throw error;
     }
   },

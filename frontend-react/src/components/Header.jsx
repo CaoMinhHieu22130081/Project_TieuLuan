@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import SearchBar from './SearchBar';
 import '../pages/css/Header.css';
 
@@ -55,6 +57,8 @@ function HeaderSearchOverlay({ onClose }) {
 }
 
 export default function Header({ cartCount = 0 }) {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -64,6 +68,11 @@ export default function Header({ cartCount = 0 }) {
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <>
@@ -86,8 +95,16 @@ export default function Header({ cartCount = 0 }) {
           </nav>
 
           <div className="nav-actions">
-            <a href="/login" className="nav-btn-link nav-btn-login">Đăng nhập</a>
-            <a href="/register" className="nav-btn-link nav-btn-register">Đăng ký</a>
+            {!user ? (
+              <>
+                <a href="/login" className="nav-btn-link nav-btn-login">Đăng nhập</a>
+                <a href="/register" className="nav-btn-link nav-btn-register">Đăng ký</a>
+              </>
+            ) : (
+              <button onClick={handleLogout} className="nav-btn-link nav-btn-register">
+                Đăng xuất
+              </button>
+            )}
             <button className="nav-icon-btn" aria-label="search" onClick={() => setSearchOpen(true)}>
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/>

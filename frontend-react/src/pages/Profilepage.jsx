@@ -1,40 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { ALL_PRODUCTS } from "../data/Products";
+import { userAPI, orderAPI } from "../services/api";
 import "./css/ProfilePage.css";
 
 // Lấy ảnh thumbnail từ sản phẩm (hỗ trợ cả images[] lẫn image)
 const getThumb = (p) => (Array.isArray(p.images) ? p.images[0] : p.image);
-
-// Đơn hàng giả lập — ảnh lấy từ ALL_PRODUCTS
-const ORDERS = [
-  {
-    id: "UNQ7F3K2", date: "15/03/2025", status: "delivered",
-    items: [
-      { image: getThumb(ALL_PRODUCTS[0]) },
-      { image: getThumb(ALL_PRODUCTS[1]) },
-    ],
-    total: ALL_PRODUCTS[0].price + ALL_PRODUCTS[1].price + ALL_PRODUCTS[2].price,
-    itemCount: 3,
-  },
-  {
-    id: "UNQ2M9P1", date: "08/03/2025", status: "shipping",
-    items: [
-      { image: getThumb(ALL_PRODUCTS[2]) },
-    ],
-    total: ALL_PRODUCTS[2].price,
-    itemCount: 1,
-  },
-  {
-    id: "UNQ5X8Q4", date: "01/03/2025", status: "processing",
-    items: [
-      { image: getThumb(ALL_PRODUCTS[3]) },
-      { image: getThumb(ALL_PRODUCTS[4]) },
-      { image: getThumb(ALL_PRODUCTS[5]) },
-    ],
-    total: ALL_PRODUCTS[3].price + ALL_PRODUCTS[4].price + ALL_PRODUCTS[5].price + ALL_PRODUCTS[6].price,
-    itemCount: 4,
-  },
-];
 
 // Danh sách yêu thích — lấy từ ALL_PRODUCTS (sản phẩm 6, 5, 7)
 const WISHLIST = ALL_PRODUCTS.filter((p) => [6, 5, 7].includes(p.id)).map((p) => ({
@@ -54,20 +26,152 @@ const STATUS_MAP = {
 const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "staff";
   const [activeTab, setActiveTab] = useState("orders");
   const [orderFilter, setOrderFilter] = useState("all");
   const [editMode, setEditMode] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // State cho profile
   const [profile, setProfile] = useState({
-    fullName: "Nguyễn Thị Lan",
-    email: "lan.nguyen@email.com",
-    phone: "0901 234 567",
-    dob: "1998-04-15",
-    gender: "female",
-    address: "123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. HCM",
+    fullName: "",
+    email: "",
+    phone: "",
+    dob: "",
+    gender: "",
+    address: "",
   });
 
-  const filteredOrders = orderFilter === "all" ? ORDERS : ORDERS.filter((o) => o.status === orderFilter);
+  // State cho orders
+  const [orders, setOrders] = useState([]);
+
+  // Tải dữ liệu profile và orders khi component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        
+        // Lấy userId từ localStorage
+        const userId = localStorage.getItem('userId');
+        
+        // Nếu không có userId, chuyển hướng về login
+        if (!userId) {
+          navigate('/login');
+          return;
+        }
+        
+        // CÁCH 1: Lấy userData từ localStorage trước (hiển thị ngay)
+        const cachedUserData = localStorage.getItem('userData');
+        if (cachedUserData) {
+          try {
+            const userData = JSON.parse(cachedUserData);
+            setProfile({
+              fullName: userData.name || userData.fullName || "",
+              email: userData.email || "",
+              phone: userData.phone || "",
+              dob: userData.dob || userData.dateOfBirth || "",
+              gender: userData.gender || "",
+              address: userData.address || "",
+            });
+          } catch (e) {
+            console.warn('Failed to parse cached userData:', e);
+          }
+        }
+        
+        // CÁCH 2: Gọi API để lấy/sync dữ liệu mới nhất
+        try {
+          const profileData = await userAPI.getProfile(userId);
+          
+          // Cập nhật profile state với dữ liệu từ API
+          setProfile({
+            fullName: profileData.name || profileData.fullName || "",
+            email: profileData.email || "",
+            phone: profileData.phone || "",
+            dob: profileData.dateOfBirth || profileData.dob || "",
+            gender: profileData.gender || "",
+            address: profileData.address || "",
+          });
+          
+          // Cập nhật lại localStorage với dữ liệu mới
+          localStorage.setItem('userData', JSON.stringify(profileData));
+        } catch (err) {
+          console.error('Error syncing profile from API:', err);
+          // Nếu API fail, vẫn dùng cached data nếu có
+        }
+        
+        // Tải đơn hàng của user
+        try {
+          const ordersData = await orderAPI.getUserOrders(userId);
+          
+          // Xử lý dữ liệu orders - chuyển đổi để phù hợp với UI
+          if (ordersData && Array.isArray(ordersData)) {
+            const formattedOrders = ordersData.map((order) => ({
+              id: order.id || order.orderId,
+              date: order.createdDate ? new Date(order.createdDate).toLocaleDateString('vi-VN') : "",
+              status: order.status ? order.status.toLowerCase() : "processing",
+              items: order.items && Array.isArray(order.items) ? order.items.map(item => ({
+                image: item.productImage || getThumb(ALL_PRODUCTS[0])
+              })) : [],
+              total: order.totalPrice || order.total || 0,
+              itemCount: order.items?.length || 0,
+            }));
+            setOrders(formattedOrders);
+          }
+        } catch (err) {
+          console.error('Error fetching orders:', err);
+          // Orders fail không ảnh hưởng đến profile
+        }
+        
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+        setError(err.message || 'Không thể tải dữ liệu. Vui lòng thử lại.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [navigate, user]);
+
+  const filteredOrders = orderFilter === "all" ? orders : orders.filter((o) => o.status === orderFilter);
+
+  // Xử lý logout
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  // Xử lý lưu thay đổi profile
+  const handleSaveProfile = async () => {
+    try {
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        setError('Không tìm thấy user ID');
+        return;
+      }
+
+      // Cập nhật profile trên server
+      await userAPI.updateProfile(userId, {
+        name: profile.fullName,
+        email: profile.email,
+        phone: profile.phone,
+        dateOfBirth: profile.dob,
+        gender: profile.gender,
+        address: profile.address,
+      });
+
+      setEditMode(false);
+      setError(null);
+      alert('Cập nhật thông tin thành công!');
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      setError('Cập nhật thất bại. Vui lòng thử lại.');
+    }
+  };
 
   const NavItem = ({ tabKey, icon, label }) => (
     <div className={`profile-nav-item ${activeTab === tabKey ? "active" : ""}`} onClick={() => setActiveTab(tabKey)}>
@@ -76,13 +180,78 @@ export default function ProfilePage() {
     </div>
   );
 
+  // Hiển thị loading state
+  if (loading && !profile.email) {
+    return (
+      <div className="profile-page">
+        <div className="profile-inner" style={{ textAlign: "center", padding: "40px" }}>
+          <p>Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Hiển thị error state
+  if (error && !profile.email) {
+    return (
+      <div className="profile-page">
+        <div className="profile-inner" style={{ textAlign: "center", padding: "40px" }}>
+          <p style={{ color: "red" }}>Lỗi: {error}</p>
+          <button onClick={() => navigate('/login')} style={{ marginTop: "20px" }}>Quay lại đăng nhập</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="profile-page">
+      {/* Admin/Staff back button */}
+      {isAdmin && (
+        <div style={{
+          padding: "16px",
+          background: "linear-gradient(135deg, #ff5fa3 0%, #ff7fb8 100%)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: "12px"
+        }}>
+          <Link 
+            to={user?.role === "admin" ? "/admin" : "/admin/orders"}
+            style={{
+              padding: "10px 24px",
+              background: "white",
+              color: "#ff5fa3",
+              textDecoration: "none",
+              borderRadius: "25px",
+              fontWeight: "600",
+              fontSize: "14px",
+              transition: "all 0.3s ease",
+              cursor: "pointer",
+              border: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              boxShadow: "0 4px 12px rgba(255, 95, 163, 0.3)",
+              textAlign: "center"
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = "translateY(-2px)";
+              e.target.style.boxShadow = "0 6px 20px rgba(255, 95, 163, 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = "0 4px 12px rgba(255, 95, 163, 0.3)";
+            }}
+          >
+            ← Quay lại {user?.role === "admin" ? "Admin" : "Staff"}
+          </Link>
+        </div>
+      )}
       <div className="profile-inner">
         {/* Hero */}
         <div className="profile-hero">
           <div className="profile-avatar-wrap">
-            <div className="profile-avatar">{profile.fullName[0]}</div>
+            <div className="profile-avatar">{profile.fullName?.[0]?.toUpperCase() || "U"}</div>
             <div className="profile-avatar-edit">
               <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="white" strokeWidth="2"/>
@@ -94,13 +263,15 @@ export default function ProfilePage() {
             <h1 className="profile-name">{profile.fullName}</h1>
             <p className="profile-email">{profile.email}</p>
             <div className="profile-badges">
-              <span className="profile-badge badge-member">🌸 Thành viên</span>
+              <span className="profile-badge badge-member">
+                {user?.role === "admin" ? "👑 Quản trị viên" : user?.role === "staff" ? "👨‍💼 Nhân viên" : "🌸 Thành viên"}
+              </span>
               <span className="profile-badge badge-verified">✓ Đã xác minh</span>
             </div>
           </div>
           <div className="profile-stats-row">
             <div className="profile-stat">
-              <span className="profile-stat-num">{ORDERS.length}</span>
+              <span className="profile-stat-num">{orders.length}</span>
               <span className="profile-stat-label">Đơn hàng</span>
             </div>
             <div className="profile-stat">
@@ -140,7 +311,7 @@ export default function ProfilePage() {
               </svg>
             } />
             <div className="profile-nav-divider" />
-            <div className="profile-nav-logout">
+            <div className="profile-nav-logout" onClick={handleLogout}>
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
                 <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
@@ -283,19 +454,19 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div className="edit-form-actions">
-                      <button className="btn-primary" onClick={() => setEditMode(false)}>Lưu thay đổi</button>
+                      <button className="btn-primary" onClick={handleSaveProfile}>Lưu thay đổi</button>
                       <button className="btn-secondary" onClick={() => setEditMode(false)}>Hủy</button>
                     </div>
                   </>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     {[
-                      { label: "Họ và tên", value: profile.fullName, icon: "👤" },
-                      { label: "Email", value: profile.email, icon: "✉️" },
-                      { label: "Số điện thoại", value: profile.phone, icon: "📞" },
-                      { label: "Ngày sinh", value: profile.dob, icon: "🎂" },
-                      { label: "Giới tính", value: { female: "Nữ", male: "Nam", other: "Khác" }[profile.gender], icon: "🌸" },
-                      { label: "Địa chỉ", value: profile.address, icon: "📍" },
+                      { label: "Họ và tên", value: profile.fullName || "Chưa cập nhật", icon: "👤" },
+                      { label: "Email", value: profile.email || "Chưa cập nhật", icon: "✉️" },
+                      { label: "Số điện thoại", value: profile.phone || "Chưa cập nhật", icon: "📞" },
+                      { label: "Ngày sinh", value: profile.dob || "Chưa cập nhật", icon: "🎂" },
+                      { label: "Giới tính", value: { female: "Nữ", male: "Nam", other: "Khác" }[profile.gender] || "Chưa cập nhật", icon: "🌸" },
+                      { label: "Địa chỉ", value: profile.address || "Chưa cập nhật", icon: "📍" },
                     ].map(({ label, value, icon }) => (
                       <div key={label} style={{ display: "flex", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
                         <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{icon}</span>

@@ -1,0 +1,76 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🚀 Backend - Spring Boot (8080)",
+      "type": "shell",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "cd /d d:\\Project_TieuLuan\\backend-spring && mvn spring-boot:run"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false
+      },
+      "isBackground": true
+    },
+    {
+      "label": "⚛️ Frontend - React Vite (5176)",
+      "type": "shell",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "cd /d d:\\Project_TieuLuan\\frontend-react && npm run dev"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false
+      },
+      "isBackground": true
+    },
+    {
+      "label": "🔥 FULL STACK - Backend + Frontend",
+      "type": "shell",
+      "command": "echo",
+      "args": [
+        "Starting Full Stack..."
+      ],
+      "dependsOn": [
+        "🚀 Backend - Spring Boot (8080)",
+        "⚛️ Frontend - React Vite (5176)"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
+}

@@ -14,12 +14,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.uniquetee.annotation.RequiredRole;
 import com.uniquetee.entity.Order;
 import com.uniquetee.service.OrderService;
 
 @RestController
-@RequestMapping("/orders")
-@CrossOrigin(origins = {"http://127.0.0.1:5173", "http://localhost:5173"})
+@RequestMapping("/api/orders")
+@CrossOrigin(origins = {"http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:5174", "http://localhost:5174", "http://127.0.0.1:5175", "http://localhost:5175", "http://127.0.0.1:5176", "http://localhost:5176"})
 public class OrderController {
 
     @Autowired
@@ -42,6 +43,7 @@ public class OrderController {
     }
 
     @PutMapping("/{id}/status")
+    @RequiredRole({"admin", "staff"})
     public ResponseEntity<Order> updateStatus(@PathVariable Integer id, @RequestBody String status) {
         Order updated = orderService.updateOrderStatus(id, status);
         if (updated != null) return ResponseEntity.ok(updated);

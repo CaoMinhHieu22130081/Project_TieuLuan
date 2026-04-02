@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { ALL_PRODUCTS } from "../data/Products";
 import "./css/HomePage.css";
 
@@ -227,12 +228,13 @@ function AiSearchPanel() {
 }
 
 export default function HomePage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "staff";
   const [heroVisible, setHeroVisible] = useState(false);
   useEffect(() => { setTimeout(() => setHeroVisible(true), 100); }, []);
 
   return (
     <div className="page-wrapper">
-
       {/* ── Hero ── */}
       <section className={`hero ${heroVisible ? "visible" : ""}`}>
         <div className="hero-bg-grid" />

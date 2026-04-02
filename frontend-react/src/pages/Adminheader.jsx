@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 /* ════════════════════════════════════════════════════════════════
    AdminHeader.jsx  —  Header + Sidebar dùng chung cho Admin pages
@@ -58,6 +59,23 @@ const NAV_LINKS = [
 /* ── Sidebar (desktop) ───────────────────────────────────────── */
 export function AdminSidebar({ mobileOpen, onClose }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const isAdmin = user?.role === "admin";
+  
+  // Filter nav links dựa trên role
+  const filteredNavLinks = NAV_LINKS.filter(link => {
+    if (link.to === "/admin" || link.to === "/admin/users" || link.to === "/admin/products") {
+      return isAdmin; // Chỉ admin mới thấy Dashboard, Users, và Products
+    }
+    return true; // Staff chỉ thấy Orders
+  });
+
+  const handleLogout = () => {
+    logout();
+    onClose?.(); // Close sidebar if on mobile
+    navigate("/login", { replace: true });
+  };
 
   return (
     <>
@@ -81,10 +99,10 @@ export function AdminSidebar({ mobileOpen, onClose }) {
 
         {/* Admin info card */}
         <div className="ah-admin-card">
-          <div className="ah-admin-avatar">C</div>
+          <div className="ah-admin-avatar">{user?.name?.charAt(0)?.toUpperCase() || "U"}</div>
           <div>
-            <p className="ah-admin-name">Cao Minh Hiếu</p>
-            <p className="ah-admin-role">Super Admin</p>
+            <p className="ah-admin-name">{user?.name || "Users"}</p>
+            <p className="ah-admin-role">{user?.role === "admin" ? "Admin" : user?.role === "staff" ? "Staff" : "Customer"}</p>
           </div>
           <span className="ah-online-dot" />
         </div>
@@ -92,7 +110,7 @@ export function AdminSidebar({ mobileOpen, onClose }) {
         {/* Nav */}
         <nav className="admin-nav">
           <p className="ah-nav-section-label">Menu chính</p>
-          {NAV_LINKS.map((l) => {
+          {filteredNavLinks.map((l) => {
             const isActive = location.pathname === l.to;
             return (
               <Link
@@ -119,7 +137,7 @@ export function AdminSidebar({ mobileOpen, onClose }) {
             </svg>
             Xem trang cửa hàng
           </Link>
-          <button className="ah-logout-btn">
+          <button className="ah-logout-btn" onClick={handleLogout}>
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
               <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>

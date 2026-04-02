@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { userAPI } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import "./css/Registerpage.css";
 
 const STEPS = ["Tài khoản", "Cá nhân", "Xong"];
@@ -42,6 +43,7 @@ function PasswordStrength({ password }) {
 
 export default function Registerpage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [step, setStep] = useState(0);
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -120,13 +122,16 @@ export default function Registerpage() {
       // Call register API
       const response = await userAPI.register(userData);
       
-      if (response && response.token) {
+      if (response && response.token && response.user) {
         setDone(true);
         setLoading(false);
         
-        // Redirect to login page after 2 seconds
+        // Lưu user info vào AuthContext
+        login(response.token, response.user);
+        
+        // Redirect to profile page after 2 seconds
         setTimeout(() => {
-          navigate("/login");
+          navigate("/profile");
         }, 2000);
       }
     } catch (error) {
@@ -136,6 +141,17 @@ export default function Registerpage() {
   };
 
   const prevStep = () => { setErrors({}); setServerError(""); setStep((s) => s - 1); };
+
+  const handleOAuth2Login = (provider) => {
+    console.log(`[OAuth2 Register] User clicked ${provider} button`);
+    console.log(`[OAuth2 Register] Redirecting to: http://localhost:8080/api/oauth2/authorization/${provider}`);
+    try {
+      // Redirect to backend OAuth2 authorization endpoint
+      window.location.href = `http://localhost:8080/api/oauth2/authorization/${provider}`;
+    } catch (error) {
+      console.error(`[OAuth2 Register] Error redirecting:`, error);
+    }
+  };
 
   if (done) {
     return (
@@ -320,7 +336,12 @@ export default function Registerpage() {
 
               <div className="divider"><span>hoặc đăng ký với</span></div>
               <div className="social-btns">
-                <button type="button" className="btn-social" disabled={loading}>
+                <button 
+                  type="button" 
+                  className="btn-social" 
+                  disabled={loading}
+                  onClick={() => handleOAuth2Login("google")}
+                >
                   <svg width="18" height="18" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -329,7 +350,12 @@ export default function Registerpage() {
                   </svg>
                   Google
                 </button>
-                <button type="button" className="btn-social" disabled={loading}>
+                <button 
+                  type="button" 
+                  className="btn-social" 
+                  disabled={loading}
+                  onClick={() => handleOAuth2Login("facebook")}
+                >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                   </svg>

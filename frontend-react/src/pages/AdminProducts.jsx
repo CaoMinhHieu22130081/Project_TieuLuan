@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { ALL_PRODUCTS } from "../data/Products";
 import { AdminLayout } from "./Adminheader";
 import "./css/Admin.css";
@@ -17,6 +18,8 @@ import {
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 
 export default function AdminProducts() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [products,    setProducts]    = useState(ALL_PRODUCTS);
   const [search,      setSearch]      = useState("");
   const [typeFilter,  setTypeFilter]  = useState("Tất cả");
@@ -200,7 +203,9 @@ export default function AdminProducts() {
                   <td>
                     <div className="action-btns">
                       <button className="action-btn edit" onClick={() => openEdit(p)}>✏️ Sửa</button>
-                      <button className="action-btn del"  onClick={() => setDeleteId(p.id)}>🗑</button>
+                      {isAdmin && (
+                        <button className="action-btn del" onClick={() => setDeleteId(p.id)}>🗑</button>
+                      )}
                     </div>
                   </td>
                 </tr>

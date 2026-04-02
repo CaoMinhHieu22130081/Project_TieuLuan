@@ -1,14 +1,16 @@
 package com.uniquetee.config;
 
+import java.util.Date;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-import javax.crypto.SecretKey;
-import java.util.Date;
 
 @Component
 public class JwtUtil {
@@ -81,5 +83,13 @@ public class JwtUtil {
     public Integer getUserIdFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
         return claims != null ? claims.get("userId", Integer.class) : null;
+    }
+
+    /**
+     * Extract role từ JWT token
+     */
+    public String getRoleFromToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        return claims != null ? claims.get("role", String.class) : null;
     }
 }

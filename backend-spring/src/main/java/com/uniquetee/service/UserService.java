@@ -8,13 +8,21 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.uniquetee.entity.User;
+import com.uniquetee.entity.PasswordReset;
 import com.uniquetee.repository.UserRepository;
+import com.uniquetee.repository.PasswordResetRepository;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private PasswordResetRepository passwordResetRepository;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -145,5 +153,113 @@ public class UserService {
             }
         }
         return null;
+    }
+
+    /**
+     * Create password reset token
+     * @param email User email
+     * @return Reset token
+     */
+    public String createPasswordResetToken(String email) {
+        // Kiểm tra user tồn tại
+        Optional<User> user = userRepository.findByEmail(email);
+        if (!user.isPresent()) {
+            throw new IllegalArgumentException("Email này không được tìm thấy trong hệ thống");
+        }
+
+        // Xóa token cũ nếu có
+        Optional<PasswordReset> existingReset = passwordResetRepository.findByEmail(email);
+        if (existingReset.isPresent()) {
+            passwordResetRepository.delete(existingReset.get());
+        }
+
+        // Tạo token mới
+        String token = UUID.randomUUID().toString();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiryTime = now.plusMinutes(30); // 30 phút hết hạn
+
+        PasswordReset passwordReset = new PasswordReset(token, email, now, expiryTime);
+        passwordResetRepository.save(passwordReset);
+
+        return token;
+    }
+
+    /**
+     * Verify reset token
+     * @param token Reset token
+     * @return PasswordReset object nếu hợp lệ
+     */
+    public PasswordReset verifyResetToken(String token) {
+        Optional<PasswordReset> passwordReset = passwordResetRepository.findByToken(token);
+        if (!passwordReset.isPresent()) {
+            throw new IllegalArgumentException("Token không hợp lệ");
+        }
+
+        PasswordReset reset = passwordReset.get();
+        
+        // Kiểm tra token đã hết hạn chưa
+        if (reset.isExpired()) {
+            throw new IllegalArgumentException("Token này đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu mới");
+        }
+
+        // Kiểm tra token đã được sử dụng chưa
+        if (reset.getIsUsed()) {
+            throw new IllegalArgumentException("Token này đã được sử dụng");
+        }
+
+        return reset;
+    }
+
+    /**
+     * Reset user password
+     * @param token Reset token
+     * @param newPassword New password (plain text)
+     * @return PasswordReset object after successful reset
+     */
+    public PasswordReset resetPassword(String token, String newPassword) {
+        PasswordReset passwordReset = verifyResetToken(token);
+        
+        // Tìm user
+        Optional<User> user = userRepository.findByEmail(passwordReset.getEmail());
+        if (!user.isPresent()) {
+            throw new IllegalArgumentException("User không tìm thấy");
+        }
+
+        User foundUser = user.get();
+        // Hash password mới
+        foundUser.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(foundUser);
+
+        // Mark token as used
+        passwordReset.setIsUsed(true);
+        passwordReset.setUsedAt(LocalDateTime.now());
+        passwordResetRepository.save(passwordReset);
+        
+        return passwordReset;
+    }
+
+    /**
+     * Get reset token by email (FOR TESTING ONLY)
+     * @param email User email
+     * @return Reset token if found
+     */
+    public String getResetTokenByEmail(String email) {
+        Optional<PasswordReset> passwordReset = passwordResetRepository.findByEmail(email);
+        if (!passwordReset.isPresent()) {
+            throw new IllegalArgumentException("Không tìm thấy token reset cho email này");
+        }
+        
+        PasswordReset reset = passwordReset.get();
+        
+        // Check if token is still valid
+        if (reset.isExpired()) {
+            throw new IllegalArgumentException("Token đã hết hạn");
+        }
+        
+        if (reset.getIsUsed()) {
+            throw new IllegalArgumentException("Token đã được sử dụng");
+        }
+        
+        return reset.getToken();
     }
 }
