@@ -27,12 +27,13 @@ public class JwtUtil {
     }
 
     /**
-     * Generate JWT token từ email (username)
+     * Generate JWT token từ email (username), userId và role
      */
-    public String generateToken(String email, Integer userId) {
+    public String generateToken(String email, Integer userId, String role) {
         return Jwts.builder()
                 .setSubject(email)
                 .claim("userId", userId)
+                .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

@@ -20,8 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.uniquetee.config.JwtUtil;
 import com.uniquetee.entity.User;
-import com.uniquetee.service.UserService;
 import com.uniquetee.service.EmailService;
+import com.uniquetee.service.UserService;
 
 @RestController
 @RequestMapping("/users")
@@ -94,8 +94,8 @@ public class UserController {
             // Register user (email duplicate check inside service)
             User createdUser = userService.registerUser(user);
 
-            // Generate JWT token
-            String token = jwtUtil.generateToken(createdUser.getEmail(), createdUser.getId());
+            // Generate JWT token with role
+            String token = jwtUtil.generateToken(createdUser.getEmail(), createdUser.getId(), createdUser.getRole());
 
             // Return response with token and user info
             Map<String, Object> response = new HashMap<>();
@@ -133,8 +133,8 @@ public class UserController {
             try {
                 User user = userService.authenticate(email, password);
                 if (user != null) {
-                    // Generate JWT token
-                    String token = jwtUtil.generateToken(user.getEmail(), user.getId());
+                    // Generate JWT token with role
+                    String token = jwtUtil.generateToken(user.getEmail(), user.getId(), user.getRole());
 
                     // Return response with token and user info
                     Map<String, Object> response = new HashMap<>();
@@ -309,8 +309,8 @@ public class UserController {
 
             User user = userOpt.get();
 
-            // Generate JWT token
-            String token = jwtUtil.generateToken(user.getEmail(), user.getId());
+            // Generate JWT token with role
+            String token = jwtUtil.generateToken(user.getEmail(), user.getId(), user.getRole());
 
             // Return response with token and user info
             Map<String, Object> response = new HashMap<>();
@@ -386,8 +386,8 @@ public class UserController {
                 }
             }
 
-            // Generate JWT token
-            String token = jwtUtil.generateToken(user.getEmail(), user.getId());
+            // Generate JWT token with role
+            String token = jwtUtil.generateToken(user.getEmail(), user.getId(), user.getRole());
 
             // Return response with token and user info
             Map<String, Object> response = new HashMap<>();

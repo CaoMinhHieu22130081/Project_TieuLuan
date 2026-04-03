@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.uniquetee.annotation.RequiredRole;
 import com.uniquetee.entity.Order;
 import com.uniquetee.entity.User;
 import com.uniquetee.repository.OrderRepository;
@@ -28,16 +29,19 @@ public class AdminController {
     private OrderRepository orderRepository;
 
     @GetMapping("/users")
+    @RequiredRole({"admin"})
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(userRepository.findAll());
     }
 
     @GetMapping("/orders")
+    @RequiredRole({"admin", "staff"})
     public ResponseEntity<List<Order>> getAllOrders() {
         return ResponseEntity.ok(orderRepository.findAll());
     }
 
     @GetMapping("/stats")
+    @RequiredRole({"admin"})
     public ResponseEntity<Map<String, Object>> getStats() {
         Map<String, Object> stats = new HashMap<>();
         stats.put("users", userRepository.count());
