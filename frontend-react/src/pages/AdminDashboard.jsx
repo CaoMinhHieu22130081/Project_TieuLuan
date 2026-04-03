@@ -1,17 +1,16 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "./Adminheader";
+import { adminAPI, productAPI } from "../services/api";
 import "./css/Admin.css";
 import {
   DASHBOARD_STATS,
   MONTHLY_REVENUE,
-  RECENT_ORDERS,
-  getTopProducts,
   SHIRT_CATEGORIES,
   PANTS_CATEGORIES,
   getCategoryCount,
   DASH_STATUS_MAP,
 } from "../data/AdminDashboardData";
-import { ALL_PRODUCTS } from "../data/Products";
 
 function Sparkline({ data, color = "var(--accent)" }) {
   const max = Math.max(...data), min = Math.min(...data);
@@ -45,40 +44,117 @@ function BarChart({ data, labels }) {
 }
 
 export default function AdminDashboard() {
-  const topProducts = getTopProducts(5);
-  const totalAo   = ALL_PRODUCTS.filter((p) => p.type === "Áo").length;
-  const totalQuan = ALL_PRODUCTS.filter((p) => p.type === "Quần").length;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [stats, setStats] = useState({});
 
-  const resolvedStats = DASHBOARD_STATS.map((s) => {
-    if (s.getValue) {
-      const { display, spark } = s.getValue();
-      return { ...s, value: display, spark };
-    }
-    return s;
-  });
+  // Fetch data từ MySQL
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [productsData, ordersData, statsData] = await Promise.all([
+          productAPI.getAllProducts(),
+          adminAPI.getAllOrders(),
+          adminAPI.getDashboardStats(),
+        ]);
+        setProducts(productsData || []);
+        setOrders(ordersData || []);
+        setStats(statsData || {});
+      } catch (err) {
+        console.error("Lỗi tải dữ liệu dashboard:", err);
+        setError("Không thể tải dữ liệu dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Compute stats
+  const totalAo   = products.filter((p) => p.type === "Áo").length;
+  const totalQuan = products.filter((p) => p.type === "Quần").length;
+
+  // Get top 5 products by sold
+  const topProducts = [...products]
+    .filter(p => p.sold > 0)
+    .sort((a, b) => (b.sold || 0) - (a.sold || 0))
+    .slice(0, 5)
+    .map((p) => ({
+      name: p.name,
+      img: p.images && p.images.length > 0 ? p.images[0].url : 'https://via.placeholder.com/50',
+      type: p.type,
+      sold: p.sold || 0,
+      revenue: `${((p.sold || 0) * p.price).toLocaleString("vi-VN")}đ`,
+    }));
+
+  // Get recent 5 orders
+  const recentOrders = (orders || [])
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, 5)
+    .map((o) => ({
+      id: o.id,
+      customer: o.customerName || "—",
+      total: `${o.total?.toLocaleString("vi-VN") || 0}đ`,
+      status: o.status || "pending",
+    }));
+
+  if (loading) {
+    return (
+      <AdminLayout title="Dashboard" subtitle="Đang tải...">
+        <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
+          <p>Đang tải dữ liệu dashboard...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout title="Dashboard" subtitle="Lỗi">
+        <div style={{ padding: "40px", textAlign: "center", color: "#e74c3c" }}>
+          <p>{error}</p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout
       title="Dashboard"
-      subtitle="Thứ 6, 20/03/2026 · Chào mừng trở lại!"
+      subtitle={`${new Date().toLocaleDateString("vi-VN")} · Chào mừng trở lại!`}
       actions={<button className="topbar-btn">↓ Xuất báo cáo</button>}
     >
       {/* Stats */}
       <div className="stats-grid">
-        {resolvedStats.map((s, i) => (
-          <div key={i} className="stat-card" style={{ "--card-accent": s.color }}>
-            <div className="stat-top">
-              <div>
-                <p className="stat-label">{s.label}</p>
-                <p className="stat-value">{s.value}</p>
-              </div>
-              <Sparkline data={s.spark} color={s.color} />
+        <div className="stat-card" style={{ "--card-accent": "var(--accent)" }}>
+          <div className="stat-top">
+            <div>
+              <p className="stat-label">Tổng đơn hàng</p>
+              <p className="stat-value">{orders.length}</p>
             </div>
-            <p className={`stat-change ${s.up ? "up" : "down"}`}>
-              {s.up ? "↑" : "↓"} {s.change} so với tháng trước
-            </p>
           </div>
-        ))}
+          <p className="stat-change up">↑ Đang hoạt động</p>
+        </div>
+        <div className="stat-card" style={{ "--card-accent": "#34d399" }}>
+          <div className="stat-top">
+            <div>
+              <p className="stat-label">Tổng sản phẩm</p>
+              <p className="stat-value">{products.length}</p>
+            </div>
+          </div>
+          <p className="stat-change up">↑ {totalAo} áo, {totalQuan} quần</p>
+        </div>
+        <div className="stat-card" style={{ "--card-accent": "#60a5fa" }}>
+          <div className="stat-top">
+            <div>
+              <p className="stat-label">Tổng doanh thu</p>
+              <p className="stat-value">{(orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0)).toLocaleString("vi-VN")}đ</p>
+            </div>
+          </div>
+          <p className="stat-change up">↑ Từ tất cả đơn hàng</p>
+        </div>
       </div>
 
       {/* Phân loại Áo / Quần */}
@@ -134,7 +210,7 @@ export default function AdminDashboard() {
             <Link to="/admin/orders" className="card-link">Xem tất cả →</Link>
           </div>
           <div className="order-mini-list">
-            {RECENT_ORDERS.map((o) => (
+            {recentOrders.map((o) => (
               <div key={o.id} className="order-mini-row">
                 <div>
                   <p className="omr-id">#{o.id}</p>
@@ -142,8 +218,8 @@ export default function AdminDashboard() {
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <p className="omr-total">{o.total}</p>
-                  <span className={`omr-status ${DASH_STATUS_MAP[o.status].cls}`}>
-                    {DASH_STATUS_MAP[o.status].label}
+                  <span className={`omr-status ${DASH_STATUS_MAP[o.status]?.cls || "status-pending"}`}>
+                    {DASH_STATUS_MAP[o.status]?.label || o.status}
                   </span>
                 </div>
               </div>
@@ -180,7 +256,7 @@ export default function AdminDashboard() {
                 <td><span className="tp-revenue">{p.revenue}</span></td>
                 <td>
                   <div className="tp-rank-bar">
-                    <div className="tp-rank-fill" style={{ width: `${(p.sold / topProducts[0].sold) * 100}%` }} />
+                    <div className="tp-rank-fill" style={{ width: `${topProducts.length > 0 ? (p.sold / topProducts[0].sold) * 100 : 0}%` }} />
                   </div>
                 </td>
               </tr>

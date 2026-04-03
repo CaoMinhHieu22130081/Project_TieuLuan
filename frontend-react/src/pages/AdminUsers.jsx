@@ -1,19 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "./Adminheader";
+import { adminAPI } from "../services/api";
 import "./css/Admin.css";
-import { USERS_DATA, ROLE_MAP, ROLE_LABEL, USER_STATUS_MAP } from "../data/AdminUsersData";
+import { ROLE_MAP, ROLE_LABEL, USER_STATUS_MAP } from "../data/AdminUsersData";
 
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 
 export default function AdminUsers() {
-  const [users,    setUsers]    = useState(USERS_DATA);
+  const [users,    setUsers]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
   const [search,   setSearch]   = useState("");
   const [roleTab,  setRoleTab]  = useState("Tất cả");
   const [detail,   setDetail]   = useState(null);
   const [editRole, setEditRole] = useState(null);
 
+  // Fetch users từ MySQL
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const data = await adminAPI.getAllUsers();
+        setUsers(data || []);
+      } catch (err) {
+        console.error("Lỗi tải người dùng:", err);
+        setError("Không thể tải dữ liệu người dùng");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
+
   const displayed = users.filter((u) => {
-    const matchS = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
+    const matchS = (u.name || "").toLowerCase().includes(search.toLowerCase()) || (u.email || "").toLowerCase().includes(search.toLowerCase());
     const matchR = roleTab === "Tất cả" || u.role === roleTab;
     return matchS && matchR;
   });
@@ -72,6 +91,15 @@ export default function AdminUsers() {
 
       {/* Table */}
       <div className="admin-card table-card">
+        {loading ? (
+          <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
+            <p>Đang tải người dùng...</p>
+          </div>
+        ) : error ? (
+          <div style={{ padding: "40px", textAlign: "center", color: "#e74c3c" }}>
+            <p>{error}</p>
+          </div>
+        ) : (
         <table className="admin-table">
           <thead>
             <tr>
@@ -80,56 +108,61 @@ export default function AdminUsers() {
             </tr>
           </thead>
           <tbody>
-            {displayed.map((u) => (
+            {displayed.map((u) => {
+              const initial = (u.name || "User")[0];
+              const status = u.status || "active";
+              return (
               <tr key={u.id}>
                 <td>
                   <div className="user-cell">
                     <div className="user-avatar"
                       style={{ "--ua-color": u.role === "admin" ? "var(--accent)" : u.role === "staff" ? "#60a5fa" : "#a78bfa" }}>
-                      {u.avatar}
+                      {initial}
                     </div>
                     <div>
-                      <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>{u.name}</p>
+                      <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>{u.name || "N/A"}</p>
                       <p style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>ID #{u.id}</p>
                     </div>
                   </div>
                 </td>
                 <td>
-                  <p style={{ fontSize: "0.82rem" }}>{u.email}</p>
-                  <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{u.phone}</p>
+                  <p style={{ fontSize: "0.82rem" }}>{u.email || "N/A"}</p>
+                  <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{u.phone || "—"}</p>
                 </td>
-                <td><span className={`role-badge ${ROLE_MAP[u.role]}`}>{ROLE_LABEL[u.role]}</span></td>
+                <td><span className={`role-badge ${ROLE_MAP[u.role] || "role-customer"}`}>{ROLE_LABEL[u.role] || u.role}</span></td>
                 <td>
-                  <span className={`omr-status ${USER_STATUS_MAP[u.status].cls}`}>
-                    {USER_STATUS_MAP[u.status].label}
+                  <span className={`omr-status ${USER_STATUS_MAP[status]?.cls || "status-active"}`}>
+                    {USER_STATUS_MAP[status]?.label || status}
                   </span>
                 </td>
                 <td style={{ textAlign: "center", fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}>
-                  {u.orders}
+                  {u.orders || 0}
                 </td>
                 <td>
                   <span style={{ color: "var(--accent)", fontWeight: 600, fontSize: "0.85rem" }}>
-                    {u.spent > 0 ? fmt(u.spent) : "—"}
+                    {(u.spent || 0) > 0 ? fmt(u.spent) : "—"}
                   </span>
                 </td>
-                <td style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>{u.joined}</td>
+                <td style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>{u.createdAt || "—"}</td>
                 <td>
                   <div className="action-btns">
                     <button className="action-btn edit" onClick={() => setDetail(u)}>👁</button>
                     <button className="action-btn edit" onClick={() => setEditRole({ userId: u.id, role: u.role })}>🔑</button>
                     {u.role !== "admin" && (
                       <button
-                        className={`action-btn ${u.status === "active" ? "del" : "next"}`}
+                        className={`action-btn ${status === "active" ? "del" : "next"}`}
                         onClick={() => toggleStatus(u.id)}>
-                        {u.status === "active" ? "🔒" : "🔓"}
+                        {status === "active" ? "🔒" : "🔓"}
                       </button>
                     )}
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
+        )}
       </div>
 
       {/* User Detail Modal */}
@@ -143,28 +176,28 @@ export default function AdminUsers() {
             <div className="modal-body">
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
                 <div className="user-avatar lg"
-                  style={{ "--ua-color": detail.role === "admin" ? "var(--accent)" : "#a78bfa" }}>
-                  {detail.avatar}
+                  style={{ "--ua-color": detail.role === "admin" ? "var(--accent)" : detail.role === "staff" ? "#60a5fa" : "#a78bfa" }}>
+                  {(detail.name || "User")[0]}
                 </div>
                 <div>
                   <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem" }}>
-                    {detail.name}
+                    {detail.name || "N/A"}
                   </p>
-                  <span className={`role-badge ${ROLE_MAP[detail.role]}`}>{ROLE_LABEL[detail.role]}</span>
-                  <span className={`omr-status ${USER_STATUS_MAP[detail.status].cls}`} style={{ marginLeft: 8 }}>
-                    {USER_STATUS_MAP[detail.status].label}
+                  <span className={`role-badge ${ROLE_MAP[detail.role] || "role-customer"}`}>{ROLE_LABEL[detail.role] || detail.role}</span>
+                  <span className={`omr-status ${USER_STATUS_MAP[detail.status || "active"]?.cls || "status-active"}`} style={{ marginLeft: 8 }}>
+                    {USER_STATUS_MAP[detail.status || "active"]?.label || "Active"}
                   </span>
                 </div>
               </div>
               <div className="detail-info-grid">
-                <div><span className="di-label">Email</span><span>{detail.email}</span></div>
-                <div><span className="di-label">Điện thoại</span><span>{detail.phone}</span></div>
-                <div><span className="di-label">Tham gia</span><span>{detail.joined}</span></div>
-                <div><span className="di-label">Đơn hàng</span><span>{detail.orders}</span></div>
+                <div><span className="di-label">Email</span><span>{detail.email || "N/A"}</span></div>
+                <div><span className="di-label">Điện thoại</span><span>{detail.phone || "—"}</span></div>
+                <div><span className="di-label">Tham gia</span><span>{detail.createdAt || "—"}</span></div>
+                <div><span className="di-label">Đơn hàng</span><span>{detail.orders || 0}</span></div>
                 <div>
                   <span className="di-label">Tổng chi tiêu</span>
                   <span style={{ color: "var(--accent)", fontWeight: 700 }}>
-                    {detail.spent > 0 ? fmt(detail.spent) : "Chưa mua hàng"}
+                    {(detail.spent || 0) > 0 ? fmt(detail.spent) : "Chưa mua hàng"}
                   </span>
                 </div>
               </div>

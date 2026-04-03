@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { ALL_PRODUCTS } from "../data/Products";
+import { productAPI } from "../services/api";
 import { AdminLayout } from "./Adminheader";
 import "./css/Admin.css";
 import {
@@ -20,7 +20,9 @@ const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 export default function AdminProducts() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [products,    setProducts]    = useState(ALL_PRODUCTS);
+  const [products,    setProducts]    = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
   const [search,      setSearch]      = useState("");
   const [typeFilter,  setTypeFilter]  = useState("Tất cả");
   const [catFilter,   setCatFilter]   = useState("Tất cả");
@@ -30,19 +32,36 @@ export default function AdminProducts() {
   const [deleteId,    setDeleteId]    = useState(null);
   const [form,        setForm]        = useState(BLANK_PRODUCT_FORM);
 
+  // Fetch products từ MySQL
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await productAPI.getAllProducts();
+        setProducts(data || []);
+      } catch (err) {
+        console.error("Lỗi tải sản phẩm:", err);
+        setError("Không thể tải dữ liệu sản phẩm");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
   /* Danh mục trong form đổi theo loại */
   const formCategories = form.type === "Quần" ? CATEGORIES_QUAN : CATEGORIES_AO;
 
   /* Filter + sort */
   let displayed = products.filter((p) => {
-    const matchS = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
+    const matchS = p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || "").toLowerCase().includes(search.toLowerCase());
     const matchT = typeFilter === "Tất cả" || p.type === typeFilter;
-    const matchC = catFilter === "Tất cả" || p.category === catFilter;
+    const categoryName = typeof p.category === "string" ? p.category : p.category?.name || "";
+    const matchC = catFilter === "Tất cả" || categoryName === catFilter;
     return matchS && matchT && matchC;
   });
   if (sortBy === "price_asc")  displayed = [...displayed].sort((a, b) => a.price - b.price);
   if (sortBy === "price_desc") displayed = [...displayed].sort((a, b) => b.price - a.price);
-  if (sortBy === "sold")       displayed = [...displayed].sort((a, b) => b.sold - a.sold);
+  if (sortBy === "sold")       displayed = [...displayed].sort((a, b) => (b.sold || 0) - (a.sold || 0));
 
   /* Mở modal sửa */
   const openEdit = (p) => {
@@ -152,6 +171,15 @@ export default function AdminProducts() {
 
       {/* Table */}
       <div className="admin-card table-card">
+        {loading ? (
+          <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
+            <p>Đang tải sản phẩm...</p>
+          </div>
+        ) : error ? (
+          <div style={{ padding: "40px", textAlign: "center", color: "#e74c3c" }}>
+            <p>{error}</p>
+          </div>
+        ) : (
         <table className="admin-table">
           <thead>
             <tr>
@@ -161,7 +189,9 @@ export default function AdminProducts() {
           </thead>
           <tbody>
             {displayed.map((p) => {
-              const thumb = Array.isArray(p.images) ? p.images[0] : p.image;
+              const thumb = p.images && p.images.length > 0 ? p.images[0].url : DEFAULT_PRODUCT_IMAGE;
+              const sizeList = (p.sizes || []).map(s => typeof s === "string" ? s : s.size).join(", ");
+              const categoryName = typeof p.category === "string" ? p.category : p.category?.name || "";
               return (
                 <tr key={p.id}>
                   <td>
@@ -170,7 +200,7 @@ export default function AdminProducts() {
                       <div>
                         <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>{p.name}</p>
                         <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                          {p.colors.length} màu · {p.sizes.join(", ")}
+                          {(p.colors || []).length} màu · {sizeList}
                         </p>
                       </div>
                     </div>
@@ -185,7 +215,7 @@ export default function AdminProducts() {
                       {p.sku}
                     </span>
                   </td>
-                  <td><span className="cat-pill">{p.category}</span></td>
+                  <td><span className="cat-pill">{categoryName}</span></td>
                   <td>
                     <p style={{ fontWeight: 700, color: "var(--accent)" }}>{fmt(p.price)}</p>
                     {p.originalPrice && (
@@ -194,7 +224,7 @@ export default function AdminProducts() {
                       </p>
                     )}
                   </td>
-                  <td><span className="sold-badge">{p.sold}</span></td>
+                  <td><span className="sold-badge">{p.sold || 0}</span></td>
                   <td>
                     {p.tag
                       ? <span className={`tag-badge ${TAG_CSS[p.tag] || "tag-hot"}`}>{p.tag}</span>
@@ -213,6 +243,7 @@ export default function AdminProducts() {
             })}
           </tbody>
         </table>
+        )}
       </div>
 
       {/* Edit / Add Modal */}

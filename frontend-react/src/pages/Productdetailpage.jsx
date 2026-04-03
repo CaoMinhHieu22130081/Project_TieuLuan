@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { getProductById, getRelatedProducts, ALL_PRODUCTS } from "../data/Products";
+import { productAPI } from "../services/api";
 import "./css/ProductDetailPage.css";
 
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
@@ -18,7 +18,9 @@ function Stars({ rating, size = "sm" }) {
 
 /* ─── Related card ────────────────────────────────────── */
 function RelatedCard({ product }) {
-  const thumb = Array.isArray(product.images) ? product.images[0] : product.image;
+  const thumb = product.images && product.images.length > 0 
+    ? product.images[0].url 
+    : (product.image || 'https://via.placeholder.com/300x400?text=No+Image');
   return (
     <Link to={`/products/${product.id}`} className="related-card" style={{ textDecoration: "none" }}>
       <div className="related-img">
@@ -31,7 +33,7 @@ function RelatedCard({ product }) {
       </div>
       <div className="related-info">
         <p className="related-name">{product.name}</p>
-        <Stars rating={product.rating} size="sm" />
+        <Stars rating={typeof product.rating === 'string' ? parseFloat(product.rating) : product.rating} size="sm" />
         <div className="related-price-row">
           <span className="related-price">{fmt(product.price)}</span>
           {product.originalPrice && <span className="related-orig">{fmt(product.originalPrice)}</span>}
@@ -45,8 +47,11 @@ function RelatedCard({ product }) {
 export default function ProductDetailPage() {
   const { id }     = useParams();
   const navigate   = useNavigate();
-  const product    = getProductById(id);
-  const related    = product ? getRelatedProducts(product, 4) : [];
+  
+  const [product, setProduct] = useState(null);
+  const [related, setRelated] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [activeImg,  setActiveImg]  = useState(0);
   const [selColor,   setSelColor]   = useState(null);
@@ -57,6 +62,32 @@ export default function ProductDetailPage() {
   const [activeTab,  setActiveTab]  = useState("desc");
   const [sizeErr,    setSizeErr]    = useState(false);
 
+  // Fetch product when id changes
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        const data = await productAPI.getProductById(id);
+        setProduct(data);
+        setError(null);
+        
+        // Set default color
+        if (data.colors && data.colors.length > 0) {
+          setSelColor(data.colors[0]);
+        }
+      } catch (err) {
+        setError("Không tìm thấy sản phẩm");
+        console.error('Error fetching product:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (id) {
+      fetchProduct();
+    }
+  }, [id]);
+
   /* Reset khi chuyển sản phẩm */
   useEffect(() => {
     setActiveImg(0);
@@ -66,17 +97,28 @@ export default function ProductDetailPage() {
     setAdded(false);
     setSizeErr(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [id]);
+  }, [product?.id]);
 
   /* Sản phẩm không tồn tại */
-  if (!product) {
+  if (loading) {
+    return (
+      <div className="detail-page">
+        <div className="detail-inner" style={{ textAlign: "center", paddingTop: 80 }}>
+          <p style={{ fontSize: "2rem", marginBottom: 16 }}>⏳</p>
+          <h2 style={{ fontFamily: "var(--font-display)", marginBottom: 12 }}>Đang tải sản phẩm...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
     return (
       <div className="detail-page">
         <div className="detail-inner" style={{ textAlign: "center", paddingTop: 80 }}>
           <p style={{ fontSize: "3rem", marginBottom: 16 }}>😕</p>
           <h2 style={{ fontFamily: "var(--font-display)", marginBottom: 12 }}>Không tìm thấy sản phẩm</h2>
           <p style={{ color: "var(--text-secondary)", marginBottom: 28 }}>
-            Sản phẩm bạn tìm không tồn tại hoặc đã bị xóa.
+            {error || "Sản phẩm bạn tìm không tồn tại hoặc đã bị xóa."}
           </p>
           <Link to="/products" className="btn-primary">← Xem tất cả sản phẩm</Link>
         </div>
@@ -88,6 +130,12 @@ export default function ProductDetailPage() {
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : null;
 
+  // Format prices to handle both number and string
+  const formatPrice = (p) => {
+    const num = typeof p === 'string' ? parseFloat(p) : p;
+    return num.toLocaleString("vi-VN") + "đ";
+  };
+
   const handleAddCart = () => {
     if (!selSize) { setSizeErr(true); return; }
     setSizeErr(false);
@@ -97,7 +145,7 @@ export default function ProductDetailPage() {
 
   const TABS = [
     { key: "desc",    label: "Mô tả sản phẩm"           },
-    { key: "reviews", label: `Đánh giá (${product.reviews})` },
+    { key: "reviews", label: `Đánh giá (${product.reviewCount || 0})` },
     { key: "size",    label: "Bảng size"                 },
   ];
 
@@ -127,14 +175,14 @@ export default function ProductDetailPage() {
           {/* ── Gallery ── */}
           <div className="gallery-col">
             <div className="gallery-main">
-              <img src={product.images[activeImg]} alt={product.name} />
+              <img src={product.images && product.images[activeImg] ? product.images[activeImg].url : ''} alt={product.name} />
               {product.tag && (
                 <span className={`gallery-badge badge-${
                   product.tag === "Sale" ? "sale" : product.tag === "Mới" ? "new" : "hot"
                 }`}>{product.tag}</span>
               )}
               {/* Prev / Next arrows */}
-              {product.images.length > 1 && (
+              {product.images && product.images.length > 1 && (
                 <>
                   <button
                     className="gallery-arrow prev"
@@ -148,9 +196,9 @@ export default function ProductDetailPage() {
               )}
             </div>
             <div className="gallery-thumbs">
-              {product.images.map((img, i) => (
+              {product.images && product.images.map((img, i) => (
                 <div key={i} className={`thumb ${activeImg === i ? "active" : ""}`} onClick={() => setActiveImg(i)}>
-                  <img src={img} alt="" />
+                  <img src={img.url} alt="" />
                 </div>
               ))}
             </div>
@@ -175,16 +223,16 @@ export default function ProductDetailPage() {
 
             {/* Rating */}
             <div className="detail-rating-row">
-              <Stars rating={product.rating} size="lg" />
+              <Stars rating={typeof product.rating === 'string' ? parseFloat(product.rating) : product.rating} size="lg" />
               <span className="detail-rating-text">
-                <strong>{product.rating}</strong> · {product.reviews} đánh giá · {product.sold} đã bán
+                <strong>{product.rating}</strong> · {product.reviewCount || 0} đánh giá · {product.sold || 0} đã bán
               </span>
             </div>
 
             {/* Price */}
             <div className="detail-price-row">
-              <span className="detail-price">{fmt(product.price)}</span>
-              {product.originalPrice && <span className="detail-price-orig">{fmt(product.originalPrice)}</span>}
+              <span className="detail-price">{formatPrice(product.price)}</span>
+              {product.originalPrice && <span className="detail-price-orig">{formatPrice(product.originalPrice)}</span>}
               {discount && <span className="detail-discount-badge">-{discount}%</span>}
             </div>
 
@@ -225,16 +273,16 @@ export default function ProductDetailPage() {
               {selSize && <span className="selector-chosen"> — {selSize}</span>}
             </p>
             <div className="size-selector">
-              {product.sizes.map((s) => {
-                const unavail = product.unavailSizes?.includes(s);
+              {product.sizes && product.sizes.map((s) => {
+                const sizeValue = s.size || s;
                 return (
                   <button
-                    key={s}
-                    className={`size-btn ${selSize === s ? "active" : ""} ${unavail ? "unavail" : ""}`}
-                    onClick={() => { if (!unavail) { setSelSize(s); setSizeErr(false); } }}
-                    title={unavail ? "Hết hàng" : s}
+                    key={sizeValue}
+                    className={`size-btn ${selSize === sizeValue ? "active" : ""}`}
+                    onClick={() => { setSelSize(sizeValue); setSizeErr(false); }}
+                    title={sizeValue}
                   >
-                    {s}
+                    {sizeValue}
                   </button>
                 );
               })}
@@ -252,7 +300,7 @@ export default function ProductDetailPage() {
                 <button className="qty-btn" onClick={() => setQty((q) => q + 1)}>+</button>
               </div>
               <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                {product.sold}+ đã mua
+                {product.sold || 0}+ đã mua
               </span>
             </div>
 
@@ -332,9 +380,9 @@ export default function ProductDetailPage() {
                 <div className="reviews-summary">
                   <div className="review-big-score">
                     <div className="review-score-num">{product.rating}</div>
-                    <Stars rating={product.rating} size="lg" />
+                    <Stars rating={typeof product.rating === 'string' ? parseFloat(product.rating) : product.rating} size="lg" />
                     <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4 }}>
-                      {product.reviews} đánh giá
+                      {product.reviewCount || 0} đánh giá
                     </p>
                   </div>
                   <div className="review-bars">
@@ -410,7 +458,7 @@ export default function ProductDetailPage() {
         </div>
 
         {/* ── Related products ── */}
-        {related.length > 0 && (
+        {related && related.length > 0 && (
           <div className="related-section">
             <div className="related-header">
               <h2 className="related-title">Có thể bạn cũng thích <span className="accent">✦</span></h2>

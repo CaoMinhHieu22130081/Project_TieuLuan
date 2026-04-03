@@ -1,33 +1,40 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ALL_PRODUCTS } from "../data/Products";
+import { productAPI } from "../services/api";
 import "./css/HomePage.css";
 
-/* ── Sản phẩm nổi bật: sắp xếp theo lượt bán, lấy top 8 (cả Áo + Quần) ── */
-const FEATURED_PRODUCTS = [...ALL_PRODUCTS]
-  .sort((a, b) => b.sold - a.sold)
-  .slice(0, 8);
-
-const CATEGORIES = [
-  { id: 1,  name: "Cơ bản",   icon: "◻", type: "Áo",   count: ALL_PRODUCTS.filter(p => p.category === "Cơ bản").length   },
-  { id: 2,  name: "Graphic",  icon: "◈", type: "Áo",   count: ALL_PRODUCTS.filter(p => p.category === "Graphic").length  },
-  { id: 3,  name: "Oversized",icon: "▣", type: "Áo",   count: ALL_PRODUCTS.filter(p => p.category === "Oversized").length},
-  { id: 4,  name: "Vintage",  icon: "◉", type: "Áo",   count: ALL_PRODUCTS.filter(p => p.category === "Vintage").length  },
-  { id: 5,  name: "Thể thao", icon: "◆", type: "Áo",   count: ALL_PRODUCTS.filter(p => p.category === "Thể thao").length },
-  { id: 6,  name: "Sọc kẻ",   icon: "☰", type: "Áo",   count: ALL_PRODUCTS.filter(p => p.category === "Sọc kẻ").length   },
-  { id: 7,  name: "Jeans",    icon: "▤", type: "Quần", count: ALL_PRODUCTS.filter(p => p.category === "Jeans").length    },
-  { id: 8,  name: "Jogger",   icon: "▥", type: "Quần", count: ALL_PRODUCTS.filter(p => p.category === "Jogger").length   },
-  { id: 9,  name: "Cargo",    icon: "▦", type: "Quần", count: ALL_PRODUCTS.filter(p => p.category === "Cargo").length    },
-  { id: 10, name: "Shorts",   icon: "▧", type: "Quần", count: ALL_PRODUCTS.filter(p => p.category === "Shorts").length   },
-  { id: 11, name: "Kaki",     icon: "▨", type: "Quần", count: ALL_PRODUCTS.filter(p => p.category === "Kaki").length     },
+// Danh mục cố định
+const CATEGORY_CONFIG = [
+  { id: 1,  name: "Cơ bản",   icon: "◻", type: "Áo"   },
+  { id: 2,  name: "Graphic",  icon: "◈", type: "Áo"   },
+  { id: 3,  name: "Oversized",icon: "▣", type: "Áo"   },
+  { id: 4,  name: "Vintage",  icon: "◉", type: "Áo"   },
+  { id: 5,  name: "Thể thao", icon: "◆", type: "Áo"   },
+  { id: 6,  name: "Sọc kẻ",   icon: "☰", type: "Áo"   },
+  { id: 7,  name: "Jeans",    icon: "▤", type: "Quần" },
+  { id: 8,  name: "Jogger",   icon: "▥", type: "Quần" },
+  { id: 9,  name: "Cargo",    icon: "▦", type: "Quần" },
+  { id: 10, name: "Shorts",   icon: "▧", type: "Quần" },
+  { id: 11, name: "Kaki",     icon: "▨", type: "Quần" },
 ];
 
-const AI_RESULTS = ALL_PRODUCTS.slice(4, 7).map((p, i) => ({
-  id: p.id, name: p.name, price: p.price,
-  similarity: [97, 91, 86][i],
-  image: Array.isArray(p.images) ? p.images[0] : p.image,
-}));
+// Hàm tạo featured products từ dữ liệu - chỉ hiển thị sản phẩm bán chạy
+const getFeaturedProducts = (products) => {
+  return (products || [])
+    .filter(p => p.tag === "Bán chạy")
+    .sort((a, b) => (b.sold || 0) - (a.sold || 0))
+    .slice(0, 8);
+};
+
+// Hàm tạo AI results từ dữ liệu
+const getAiResults = (products) => {
+  return products.slice(4, 7).map((p, i) => ({
+    id: p.id, name: p.name, price: p.price,
+    similarity: [97, 91, 86][i],
+    image: p.images && p.images.length > 0 ? p.images[0].url : (p.image || 'https://via.placeholder.com/300x400'),
+  }));
+};
 
 const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
 
@@ -46,7 +53,7 @@ function ProductCard({ product }) {
   const [hovered,     setHovered]     = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
 
-  const thumb = Array.isArray(product.images) ? product.images[0] : product.image;
+  const thumb = product.images && product.images.length > 0 ? product.images[0].url : (product.image || 'https://via.placeholder.com/300x400');
 
   const handleCart = (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -86,8 +93,8 @@ function ProductCard({ product }) {
       </div>
       <div className="product-info">
         <p className="product-name">{product.name}</p>
-        <StarRating rating={product.rating} />
-        <span className="review-count">({product.reviews} đánh giá)</span>
+        <StarRating rating={parseFloat(product.rating) || 0} />
+        <span className="review-count">({product.reviewCount || 0} đánh giá)</span>
         <div className="color-swatches">
           {(product.colors || []).map((c, i) => (
             <span key={i} className="swatch" style={{ background: typeof c === "string" ? c : c.hex }} />
@@ -102,7 +109,7 @@ function ProductCard({ product }) {
   );
 }
 
-function AiSearchPanel() {
+function AiSearchPanel({ aiResults }) {
   const [dragOver,  setDragOver]  = useState(false);
   const [preview,   setPreview]   = useState(null);
   const [searching, setSearching] = useState(false);
@@ -116,7 +123,7 @@ function AiSearchPanel() {
     setResults(null); setSearching(true); setProgress(0);
     [{ pct: 30, delay: 400 }, { pct: 65, delay: 900 }, { pct: 90, delay: 1500 }, { pct: 100, delay: 2000 }]
       .forEach(({ pct, delay }) => setTimeout(() => setProgress(pct), delay));
-    setTimeout(() => { setSearching(false); setResults(AI_RESULTS); }, 2400);
+    setTimeout(() => { setSearching(false); setResults(aiResults || []); }, 2400);
   };
 
   const onDrop = (e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); };
@@ -227,10 +234,42 @@ function AiSearchPanel() {
   );
 }
 
-export default function HomePage() {
+function HomePage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "staff";
   const [heroVisible, setHeroVisible] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [aiResults, setAiResults] = useState([]);
+  const [categories, setCategories] = useState(CATEGORY_CONFIG);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await productAPI.getAllProducts();
+        setProducts(data || []);
+        setFeaturedProducts(getFeaturedProducts(data || []));
+        setAiResults(getAiResults(data || []));
+        
+        // Tính toán số lượng sản phẩm cho mỗi danh mục
+        const updatedCategories = CATEGORY_CONFIG.map(cat => ({
+          ...cat,
+          count: (data || []).filter(p => p.category && p.category.name === cat.name).length
+        }));
+        setCategories(updatedCategories);
+      } catch (err) {
+        console.error("Lỗi tải sản phẩm:", err);
+        setError("Không thể tải dữ liệu sản phẩm");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   useEffect(() => { setTimeout(() => setHeroVisible(true), 100); }, []);
 
   return (
@@ -292,7 +331,7 @@ export default function HomePage() {
             <Link to="/products" className="see-all">Xem tất cả →</Link>
           </div>
           <div className="categories-grid">
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <Link
                 key={cat.id}
                 to={`/products?category=${encodeURIComponent(cat.name)}`}
@@ -316,9 +355,20 @@ export default function HomePage() {
             <Link to="/products" className="see-all">Xem tất cả →</Link>
           </div>
           <div className="products-grid">
-            {FEATURED_PRODUCTS.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+            {loading ? (
+              <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "40px" }}>
+                <div className="spinner" style={{ margin: "0 auto" }} />
+                <p>Đang tải sản phẩm...</p>
+              </div>
+            ) : error ? (
+              <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "40px", color: "#e74c3c" }}>
+                <p>{error}</p>
+              </div>
+            ) : (
+              featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))
+            )}
           </div>
           <div className="load-more-wrap">
             <Link to="/products" className="btn-load-more" style={{ textDecoration: "none" }}>
@@ -329,7 +379,7 @@ export default function HomePage() {
       </section>
 
       {/* ── AI Search ── */}
-      <AiSearchPanel />
+      <AiSearchPanel aiResults={aiResults} />
 
       {/* ── Footer ── */}
       <footer className="footer">
@@ -377,3 +427,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+export default HomePage;

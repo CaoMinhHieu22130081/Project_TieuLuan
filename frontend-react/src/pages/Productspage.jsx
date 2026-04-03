@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ALL_PRODUCTS } from "../data/Products";
+import { productAPI } from "../services/api";
 import "./css/ProductsPage.css";
 
 const TYPES = ["Tất cả", "Áo", "Quần"];
@@ -45,7 +45,13 @@ function ProductCard({ product }) {
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : null;
 
-  const thumb = Array.isArray(product.images) ? product.images[0] : product.image;
+  // Handle images - API returns array of objects with {url, sortOrder}
+  const thumb = product.images && product.images.length > 0 
+    ? product.images[0].url 
+    : (product.image || 'https://via.placeholder.com/300x400?text=No+Image');
+
+  // Handle rating - convert to number if string
+  const rating = typeof product.rating === 'string' ? parseFloat(product.rating) : (product.rating || 5);
 
   const stopAndRun = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
 
@@ -92,8 +98,8 @@ function ProductCard({ product }) {
 
       <div className="product-info">
         <p className="product-name">{product.name}</p>
-        <StarRating rating={product.rating} />
-        <span className="review-count">({product.reviews} đánh giá)</span>
+        <StarRating rating={rating} />
+        <span className="review-count">({product.reviewCount || product.reviews || 0} đánh giá)</span>
         <div className="color-swatches">
           {(product.colors || []).map((c, i) => (
             <span key={i} className="swatch" style={{ background: typeof c === "string" ? c : c.hex }} />
@@ -111,6 +117,9 @@ function ProductCard({ product }) {
 /* ── Trang chính ─────────────────────────────────────── */
 export default function ProductsPage() {
   const [searchParams] = useSearchParams();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [typeFilter, setTypeFilter] = useState("Tất cả");
   const [category,   setCategory]   = useState("Tất cả");
@@ -120,6 +129,24 @@ export default function ProductsPage() {
   const [page,       setPage]        = useState(1);
   const [viewMode,   setViewMode]    = useState("grid");
   const [mobileOpen, setMobileOpen]  = useState(false);
+
+  // Fetch sản phẩm từ API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const data = await productAPI.getAllProducts();
+        setProducts(data);
+        setError(null);
+      } catch (err) {
+        setError("Lỗi tải sản phẩm. Vui lòng thử lại sau.");
+        console.error('Error fetching products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   /* Đọc query param từ URL (category hoặc type) */
   useEffect(() => {
@@ -144,14 +171,19 @@ export default function ProductsPage() {
   const toggleArr = (setter, val) =>
     setter((prev) => prev.includes(val) ? prev.filter((x) => x !== val) : [...prev, val]);
 
-  let filtered = ALL_PRODUCTS;
+  let filtered = products;
 
   /* Filter type */
   if (typeFilter !== "Tất cả") filtered = filtered.filter((p) => p.type === typeFilter);
   /* Filter category */
-  if (category !== "Tất cả")   filtered = filtered.filter((p) => p.category === category);
+  if (category !== "Tất cả") {
+    filtered = filtered.filter((p) => {
+      const catName = p.category ? (typeof p.category === 'string' ? p.category : p.category.name) : null;
+      return catName === category;
+    });
+  }
   /* Filter sizes */
-  if (sizes.length)             filtered = filtered.filter((p) => p.sizes.some((s) => sizes.includes(s)));
+  if (sizes.length) filtered = filtered.filter((p) => p.sizes && p.sizes.some((s) => sizes.includes(s.name)));
 
   /* Sort */
   if (sortBy === "price_asc")  filtered = [...filtered].sort((a, b) => a.price - b.price);
@@ -159,8 +191,8 @@ export default function ProductsPage() {
   if (sortBy === "rating")     filtered = [...filtered].sort((a, b) => b.rating - a.rating);
   if (sortBy === "newest")     filtered = [...filtered].sort((a, b) => b.id - a.id);
 
-  const totalAo   = ALL_PRODUCTS.filter(p => p.type === "Áo").length;
-  const totalQuan = ALL_PRODUCTS.filter(p => p.type === "Quần").length;
+  const totalAo   = products.filter(p => p.type === "Áo").length;
+  const totalQuan = products.filter(p => p.type === "Quần").length;
 
   return (
     <div className="products-page">
@@ -177,7 +209,7 @@ export default function ProductsPage() {
           Thời trang <span className="accent">UniqTee</span>
         </h1>
         <p className="products-page-sub">
-          Khám phá {ALL_PRODUCTS.length}+ sản phẩm unisex —&nbsp;
+          Khám phá {products.length}+ sản phẩm unisex —&nbsp;
           {totalAo} mẫu áo · {totalQuan} mẫu quần · đa dạng phong cách
         </p>
       </div>
@@ -200,8 +232,8 @@ export default function ProductsPage() {
             <div className="filter-options">
               {CATEGORIES.map((cat) => {
                 const count = cat === "Tất cả"
-                  ? (typeFilter === "Tất cả" ? ALL_PRODUCTS.length : ALL_PRODUCTS.filter(p => p.type === typeFilter).length)
-                  : ALL_PRODUCTS.filter((p) => p.category === cat).length;
+                  ? (typeFilter === "Tất cả" ? products.length : products.filter(p => p.type === typeFilter).length)
+                  : products.filter((p) => p.category === cat).length;
                 return (
                   <label key={cat} className={`filter-option ${category === cat ? "checked" : ""}`} onClick={() => setCategory(cat)}>
                     <div className="filter-checkbox">{category === cat && <span className="filter-check-mark">✓</span>}</div>
@@ -250,7 +282,7 @@ export default function ProductsPage() {
           {/* Type tabs nhanh */}
           <div className="type-quick-tabs">
             {TYPES.map((t) => {
-              const cnt = t === "Tất cả" ? ALL_PRODUCTS.length : ALL_PRODUCTS.filter(p => p.type === t).length;
+              const cnt = t === "Tất cả" ? products.length : products.filter(p => p.type === t).length;
               return (
                 <button
                   key={t}
@@ -296,7 +328,23 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="products-empty">
+              <p style={{ fontSize: "2rem", marginBottom: 16 }}>⏳</p>
+              <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>Đang tải sản phẩm...</p>
+            </div>
+          ) : error ? (
+            <div className="products-empty">
+              <p style={{ fontSize: "2rem", marginBottom: 16 }}>❌</p>
+              <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>{error}</p>
+              <button
+                style={{ marginTop: 16, padding: "9px 20px", background: "var(--accent)", color: "#fff", borderRadius: 10, fontWeight: 700, fontSize: "0.875rem", cursor: "pointer", border: "none" }}
+                onClick={() => window.location.reload()}
+              >
+                Thử lại
+              </button>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="products-empty">
               <p style={{ fontSize: "2.5rem", marginBottom: 16 }}>🔍</p>
               <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>Không tìm thấy sản phẩm phù hợp</p>

@@ -386,7 +386,9 @@ export const adminAPI = {
   // Get all users
   getAllUsers: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/users`);
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch users');
       return await response.json();
     } catch (error) {
@@ -398,7 +400,9 @@ export const adminAPI = {
   // Get all orders
   getAllOrders: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/orders`);
+      const response = await fetch(`${API_BASE_URL}/admin/orders`, {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch orders');
       return await response.json();
     } catch (error) {
@@ -410,7 +414,9 @@ export const adminAPI = {
   // Get dashboard statistics
   getDashboardStats: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/stats`);
+      const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch statistics');
       return await response.json();
     } catch (error) {

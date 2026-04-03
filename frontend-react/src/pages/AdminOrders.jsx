@@ -1,20 +1,37 @@
-import { useState } from "react";
-import { ALL_PRODUCTS } from "../data/Products";
+import { useState, useEffect } from "react";
+import { adminAPI } from "../services/api";
 import { AdminLayout } from "./Adminheader";
 import "./css/Admin.css";
-import { ORDERS_DATA, STATUS_MAP, STATUS_TABS } from "../data/AdminOrdersData";
+import { STATUS_MAP, STATUS_TABS } from "../data/AdminOrdersData";
 
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 
 export default function AdminOrders() {
-  const [orders,    setOrders]    = useState(ORDERS_DATA);
-  const [tabFilter, setTabFilter] = useState("Tất cả");
-  const [search,    setSearch]    = useState("");
-  const [detail,    setDetail]    = useState(null);
+  const [orders,    setOrders]       = useState([]);
+  const [loading,   setLoading]      = useState(true);
+  const [error,     setError]        = useState(null);
+  const [tabFilter, setTabFilter]    = useState("Tất cả");
+  const [search,    setSearch]       = useState("");
+  const [detail,    setDetail]       = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await adminAPI.getAllOrders();
+        setOrders(data);
+      } catch (err) {
+        console.error("Error fetching orders:", err);
+        setError("Lỗi tải đơn hàng");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const displayed = orders.filter((o) => {
     const matchTab    = tabFilter === "Tất cả" || o.status === tabFilter;
-    const matchSearch = o.id.includes(search.toUpperCase()) || o.customer.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = o.orderCode.includes(search.toUpperCase()) || o.customerName.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
 
@@ -61,8 +78,9 @@ export default function AdminOrders() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="admin-card table-card">
+      {loading && <div className="admin-card" style={{ textAlign: "center", padding: "20px" }}>⏳ Đang tải đơn hàng...</div>}
+      {error && <div className="admin-card" style={{ textAlign: "center", padding: "20px", color: "red" }}>{error}</div>}
+      {!loading && !error && (
         <table className="admin-table">
           <thead>
             <tr>
@@ -74,15 +92,17 @@ export default function AdminOrders() {
             {displayed.map((o) => (
               <tr key={o.id}>
                 <td>
-                  <span className="order-id-link" onClick={() => setDetail(o)}>#{o.id}</span>
+                  <span className="order-id-link" onClick={() => setDetail(o)}>#{o.orderCode}</span>
                 </td>
                 <td>
-                  <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>{o.customer}</p>
-                  <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{o.phone}</p>
+                  <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>{o.customerName}</p>
+                  <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{o.customerPhone}</p>
                 </td>
-                <td style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>{o.date}</td>
-                <td><span style={{ fontWeight: 700, color: "var(--accent)" }}>{fmt(o.total)}</span></td>
-                <td><span className="pay-badge">{o.payment}</span></td>
+                <td style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                  {new Date(o.createdAt).toLocaleDateString('vi-VN')}
+                </td>
+                <td><span style={{ fontWeight: 700, color: "var(--accent)" }}>{fmt(Number(o.total))}</span></td>
+                <td><span className="pay-badge">{o.paymentMethod}</span></td>
                 <td>
                   <span className={`omr-status ${STATUS_MAP[o.status].cls}`}>
                     {STATUS_MAP[o.status].label}
@@ -105,7 +125,7 @@ export default function AdminOrders() {
             ))}
           </tbody>
         </table>
-      </div>
+      )}
 
       {/* Order Detail Modal */}
       {detail && (
@@ -126,41 +146,39 @@ export default function AdminOrders() {
               <div className="detail-section">
                 <p className="detail-section-title">📋 Thông tin khách hàng</p>
                 <div className="detail-info-grid">
-                  <div><span className="di-label">Họ tên</span><span>{detail.customer}</span></div>
-                  <div><span className="di-label">SĐT</span><span>{detail.phone}</span></div>
-                  <div><span className="di-label">Email</span><span>{detail.email}</span></div>
+                  <div><span className="di-label">Họ tên</span><span>{detail.customerName}</span></div>
+                  <div><span className="di-label">SĐT</span><span>{detail.customerPhone}</span></div>
+                  <div><span className="di-label">Email</span><span>{detail.customerEmail}</span></div>
                   <div><span className="di-label">Địa chỉ</span><span>{detail.address}</span></div>
-                  <div><span className="di-label">Ngày đặt</span><span>{detail.date}</span></div>
-                  <div><span className="di-label">Thanh toán</span><span>{detail.payment}</span></div>
+                  <div><span className="di-label">Ngày đặt</span><span>{new Date(detail.createdAt).toLocaleDateString('vi-VN')}</span></div>
+                  <div><span className="di-label">Thanh toán</span><span>{detail.paymentMethod}</span></div>
                 </div>
               </div>
               {/* Sản phẩm */}
               <div className="detail-section">
                 <p className="detail-section-title">🛍️ Sản phẩm đặt mua</p>
-                {detail.items.map(({ productId, qty, size, color }, i) => {
-                  const p = ALL_PRODUCTS.find((x) => x.id === productId);
-                  if (!p) return null;
-                  const img = Array.isArray(p.images) ? p.images[0] : p.image;
-                  return (
+                {detail.items && detail.items.length > 0 ? (
+                  detail.items.map((item, i) => (
                     <div key={i} className="detail-item-row">
-                      <img src={img} alt={p.name} className="detail-item-img" />
                       <div style={{ flex: 1 }}>
-                        <p style={{ fontWeight: 600 }}>{p.name}</p>
+                        <p style={{ fontWeight: 600 }}>{item.productName}</p>
                         <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                          {color} · Size {size} · x{qty}
+                          {item.color} · Size {item.size} · x{item.qty}
                         </p>
                       </div>
-                      <span style={{ fontWeight: 700, color: "var(--accent)" }}>{fmt(p.price * qty)}</span>
+                      <span style={{ fontWeight: 700, color: "var(--accent)" }}>{fmt(Number(item.subtotal))}</span>
                     </div>
-                  );
-                })}
+                  ))
+                ) : (
+                  <p style={{ color: "var(--text-muted)" }}>Không có sản phẩm</p>
+                )}
                 <div className="detail-total-row">
                   <span>Phí vận chuyển:</span>
-                  <span>{detail.shipping === 0 ? "Miễn phí" : fmt(detail.shipping)}</span>
+                  <span>{Number(detail.shippingFee) === 0 ? "Miễn phí" : fmt(Number(detail.shippingFee))}</span>
                 </div>
                 <div className="detail-total-row bold">
                   <span>Tổng cộng:</span>
-                  <span style={{ color: "var(--accent)" }}>{fmt(detail.total)}</span>
+                  <span style={{ color: "var(--accent)" }}>{fmt(Number(detail.total))}</span>
                 </div>
               </div>
             </div>
