@@ -4,6 +4,9 @@ import './Index.css';
 import Header from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import { WishlistProvider } from './context/WishlistContext';
+import { CartProvider } from './context/CartContext';
+import { ToastProvider } from './context/ToastContext';
 import HomePage from './pages/Homepage';
 import ProductsPage from './pages/Productspage';
 import ProductDetailPage from './pages/Productdetailpage';
@@ -54,7 +57,13 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <WishlistProvider>
+          <CartProvider>
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
+          </CartProvider>
+        </WishlistProvider>
       </AuthProvider>
     </Router>
   );

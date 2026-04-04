@@ -402,4 +402,56 @@ public class UserController {
                     .body(Map.of("message", "Lỗi OAuth2 user info: " + e.getMessage()));
         }
     }
+
+    /**
+     * Change password for logged-in user
+     * @param userId User ID
+     * @param request Map containing oldPassword and newPassword
+     * @return Response with success/error message
+     */
+    @PostMapping("/{id}/change-password")
+    public ResponseEntity<Object> changePassword(
+            @PathVariable Integer id,
+            @RequestBody Map<String, String> request) {
+        try {
+            String oldPassword = request.get("oldPassword");
+            String newPassword = request.get("newPassword");
+            String confirmPassword = request.get("confirmPassword");
+
+            // Validate input
+            if (oldPassword == null || oldPassword.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Mật khẩu cũ là bắt buộc"));
+            }
+            if (newPassword == null || newPassword.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Mật khẩu mới là bắt buộc"));
+            }
+            if (confirmPassword == null || confirmPassword.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Xác nhận mật khẩu là bắt buộc"));
+            }
+
+            // Check if passwords match
+            if (!newPassword.equals(confirmPassword)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Mật khẩu mới và xác nhận mật khẩu không khớp"));
+            }
+
+            // Change password
+            User updatedUser = userService.changePassword(id, oldPassword, newPassword);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Mật khẩu đã được thay đổi thành công",
+                    "user", updatedUser
+            ));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi thay đổi mật khẩu: " + e.getMessage()));
+        }
+    }
 }

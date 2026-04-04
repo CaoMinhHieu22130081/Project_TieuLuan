@@ -1,50 +1,27 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ALL_PRODUCTS } from "../data/Products";
+import { useCart } from "../context/CartContext";
 import "./css/CartPage.css";
-
-/* ── Demo cart: chỉ định id + màu + size + qty
-   Ảnh, giá, tên đều lấy từ ALL_PRODUCTS → không còn data cứng ── */
-const buildCart = () =>
-  [
-    { productId: 1, color: "Đen",     colorHex: "#1a1a1a", size: "M",  qty: 1 },
-    { productId: 2, color: "Tím",     colorHex: "#7B68EE", size: "L",  qty: 2 },
-    { productId: 3, color: "Xám đậm", colorHex: "#2C2C2C", size: "XL", qty: 1 },
-  ].map(({ productId, color, colorHex, size, qty }) => {
-    const p = ALL_PRODUCTS.find((x) => x.id === productId);
-    return {
-      id:            p.id,
-      name:          p.name,
-      price:         p.price,
-      originalPrice: p.originalPrice,
-      image:         Array.isArray(p.images)
-                       ? p.images[0].split("?")[0] + "?w=200&h=250&fit=crop"
-                       : p.image,
-      color,
-      colorHex,
-      size,
-      qty,
-    };
-  });
 
 const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
 
 export default function CartPage() {
-  const [items,        setItems]        = useState(buildCart);
+  const { cart, removeFromCart, updateQty, clearCart, getTotalPrice } = useCart();
   const [promoCode,    setPromoCode]    = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
 
-  const updateQty = (id, delta) =>
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, qty: Math.max(1, item.qty + delta) } : item
-      )
-    );
+  const items = cart;
 
-  const removeItem = (id) =>
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  const updateItemQty = (cartItemId, delta) => {
+    const currentItem = items.find((item) => item.cartItemId === cartItemId);
+    if (currentItem) {
+      updateQty(cartItemId, Math.max(1, currentItem.qty + delta));
+    }
+  };
 
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const removeItem = (cartItemId) => removeFromCart(cartItemId);
+
+  const subtotal = getTotalPrice();
   const discount = promoApplied ? Math.round(subtotal * 0.1) : 0;
   const shipping  = subtotal >= 299000 ? 0 : 30000;
   const total     = subtotal - discount + shipping;
@@ -88,14 +65,14 @@ export default function CartPage() {
           <div className="cart-items-col">
             <div className="cart-items-header">
               <span className="cart-items-label">Sản phẩm đã chọn</span>
-              <button className="cart-clear-btn" onClick={() => setItems([])}>
+              <button className="cart-clear-btn" onClick={() => clearCart()}>
                 Xóa tất cả
               </button>
             </div>
 
             {items.map((item) => (
-              <div key={`${item.id}-${item.size}-${item.color}`} className="cart-item">
-                <Link to={`/products/${item.id}`} className="cart-item-img">
+              <div key={`${item.cartItemId}`} className="cart-item">
+                <Link to={`/products/${item.productId}`} className="cart-item-img">
                   <img
                     src={item.image}
                     alt={item.name}
@@ -105,7 +82,7 @@ export default function CartPage() {
 
                 <div className="cart-item-body">
                   <Link
-                    to={`/products/${item.id}`}
+                    to={`/products/${item.productId}`}
                     className="cart-item-name"
                     style={{ textDecoration: "none" }}
                   >
@@ -130,24 +107,47 @@ export default function CartPage() {
                   </div>
 
                   <div className="cart-item-footer">
-                    <span className="cart-item-price">
-                      {formatPrice(item.price * item.qty)}
-                      {item.originalPrice && (
-                        <span className="cart-item-price-orig">
-                          {" "}{formatPrice(item.originalPrice * item.qty)}
-                        </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <span className="cart-item-price">
+                        {formatPrice(item.price * item.qty)}
+                      </span>
+                      {item.originalPrice && item.originalPrice > item.price && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span 
+                            className="cart-item-price-orig"
+                            style={{
+                              textDecoration: "line-through",
+                              color: "#888",
+                              fontSize: "0.85rem",
+                            }}
+                          >
+                            {formatPrice(item.originalPrice * item.qty)}
+                          </span>
+                          <span
+                            style={{
+                              background: "#ff3b60",
+                              color: "#fff",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            −{Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}%
+                          </span>
+                        </div>
                       )}
-                    </span>
+                    </div>
 
                     <div className="cart-item-actions">
                       <div className="qty-control-sm">
-                        <button className="qty-btn-sm" onClick={() => updateQty(item.id, -1)}>−</button>
+                        <button className="qty-btn-sm" onClick={() => updateItemQty(item.cartItemId, -1)}>−</button>
                         <span className="qty-num-sm">{item.qty}</span>
-                        <button className="qty-btn-sm" onClick={() => updateQty(item.id,  1)}>+</button>
+                        <button className="qty-btn-sm" onClick={() => updateItemQty(item.cartItemId,  1)}>+</button>
                       </div>
                       <button
                         className="cart-item-remove"
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => removeItem(item.cartItemId)}
                         aria-label="Xóa"
                       >
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24">

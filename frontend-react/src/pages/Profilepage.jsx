@@ -1,20 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useWishlist } from "../context/WishlistContext";
 import { ALL_PRODUCTS } from "../data/Products";
 import { userAPI, orderAPI } from "../services/api";
 import "./css/ProfilePage.css";
 
 // Lấy ảnh thumbnail từ sản phẩm (hỗ trợ cả images[] lẫn image)
 const getThumb = (p) => (Array.isArray(p.images) ? p.images[0] : p.image);
-
-// Danh sách yêu thích — lấy từ ALL_PRODUCTS (sản phẩm 6, 5, 7)
-const WISHLIST = ALL_PRODUCTS.filter((p) => [6, 5, 7].includes(p.id)).map((p) => ({
-  id: p.id,
-  name: p.name,
-  price: p.price,
-  image: getThumb(p),
-}));
 
 const STATUS_MAP = {
   delivered: { label: "Đã giao hàng", cls: "status-delivered" },
@@ -25,15 +18,90 @@ const STATUS_MAP = {
 
 const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
 
+// Password Strength Checker Component
+function PasswordStrengthChecker({ password }) {
+  const checks = [
+    { label: "Ít nhất 8 ký tự", ok: password.length >= 8 },
+    { label: "Có chữ hoa", ok: /[A-Z]/.test(password) },
+    { label: "Có số", ok: /[0-9]/.test(password) },
+    { label: "Có ký tự đặc biệt", ok: /[^A-Za-z0-9]/.test(password) },
+  ];
+  const score = checks.filter((c) => c.ok).length;
+  const levels = ["", "Yếu", "Trung bình", "Khá", "Mạnh"];
+  const colors = ["", "#f87171", "#fbbf24", "#60a5fa", "#c8ff57"];
+
+  if (!password) return null;
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      {/* Strength bars */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              height: 4,
+              borderRadius: 2,
+              background: i <= score ? colors[score] : "var(--border)",
+              transition: "background 0.2s"
+            }}
+          />
+        ))}
+      </div>
+      <span style={{ fontSize: "0.8rem", color: colors[score], fontWeight: 600 }}>
+        {levels[score]}
+      </span>
+
+      {/* Checks */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+        {checks.map((c) => (
+          <div
+            key={c.label}
+            style={{
+              fontSize: "0.78rem",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: c.ok ? "var(--text-secondary)" : "var(--text-muted)",
+              opacity: c.ok ? 1 : 0.6
+            }}
+          >
+            <span style={{ fontSize: "0.9rem" }}>{c.ok ? "✓" : "○"}</span>
+            {c.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { wishlist, removeFromWishlist } = useWishlist();
   const isAdmin = user?.role === "admin" || user?.role === "staff";
   const [activeTab, setActiveTab] = useState("orders");
   const [orderFilter, setOrderFilter] = useState("all");
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // State cho password change
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  
+  // State để hiển thị/ẩn mật khẩu
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // State cho profile
   const [profile, setProfile] = useState({
@@ -173,10 +241,100 @@ export default function ProfilePage() {
     }
   };
 
-  const NavItem = ({ tabKey, icon, label }) => (
+  // Xử lý đổi mật khẩu
+  const handleChangePassword = async () => {
+    try {
+      // Validate
+      if (!passwordForm.oldPassword) {
+        setPasswordError('Vui lòng nhập mật khẩu cũ');
+        return;
+      }
+      if (!passwordForm.newPassword) {
+        setPasswordError('Vui lòng nhập mật khẩu mới');
+        return;
+      }
+      if (!passwordForm.confirmPassword) {
+        setPasswordError('Vui lòng xác nhận mật khẩu mới');
+        return;
+      }
+
+      // Validate new password strength
+      const passErrors = [];
+      if (passwordForm.newPassword.length < 8) passErrors.push("Ít nhất 8 ký tự");
+      if (!/[A-Z]/.test(passwordForm.newPassword)) passErrors.push("Ít nhất 1 chữ hoa");
+      if (!/[0-9]/.test(passwordForm.newPassword)) passErrors.push("Ít nhất 1 số");
+      if (!/[^A-Za-z0-9]/.test(passwordForm.newPassword)) passErrors.push("Ít nhất 1 ký tự đặc biệt");
+      
+      if (passErrors.length > 0) {
+        setPasswordError(`Mật khẩu phải có: ${passErrors.join(", ")}`);
+        return;
+      }
+
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        setPasswordError('Mật khẩu mới và xác nhận không khớp');
+        return;
+      }
+
+      setPasswordError(null);
+      setPasswordLoading(true);
+
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        setPasswordError('Không tìm thấy user ID');
+        return;
+      }
+
+      const response = await userAPI.changePassword(
+        userId,
+        passwordForm.oldPassword,
+        passwordForm.newPassword,
+        passwordForm.confirmPassword
+      );
+
+      setPasswordSuccess(true);
+      setPasswordForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
+      setShowOldPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+      
+      // Auto hide success message after 3 seconds
+      setTimeout(() => {
+        setPasswordSuccess(false);
+        setShowChangePassword(false);
+      }, 3000);
+    } catch (err) {
+      console.error('Error changing password:', err);
+      setPasswordError(err.message || 'Đổi mật khẩu thất bại. Vui lòng thử lại.');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const NavItem = ({ tabKey, icon, label, badge }) => (
     <div className={`profile-nav-item ${activeTab === tabKey ? "active" : ""}`} onClick={() => setActiveTab(tabKey)}>
       {icon}
-      {label}
+      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        {label}
+        {badge !== undefined && badge > 0 && (
+          <span
+            style={{
+              background: "var(--accent)",
+              color: "#fff",
+              borderRadius: "50%",
+              width: "22px",
+              height: "22px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              marginLeft: "4px",
+            }}
+          >
+            {badge}
+          </span>
+        )}
+      </span>
     </div>
   );
 
@@ -275,7 +433,7 @@ export default function ProfilePage() {
               <span className="profile-stat-label">Đơn hàng</span>
             </div>
             <div className="profile-stat">
-              <span className="profile-stat-num">{WISHLIST.length}</span>
+              <span className="profile-stat-num">{wishlist.length}</span>
               <span className="profile-stat-label">Yêu thích</span>
             </div>
             <div className="profile-stat">
@@ -288,12 +446,12 @@ export default function ProfilePage() {
         <div className="profile-layout">
           {/* Nav */}
           <nav className="profile-nav">
-            <NavItem tabKey="orders" label="Đơn hàng" icon={
+            <NavItem tabKey="orders" label="Đơn hàng" badge={orders.length} icon={
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
                 <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
             } />
-            <NavItem tabKey="wishlist" label="Yêu thích" icon={
+            <NavItem tabKey="wishlist" label="Yêu thích" badge={wishlist.length} icon={
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
                 <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
@@ -386,21 +544,75 @@ export default function ProfilePage() {
               <div className="profile-section">
                 <p className="profile-section-title">
                   <span className="section-title-dot" />
-                  Sản phẩm yêu thích ({WISHLIST.length})
+                  Sản phẩm yêu thích ({wishlist.length})
                 </p>
-                <div className="wishlist-grid">
-                  {WISHLIST.map((item) => (
-                    <div key={item.id} className="wishlist-card">
-                      <div className="wishlist-img">
-                        <img src={item.image} alt={item.name} />
+                {wishlist.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                    <p style={{ fontSize: "2rem", marginBottom: "16px" }}>💔</p>
+                    <p>Bạn chưa có sản phẩm yêu thích nào</p>
+                  </div>
+                ) : (
+                  <div className="wishlist-grid">
+                    {wishlist.map((item) => (
+                      <div key={item.id} style={{ position: "relative" }}>
+                        <Link 
+                          to={`/products/${item.id}`}
+                          className="wishlist-card"
+                          style={{ textDecoration: "none" }}
+                        >
+                          <div 
+                            className="wishlist-img"
+                            style={{ position: "relative" }}
+                          >
+                            <img 
+                              src={Array.isArray(item.images) && item.images.length > 0 ? item.images[0].url : item.image} 
+                              alt={item.name} 
+                            />
+                          </div>
+                          <div className="wishlist-info">
+                            <p className="wishlist-name">{item.name}</p>
+                            <p className="wishlist-price">{formatPrice(item.price)}</p>
+                          </div>
+                        </Link>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            removeFromWishlist(item.id);
+                          }}
+                          style={{
+                            position: "absolute",
+                            bottom: 12,
+                            right: 12,
+                            background: "rgba(0, 0, 0, 0.7)",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "50%",
+                            width: 36,
+                            height: 36,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "1.2rem",
+                            transition: "all 0.2s ease",
+                            zIndex: 10,
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "rgba(0, 0, 0, 0.9)";
+                            e.currentTarget.style.transform = "scale(1.1)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "rgba(0, 0, 0, 0.7)";
+                            e.currentTarget.style.transform = "scale(1)";
+                          }}
+                          title="Xóa khỏi yêu thích"
+                        >
+                          ✕
+                        </button>
                       </div>
-                      <div className="wishlist-info">
-                        <p className="wishlist-name">{item.name}</p>
-                        <p className="wishlist-price">{formatPrice(item.price)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -488,20 +700,351 @@ export default function ProfilePage() {
                   <span className="section-title-dot" />
                   Bảo mật tài khoản
                 </p>
+
+                {/* Change Password */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {[
-                    { title: "Đổi mật khẩu", sub: "Cập nhật mật khẩu định kỳ để bảo mật tài khoản", btn: "Đổi ngay" },
-                    { title: "Xác thực 2 bước", sub: "Tăng cường bảo mật với xác thực qua điện thoại", btn: "Kích hoạt" },
-                    { title: "Thiết bị đã đăng nhập", sub: "Quản lý các thiết bị đang truy cập tài khoản", btn: "Xem" },
-                  ].map((s) => (
-                    <div key={s.title} style={{ display: "flex", alignItems: "center", gap: 16, padding: 16, background: "var(--surface)", borderRadius: 12, border: "1px solid var(--border)" }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontWeight: 600, marginBottom: 2 }}>{s.title}</p>
-                        <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>{s.sub}</p>
-                      </div>
-                      <button className="order-action-btn">{s.btn}</button>
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    padding: 16,
+                    background: showChangePassword ? "var(--accent-dim)" : "var(--surface)",
+                    borderRadius: 12,
+                    border: "1px solid " + (showChangePassword ? "var(--accent)" : "var(--border)")
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 600, marginBottom: 2 }}>🔐 Đổi mật khẩu</p>
+                      <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+                        {showChangePassword ? "Nhập mật khẩu cũ và mật khẩu mới" : "Cập nhật mật khẩu định kỳ để bảo mật tài khoản"}
+                      </p>
                     </div>
-                  ))}
+                    {!showChangePassword && (
+                      <button className="order-action-btn" onClick={() => setShowChangePassword(true)}>
+                        Đổi ngay
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Change Password Form */}
+                  {showChangePassword && (
+                    <div style={{
+                      padding: 20,
+                      background: "var(--surface)",
+                      borderRadius: 12,
+                      border: "1px solid var(--border)"
+                    }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                        {/* Old Password */}
+                        <div>
+                          <label style={{
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            color: "var(--text-muted)",
+                            marginBottom: 6,
+                            display: "block",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            fontFamily: "var(--font-mono)",
+                          }}>
+                            Mật khẩu cũ
+                          </label>
+                          <div style={{
+                            position: "relative",
+                            display: "flex",
+                            alignItems: "center"
+                          }}>
+                            <input
+                              type={showOldPassword ? "text" : "password"}
+                              placeholder="Nhập mật khẩu cũ"
+                              value={passwordForm.oldPassword}
+                              onChange={(e) => {
+                                setPasswordForm(prev => ({ ...prev, oldPassword: e.target.value }));
+                                setPasswordError(null);
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "10px 12px",
+                                paddingRight: "40px",
+                                background: "var(--bg-2)",
+                                border: "1px solid var(--border-2)",
+                                borderRadius: 8,
+                                color: "var(--text-primary)",
+                                fontSize: "0.9rem",
+                                fontFamily: "var(--font-body)",
+                                outline: "none",
+                                boxSizing: "border-box",
+                                transition: "border-color 0.2s"
+                              }}
+                              onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
+                              onBlur={(e) => e.target.style.borderColor = "var(--border-2)"}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowOldPassword(!showOldPassword)}
+                              style={{
+                                position: "absolute",
+                                right: 10,
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "1.1rem",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 0,
+                                color: "var(--text-secondary)",
+                                transition: "color 0.2s"
+                              }}
+                              onMouseEnter={(e) => e.target.style.color = "var(--accent)"}
+                              onMouseLeave={(e) => e.target.style.color = "var(--text-secondary)"}
+                              title={showOldPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"}
+                            >
+                              {showOldPassword ? "👁️" : "👁️‍🗨️"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* New Password */}
+                        <div>
+                          <label style={{
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            color: "var(--text-muted)",
+                            marginBottom: 6,
+                            display: "block",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            fontFamily: "var(--font-mono)",
+                          }}>
+                            Mật khẩu mới
+                          </label>
+                          <div style={{
+                            position: "relative",
+                            display: "flex",
+                            alignItems: "center"
+                          }}>
+                            <input
+                              type={showNewPassword ? "text" : "password"}
+                              placeholder="Nhập mật khẩu mới"
+                              value={passwordForm.newPassword}
+                              onChange={(e) => {
+                                setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }));
+                                setPasswordError(null);
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "10px 12px",
+                                paddingRight: "40px",
+                                background: "var(--bg-2)",
+                                border: "1px solid var(--border-2)",
+                                borderRadius: 8,
+                                color: "var(--text-primary)",
+                                fontSize: "0.9rem",
+                                fontFamily: "var(--font-body)",
+                                outline: "none",
+                                boxSizing: "border-box",
+                                transition: "border-color 0.2s"
+                              }}
+                              onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
+                              onBlur={(e) => e.target.style.borderColor = "var(--border-2)"}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                              style={{
+                                position: "absolute",
+                                right: 10,
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "1.1rem",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 0,
+                                color: "var(--text-secondary)",
+                                transition: "color 0.2s"
+                              }}
+                              onMouseEnter={(e) => e.target.style.color = "var(--accent)"}
+                              onMouseLeave={(e) => e.target.style.color = "var(--text-secondary)"}
+                              title={showNewPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"}
+                            >
+                              {showNewPassword ? "👁️" : "👁️‍🗨️"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Password Strength Indicator */}
+                        {passwordForm.newPassword && (
+                          <PasswordStrengthChecker password={passwordForm.newPassword} />
+                        )}
+
+                        {/* Confirm Password */}
+                        <div>
+                          <label style={{
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            color: "var(--text-muted)",
+                            marginBottom: 6,
+                            display: "block",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            fontFamily: "var(--font-mono)",
+                          }}>
+                            Xác nhận mật khẩu mới
+                          </label>
+                          <div style={{
+                            position: "relative",
+                            display: "flex",
+                            alignItems: "center"
+                          }}>
+                            <input
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Nhập lại mật khẩu mới"
+                              value={passwordForm.confirmPassword}
+                              onChange={(e) => {
+                                setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }));
+                                setPasswordError(null);
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "10px 12px",
+                                paddingRight: "40px",
+                                background: "var(--bg-2)",
+                                border: "1px solid var(--border-2)",
+                                borderRadius: 8,
+                                color: "var(--text-primary)",
+                                fontSize: "0.9rem",
+                                fontFamily: "var(--font-body)",
+                                outline: "none",
+                                boxSizing: "border-box",
+                                transition: "border-color 0.2s"
+                              }}
+                              onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
+                              onBlur={(e) => e.target.style.borderColor = "var(--border-2)"}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              style={{
+                                position: "absolute",
+                                right: 10,
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "1.1rem",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 0,
+                                color: "var(--text-secondary)",
+                                transition: "color 0.2s"
+                              }}
+                              onMouseEnter={(e) => e.target.style.color = "var(--accent)"}
+                              onMouseLeave={(e) => e.target.style.color = "var(--text-secondary)"}
+                              title={showConfirmPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"}
+                            >
+                              {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Error Message */}
+                        {passwordError && (
+                          <div style={{
+                            padding: 10,
+                            background: "rgba(255, 107, 107, 0.1)",
+                            border: "1px solid rgba(255, 107, 107, 0.3)",
+                            borderRadius: 8,
+                            color: "#ff6b6b",
+                            fontSize: "0.85rem"
+                          }}>
+                            ❌ {passwordError}
+                          </div>
+                        )}
+
+                        {/* Success Message */}
+                        {passwordSuccess && (
+                          <div style={{
+                            padding: 10,
+                            background: "rgba(62, 207, 142, 0.1)",
+                            border: "1px solid rgba(62, 207, 142, 0.3)",
+                            borderRadius: 8,
+                            color: "#3ecf8e",
+                            fontSize: "0.85rem"
+                          }}>
+                            ✓ Mật khẩu đã được thay đổi thành công
+                          </div>
+                        )}
+
+                        {/* Buttons */}
+                        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                          <button
+                            className="btn-primary"
+                            onClick={handleChangePassword}
+                            disabled={passwordLoading}
+                            style={{
+                              opacity: passwordLoading ? 0.6 : 1,
+                              cursor: passwordLoading ? "not-allowed" : "pointer"
+                            }}
+                          >
+                            {passwordLoading ? "Đang xử lý..." : "💾 Lưu mật khẩu mới"}
+                          </button>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => {
+                              setShowChangePassword(false);
+                              setPasswordForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
+                              setPasswordError(null);
+                              setPasswordSuccess(false);
+                            }}
+                            disabled={passwordLoading}
+                          >
+                            Hủy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upcoming Features */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    padding: 16,
+                    background: "var(--surface)",
+                    borderRadius: 12,
+                    border: "1px solid var(--border)",
+                    opacity: 0.6
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 600, marginBottom: 2 }}>🔑 Xác thực 2 bước</p>
+                      <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>Sắp có</p>
+                    </div>
+                    <button className="order-action-btn" disabled style={{ opacity: 0.5, cursor: "not-allowed" }}>
+                      Kích hoạt
+                    </button>
+                  </div>
+
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    padding: 16,
+                    background: "var(--surface)",
+                    borderRadius: 12,
+                    border: "1px solid var(--border)",
+                    opacity: 0.6
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 600, marginBottom: 2 }}>📱 Thiết bị đã đăng nhập</p>
+                      <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>Sắp có</p>
+                    </div>
+                    <button className="order-action-btn" disabled style={{ opacity: 0.5, cursor: "not-allowed" }}>
+                      Xem
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

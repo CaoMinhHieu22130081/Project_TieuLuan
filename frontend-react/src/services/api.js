@@ -314,6 +314,27 @@ export const userAPI = {
       name: localStorage.getItem('userName'),
     };
   },
+
+  // Change password for logged-in user
+  changePassword: async (userId, oldPassword, newPassword, confirmPassword) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/change-password`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ oldPassword, newPassword, confirmPassword }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to change password');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error changing password:', error);
+      throw error;
+    }
+  },
 };
 
 // ============ ORDERS API ============
@@ -322,7 +343,10 @@ export const orderAPI = {
   // Get all orders for user
   getUserOrders: async (userId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/orders/user/${userId}`);
+      const response = await fetch(`${API_BASE_URL}/orders/user/${userId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch orders');
       return await response.json();
     } catch (error) {
@@ -334,7 +358,10 @@ export const orderAPI = {
   // Get order by ID
   getOrderById: async (orderId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/orders/${orderId}`);
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch order');
       return await response.json();
     } catch (error) {
@@ -348,9 +375,7 @@ export const orderAPI = {
     try {
       const response = await fetch(`${API_BASE_URL}/orders`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(orderData),
       });
       if (!response.ok) throw new Error('Failed to create order');
@@ -366,9 +391,7 @@ export const orderAPI = {
     try {
       const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status }),
       });
       if (!response.ok) throw new Error('Failed to update order status');

@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { productAPI } from "../services/api";
+import { useWishlist } from "../context/WishlistContext";
+import { useCart } from "../context/CartContext";
+import { useToast } from "../context/ToastContext";
 import "./css/ProductDetailPage.css";
 
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
@@ -47,6 +50,9 @@ function RelatedCard({ product }) {
 export default function ProductDetailPage() {
   const { id }     = useParams();
   const navigate   = useNavigate();
+  const { isInWishlist, toggleWishlist } = useWishlist();
+  const { addToCart } = useCart();
+  const { addToast } = useToast();
   
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
@@ -58,7 +64,6 @@ export default function ProductDetailPage() {
   const [selSize,    setSelSize]    = useState(null);
   const [qty,        setQty]        = useState(1);
   const [added,      setAdded]      = useState(false);
-  const [loved,      setLoved]      = useState(false);
   const [activeTab,  setActiveTab]  = useState("desc");
   const [sizeErr,    setSizeErr]    = useState(false);
 
@@ -139,6 +144,12 @@ export default function ProductDetailPage() {
   const handleAddCart = () => {
     if (!selSize) { setSizeErr(true); return; }
     setSizeErr(false);
+    
+    // Thêm vào giỏ hàng
+    addToCart(product, selColor, selSize, qty);
+    
+    // Hiển thị thông báo
+    addToast(`✓ Đã thêm ${qty} ${product.name} vào giỏ hàng`, 'success', 3000);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -241,6 +252,15 @@ export default function ProductDetailPage() {
               Còn hàng · Giao ngay hôm nay
             </div>
 
+            {/* Material */}
+            {product.material && (
+              <div className="detail-material">
+                <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "10px 0 5px 0" }}>
+                  <strong>Chất liệu:</strong> {product.material}
+                </p>
+              </div>
+            )}
+
             <div className="detail-divider" />
 
             {/* Color */}
@@ -324,11 +344,11 @@ export default function ProductDetailPage() {
                 )}
               </button>
               <button
-                className={`btn-wishlist-lg ${loved ? "loved" : ""}`}
-                onClick={() => setLoved((v) => !v)}
+                className={`btn-wishlist-lg ${product && isInWishlist(product.id) ? "loved" : ""}`}
+                onClick={() => product && toggleWishlist(product)}
                 aria-label="Yêu thích"
               >
-                <svg width="20" height="20" fill={loved ? "currentColor" : "none"} viewBox="0 0 24 24">
+                <svg width="20" height="20" fill={product && isInWishlist(product.id) ? "currentColor" : "none"} viewBox="0 0 24 24">
                   <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="2"/>
                 </svg>
               </button>

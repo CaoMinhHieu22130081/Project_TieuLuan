@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { productAPI } from '../services/api';
 import '../pages/css/SearchBar.css';
 
 function highlightMatch(text, query) {
@@ -22,17 +23,24 @@ function SearchBar({
   onSearch,
   showSuggestions = true,
   autoFocus = false,
+  enableAutoSearch = false, // Nếu true, sẽ gọi API search thay vì dùng suggestions
 }) {
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
-  const filtered = value.trim().length > 0
-    ? suggestions.filter((s) =>
-        s.name.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 6)
-    : [];
+  // Use API results nếu enableAutoSearch, không thì dùng suggestions
+  const filtered = enableAutoSearch ? searchResults : (
+    value.trim().length > 0
+      ? suggestions.filter((s) =>
+          s.name.toLowerCase().includes(value.toLowerCase())
+        ).slice(0, 6)
+      : []
+  );
 
   useEffect(() => {
     if (autoFocus) {
@@ -49,6 +57,38 @@ function SearchBar({
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
+
+  // Auto search khi enableAutoSearch = true
+  useEffect(() => {
+    if (!enableAutoSearch || !value.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    setSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await productAPI.searchProducts(value);
+        setSearchResults(Array.isArray(results) ? results.slice(0, 6) : []);
+      } catch (error) {
+        console.error('Search error:', error);
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300); // Debounce 300ms
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [value, enableAutoSearch]);
 
   const handleChange = (e) => {
     const val = e.target.value;
@@ -121,8 +161,12 @@ function SearchBar({
               role="option"
               onMouseDown={() => handleSelect(item.name)}
             >
-              {item.image && (
-                <img src={item.image} alt={item.name} className="suggestion-img" />
+              {(item.image || item.images?.[0]?.url) && (
+                <img 
+                  src={item.image || item.images?.[0]?.url} 
+                  alt={item.name} 
+                  className="suggestion-img" 
+                />
               )}
               <div className="suggestion-info">
                 <span className="suggestion-name">
@@ -139,14 +183,15 @@ function SearchBar({
           <li className="searchbar-footer" onMouseDown={handleSubmit}>
             <span>🔍</span>
             <span>Tìm tất cả kết quả cho "<strong>{value}</strong>"</span>
+            {searching && <span className="search-loading">⏳</span>}
           </li>
         </ul>
       )}
 
       {open && showSuggestions && value.trim().length > 0 && filtered.length === 0 && (
         <div className="searchbar-empty">
-          <span>😔</span>
-          <p>Không tìm thấy sản phẩm nào cho "<strong>{value}</strong>"</p>
+          <span>{searching ? '⏳' : '😔'}</span>
+          <p>{searching ? 'Đang tìm kiếm...' : `Không tìm thấy sản phẩm nào cho "${value}"`}</p>
         </div>
       )}
     </div>

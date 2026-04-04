@@ -1,19 +1,18 @@
 package com.uniquetee.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.uniquetee.entity.User;
 import com.uniquetee.entity.PasswordReset;
-import com.uniquetee.repository.UserRepository;
+import com.uniquetee.entity.User;
 import com.uniquetee.repository.PasswordResetRepository;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
+import com.uniquetee.repository.UserRepository;
 
 @Service
 public class UserService {
@@ -261,5 +260,56 @@ public class UserService {
         }
         
         return reset.getToken();
+    }
+
+    /**
+     * Change password for logged-in user
+     * @param userId User ID
+     * @param oldPassword Old password (plain text)
+     * @param newPassword New password (plain text)
+     * @return User object after successful password change
+     */
+    public User changePassword(Integer userId, String oldPassword, String newPassword) {
+        // Tìm user
+        Optional<User> user = userRepository.findById(userId);
+        if (!user.isPresent()) {
+            throw new IllegalArgumentException("Không tìm thấy người dùng");
+        }
+
+        User foundUser = user.get();
+        
+        // Xác thực mật khẩu cũ
+        if (!passwordEncoder.matches(oldPassword, foundUser.getPassword())) {
+            throw new IllegalArgumentException("Mật khẩu cũ không chính xác");
+        }
+
+        // Kiểm tra mật khẩu mới khác mật khẩu cũ
+        if (passwordEncoder.matches(newPassword, foundUser.getPassword())) {
+            throw new IllegalArgumentException("Mật khẩu mới phải khác mật khẩu cũ");
+        }
+
+        // Validate mật khẩu mới (giống yêu cầu đăng ký)
+        StringBuilder passwordErrors = new StringBuilder();
+        if (newPassword.length() < 8) {
+            passwordErrors.append("Ít nhất 8 ký tự, ");
+        }
+        if (!newPassword.matches(".*[A-Z].*")) {
+            passwordErrors.append("Ít nhất 1 chữ hoa, ");
+        }
+        if (!newPassword.matches(".*[0-9].*")) {
+            passwordErrors.append("Ít nhất 1 số, ");
+        }
+        if (!newPassword.matches(".*[^A-Za-z0-9].*")) {
+            passwordErrors.append("Ít nhất 1 ký tự đặc biệt, ");
+        }
+
+        if (passwordErrors.length() > 0) {
+            String errors = passwordErrors.toString().replaceAll(", $", "");
+            throw new IllegalArgumentException("Mật khẩu phải có: " + errors);
+        }
+
+        // Hash password mới
+        foundUser.setPassword(passwordEncoder.encode(newPassword));
+        return userRepository.save(foundUser);
     }
 }
