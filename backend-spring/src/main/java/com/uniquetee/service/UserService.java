@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.uniquetee.entity.PasswordReset;
 import com.uniquetee.entity.User;
@@ -159,6 +160,7 @@ public class UserService {
      * @param email User email
      * @return Reset token
      */
+    @Transactional
     public String createPasswordResetToken(String email) {
         // Kiểm tra user tồn tại
         Optional<User> user = userRepository.findByEmail(email);
@@ -215,6 +217,7 @@ public class UserService {
      * @param newPassword New password (plain text)
      * @return PasswordReset object after successful reset
      */
+    @Transactional
     public PasswordReset resetPassword(String token, String newPassword) {
         PasswordReset passwordReset = verifyResetToken(token);
         

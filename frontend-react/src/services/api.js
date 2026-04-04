@@ -449,9 +449,97 @@ export const adminAPI = {
   },
 };
 
+// ============ REVIEWS API ============
+
+export const reviewAPI = {
+  // Get reviews by product ID
+  getReviewsByProductId: async (productId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reviews/product/${productId}`);
+      if (!response.ok) throw new Error('Failed to fetch reviews');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      throw error;
+    }
+  },
+
+  // Get review by ID
+  getReviewById: async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reviews/${id}`);
+      if (!response.ok) throw new Error('Failed to fetch review');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching review:', error);
+      throw error;
+    }
+  },
+
+  // Create review
+  createReview: async (reviewData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reviews`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(reviewData),
+      });
+      if (!response.ok) throw new Error('Failed to create review');
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating review:', error);
+      throw error;
+    }
+  },
+
+  // Update review
+  updateReview: async (id, reviewData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reviews/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(reviewData),
+      });
+      if (!response.ok) throw new Error('Failed to update review');
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating review:', error);
+      throw error;
+    }
+  },
+
+  // Delete review
+  deleteReview: async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reviews/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error('Failed to delete review');
+      return response.ok;
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      throw error;
+    }
+  },
+
+  // Get top rated reviews
+  getTopRatedReviews: async (productId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reviews/product/${productId}/top`);
+      if (!response.ok) throw new Error('Failed to fetch top reviews');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching top reviews:', error);
+      throw error;
+    }
+  },
+};
+
 export default {
   productAPI,
   userAPI,
   orderAPI,
   adminAPI,
+  reviewAPI,
 };

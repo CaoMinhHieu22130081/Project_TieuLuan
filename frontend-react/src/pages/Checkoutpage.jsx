@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ALL_PRODUCTS } from "../data/Products";
-import "./css/CheckoutPage.css";
+import "./css/Checkoutpage.css";
 
 
 const buildCheckoutItems = () =>

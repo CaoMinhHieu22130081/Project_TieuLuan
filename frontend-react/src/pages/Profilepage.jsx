@@ -1007,26 +1007,6 @@ export default function ProfilePage() {
                     </div>
                   )}
 
-                  {/* Upcoming Features */}
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 16,
-                    padding: 16,
-                    background: "var(--surface)",
-                    borderRadius: 12,
-                    border: "1px solid var(--border)",
-                    opacity: 0.6
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontWeight: 600, marginBottom: 2 }}>🔑 Xác thực 2 bước</p>
-                      <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>Sắp có</p>
-                    </div>
-                    <button className="order-action-btn" disabled style={{ opacity: 0.5, cursor: "not-allowed" }}>
-                      Kích hoạt
-                    </button>
-                  </div>
-
                   <div style={{
                     display: "flex",
                     alignItems: "center",

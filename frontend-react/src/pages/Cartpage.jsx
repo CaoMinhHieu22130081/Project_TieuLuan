@@ -1,16 +1,36 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import "./css/CartPage.css";
+import "./css/Cartpage.css";
 
 const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
 
 export default function CartPage() {
+  const navigate = useNavigate();
   const { cart, removeFromCart, updateQty, clearCart, getTotalPrice } = useCart();
   const [promoCode,    setPromoCode]    = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
+  const [selectedItems, setSelectedItems] = useState(new Set());
 
   const items = cart;
+
+  const toggleSelectItem = (cartItemId) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(cartItemId)) {
+      newSelected.delete(cartItemId);
+    } else {
+      newSelected.add(cartItemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedItems.size === items.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(items.map(item => item.cartItemId)));
+    }
+  };
 
   const updateItemQty = (cartItemId, delta) => {
     const currentItem = items.find((item) => item.cartItemId === cartItemId);
@@ -21,7 +41,8 @@ export default function CartPage() {
 
   const removeItem = (cartItemId) => removeFromCart(cartItemId);
 
-  const subtotal = getTotalPrice();
+  const selectedItemsData = items.filter(item => selectedItems.has(item.cartItemId));
+  const subtotal = selectedItemsData.reduce((sum, item) => sum + item.price * item.qty, 0);
   const discount = promoApplied ? Math.round(subtotal * 0.1) : 0;
   const shipping  = subtotal >= 299000 ? 0 : 30000;
   const total     = subtotal - discount + shipping;
@@ -64,14 +85,28 @@ export default function CartPage() {
           {/* ── Danh sách sản phẩm ── */}
           <div className="cart-items-col">
             <div className="cart-items-header">
-              <span className="cart-items-label">Sản phẩm đã chọn</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={selectedItems.size === items.length && items.length > 0}
+                  onChange={toggleSelectAll}
+                  title="Chọn tất cả"
+                />
+                <span className="cart-items-label">Sản phẩm đã chọn</span>
+              </div>
               <button className="cart-clear-btn" onClick={() => clearCart()}>
                 Xóa tất cả
               </button>
             </div>
 
             {items.map((item) => (
-              <div key={`${item.cartItemId}`} className="cart-item">
+              <div key={`${item.cartItemId}`} className="cart-item" style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <input
+                  type="checkbox"
+                  checked={selectedItems.has(item.cartItemId)}
+                  onChange={() => toggleSelectItem(item.cartItemId)}
+                />
+                <div style={{ flex: 1, display: "flex", gap: 12 }}>
                 <Link to={`/products/${item.productId}`} className="cart-item-img">
                   <img
                     src={item.image}
@@ -158,6 +193,7 @@ export default function CartPage() {
                     </div>
                   </div>
                 </div>
+                </div>
               </div>
             ))}
 
@@ -182,7 +218,7 @@ export default function CartPage() {
             <div className="summary-lines">
               <div className="summary-line">
                 <span className="summary-line-label">
-                  Tạm tính ({items.reduce((s, i) => s + i.qty, 0)} món)
+                  Tạm tính ({selectedItemsData.reduce((s, i) => s + i.qty, 0)} món)
                 </span>
                 <span className="summary-line-value">{formatPrice(subtotal)}</span>
               </div>
@@ -207,12 +243,21 @@ export default function CartPage() {
               <span className="summary-total-value">{formatPrice(total)}</span>
             </div>
 
-            <Link to="/checkout" className="btn-checkout">
+            <button 
+              className="btn-checkout"
+              onClick={() => {
+                if (selectedItems.size === 0) {
+                  alert("Vui lòng chọn ít nhất 1 sản phẩm để thanh toán");
+                  return;
+                }
+                navigate("/checkout", { state: { selectedItems: Array.from(selectedItems) } });
+              }}
+            >
               Thanh toán ngay
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
                 <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
-            </Link>
+            </button>
 
             <Link to="/products" className="btn-continue">← Tiếp tục mua sắm</Link>
 

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { productAPI } from "../services/api";
+import { productAPI, reviewAPI } from "../services/api";
 import { useWishlist } from "../context/WishlistContext";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
-import "./css/ProductDetailPage.css";
+import "./css/Productdetailpage.css";
 
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 
@@ -58,6 +58,8 @@ export default function ProductDetailPage() {
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   const [activeImg,  setActiveImg]  = useState(0);
   const [selColor,   setSelColor]   = useState(null);
@@ -103,6 +105,24 @@ export default function ProductDetailPage() {
     setSizeErr(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [product?.id]);
+
+  /* Fetch reviews khi product id thay đổi */
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!id) return;
+      try {
+        setReviewsLoading(true);
+        const data = await reviewAPI.getReviewsByProductId(id);
+        setReviews(data);
+      } catch (err) {
+        console.error('Error fetching reviews:', err);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+    
+    fetchReviews();
+  }, [id]);
 
   /* Sản phẩm không tồn tại */
   if (loading) {
@@ -156,16 +176,41 @@ export default function ProductDetailPage() {
 
   const TABS = [
     { key: "desc",    label: "Mô tả sản phẩm"           },
-    { key: "reviews", label: `Đánh giá (${product.reviewCount || 0})` },
+    { key: "reviews", label: `Đánh giá (${reviews.length})` },
     { key: "size",    label: "Bảng size"                 },
   ];
 
-  /* Rating distribution (giả lập) */
-  const ratingDist = [
-    { stars: 5, pct: 72 }, { stars: 4, pct: 18 },
-    { stars: 3, pct: 7  }, { stars: 2, pct: 2  },
-    { stars: 1, pct: 1  },
-  ];
+  /* Tính toán rating distribution từ reviews thực tế */
+  const calculateRatingDist = () => {
+    if (reviews.length === 0) {
+      return [
+        { stars: 5, pct: 0, count: 0 },
+        { stars: 4, pct: 0, count: 0 },
+        { stars: 3, pct: 0, count: 0 },
+        { stars: 2, pct: 0, count: 0 },
+        { stars: 1, pct: 0, count: 0 },
+      ];
+    }
+
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    reviews.forEach(r => {
+      const rating = r.rating || 5;
+      if (rating >= 1 && rating <= 5) {
+        counts[rating]++;
+      }
+    });
+
+    const total = reviews.length;
+    return [
+      { stars: 5, count: counts[5], pct: Math.round((counts[5] / total) * 100) },
+      { stars: 4, count: counts[4], pct: Math.round((counts[4] / total) * 100) },
+      { stars: 3, count: counts[3], pct: Math.round((counts[3] / total) * 100) },
+      { stars: 2, count: counts[2], pct: Math.round((counts[2] / total) * 100) },
+      { stars: 1, count: counts[1], pct: Math.round((counts[1] / total) * 100) },
+    ];
+  };
+
+  const ratingDist = calculateRatingDist();
 
   return (
     <div className="detail-page">
@@ -420,19 +465,32 @@ export default function ProductDetailPage() {
                 </div>
 
                 <div className="review-list">
-                  {(product.reviewList || []).map((r) => (
-                    <div key={r.id} className="review-item">
-                      <div className="review-author">
-                        <div className="review-avatar">{r.name[0]}</div>
-                        <div className="review-meta">
-                          <p className="review-name">{r.name}</p>
-                          <p className="review-date">{r.date}</p>
-                        </div>
-                        <Stars rating={r.rating} size="sm" />
-                      </div>
-                      <p className="review-text">{r.text}</p>
+                  {reviews.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}>
+                      <p style={{ fontSize: "3rem", marginBottom: 12 }}>📝</p>
+                      <p>Chưa có bình luận nào</p>
+                      <p style={{ fontSize: "0.9rem", marginTop: 8 }}>Hãy là người đầu tiên bình luận về sản phẩm này!</p>
                     </div>
-                  ))}
+                  ) : (
+                    reviews.map((r) => {
+                      const reviewDate = r.createdAt 
+                        ? new Date(r.createdAt).toLocaleDateString('vi-VN')
+                        : 'N/A';
+                      return (
+                        <div key={r.id} className="review-item">
+                          <div className="review-author">
+                            <div className="review-avatar">{r.reviewerName?.[0]?.toUpperCase() || '?'}</div>
+                            <div className="review-meta">
+                              <p className="review-name">{r.reviewerName}</p>
+                              <p className="review-date">{reviewDate}</p>
+                            </div>
+                            <Stars rating={r.rating} size="sm" />
+                          </div>
+                          <p className="review-text">{r.content}</p>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             )}
@@ -441,36 +499,71 @@ export default function ProductDetailPage() {
             {activeTab === "size" && (
               <div>
                 <p style={{ color: "var(--text-secondary)", marginBottom: 20 }}>
-                  Đo kích thước ở điểm rộng nhất của cơ thể khi mặc đồ lót. Đơn vị: cm.
+                  {product.type === "Quần" 
+                    ? "Đo kích thước ở hông và chiều dài toàn bộ. Đơn vị: cm."
+                    : "Đo kích thước ở điểm rộng nhất của cơ thể khi mặc đồ lót. Đơn vị: cm."
+                  }
                 </p>
                 <div style={{ overflowX: "auto" }}>
-                  <table className="size-table">
-                    <thead>
-                      <tr>
-                        {["Size", "Chiều dài", "Rộng ngực", "Rộng vai", "Cân nặng (kg)"].map((h) => (
-                          <th key={h}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        ["XS", "62", "44", "38", "45–52"],
-                        ["S",  "64", "47", "40", "52–59"],
-                        ["M",  "66", "50", "42", "59–67"],
-                        ["L",  "68", "53", "44", "67–75"],
-                        ["XL", "70", "56", "46", "75–85"],
-                        ["XXL","72", "60", "49", "85–95"],
-                      ].map((row) => (
-                        <tr key={row[0]} className={selSize === row[0] ? "size-row-active" : ""}>
-                          {row.map((cell, i) => <td key={i}>{cell}</td>)}
+                  {product.type === "Quần" ? (
+                    <table className="size-table">
+                      <thead>
+                        <tr>
+                          {["Size", "Hông (cm)", "Chiều dài (cm)", "Chiều dài bước (cm)", "Cân nặng (kg)"].map((h) => (
+                            <th key={h}>{h}</th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {[
+                          ["26", "66", "96", "72", "45–52"],
+                          ["27", "68", "97", "73", "50–57"],
+                          ["28", "70", "98", "74", "52–59"],
+                          ["29", "72", "99", "75", "57–64"],
+                          ["30", "74", "100", "76", "64–71"],
+                          ["31", "76", "101", "77", "71–78"],
+                          ["32", "78", "102", "78", "78–85"],
+                          ["34", "82", "104", "80", "85–95"],
+                          ["35", "84", "105", "81", "90–100"],
+                          ["36", "86", "106", "82", "95–105"],
+                        ].map((row) => (
+                          <tr key={row[0]} className={selSize === row[0] ? "size-row-active" : ""}>
+                            {row.map((cell, i) => <td key={i}>{cell}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table className="size-table">
+                      <thead>
+                        <tr>
+                          {["Size", "Chiều dài", "Rộng ngực", "Rộng vai", "Cân nặng (kg)"].map((h) => (
+                            <th key={h}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          ["XS", "62", "44", "38", "45–52"],
+                          ["S",  "64", "47", "40", "52–59"],
+                          ["M",  "66", "50", "42", "59–67"],
+                          ["L",  "68", "53", "44", "67–75"],
+                          ["XL", "70", "56", "46", "75–85"],
+                          ["XXL","72", "60", "49", "85–95"],
+                        ].map((row) => (
+                          <tr key={row[0]} className={selSize === row[0] ? "size-row-active" : ""}>
+                            {row.map((cell, i) => <td key={i}>{cell}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
                 <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 16 }}>
-                  💡 Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn.
-                  Với dáng oversized, nên chọn nhỏ hơn 1 size.
+                  {product.type === "Quần"
+                    ? "💡 Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Chiều dài bước (inseam) là khoảng cách từ crotch đến mắt cá chân."
+                    : "💡 Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Với dáng oversized, nên chọn nhỏ hơn 1 size."
+                  }
                 </p>
               </div>
             )}

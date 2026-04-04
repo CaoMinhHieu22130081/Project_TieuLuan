@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { productAPI } from "../services/api";
-import "./css/HomePage.css";
+import "./css/Homepage.css";
 
 // Danh mục cố định
 const CATEGORY_CONFIG = [
