@@ -451,3 +451,15 @@
   .profile-stats-row { flex-wrap: wrap; gap: 10px; }
   .wishlist-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Avatar Upload Animation ── */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}

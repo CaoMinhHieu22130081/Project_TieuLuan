@@ -103,6 +103,10 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // State cho avatar upload
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [avatarMessage, setAvatarMessage] = useState("");
+
   // State cho profile
   const [profile, setProfile] = useState({
     fullName: "",
@@ -111,6 +115,7 @@ export default function ProfilePage() {
     dob: "",
     gender: "",
     address: "",
+    avatar: "",
   });
 
   // State cho orders
@@ -143,6 +148,7 @@ export default function ProfilePage() {
               dob: userData.dob || userData.dateOfBirth || "",
               gender: userData.gender || "",
               address: userData.address || "",
+              avatar: userData.avatar || "",
             });
           } catch (e) {
             console.warn('Failed to parse cached userData:', e);
@@ -161,6 +167,7 @@ export default function ProfilePage() {
             dob: profileData.dateOfBirth || profileData.dob || "",
             gender: profileData.gender || "",
             address: profileData.address || "",
+            avatar: profileData.avatar || "",
           });
           
           // Cập nhật lại localStorage với dữ liệu mới
@@ -310,6 +317,76 @@ export default function ProfilePage() {
     }
   };
 
+  // Xử lý upload avatar
+  const handleAvatarUpload = async (e) => {
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setAvatarMessage('error: Vui lòng chọn tệp hình ảnh');
+        setTimeout(() => setAvatarMessage(''), 3000);
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setAvatarMessage('error: Kích thước hình ảnh không được vượt quá 5MB');
+        setTimeout(() => setAvatarMessage(''), 3000);
+        return;
+      }
+
+      setAvatarLoading(true);
+      setAvatarMessage('');
+
+      // Convert file to Base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const imageBase64 = event.target?.result;
+          
+          const userId = localStorage.getItem('userId');
+          if (!userId) {
+            setAvatarMessage('error: Không tìm thấy user ID');
+            setAvatarLoading(false);
+            return;
+          }
+
+          const response = await userAPI.uploadAvatar(userId, imageBase64);
+          
+          // Update localStorage with new user data
+          if (response.user) {
+            localStorage.setItem('userData', JSON.stringify(response.user));
+            // Update profile state with new avatar
+            setProfile(prev => ({
+              ...prev,
+              avatar: response.user.avatar || ""
+            }));
+          }
+
+          setAvatarMessage('success: Cập nhật ảnh đại diện thành công');
+          
+          setTimeout(() => setAvatarMessage(''), 3000);
+        } catch (err) {
+          console.error('Error uploading avatar:', err);
+          setAvatarMessage('error: ' + (err.message || 'Cập nhật ảnh đại diện thất bại'));
+          setTimeout(() => setAvatarMessage(''), 3000);
+        } finally {
+          setAvatarLoading(false);
+          // Reset file input
+          if (e.target) e.target.value = '';
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error in handleAvatarUpload:', err);
+      setAvatarMessage('error: ' + (err.message || 'Có lỗi xảy ra'));
+      setAvatarLoading(false);
+      setTimeout(() => setAvatarMessage(''), 3000);
+    }
+  };
+
   const NavItem = ({ tabKey, icon, label, badge }) => (
     <div className={`profile-nav-item ${activeTab === tabKey ? "active" : ""}`} onClick={() => setActiveTab(tabKey)}>
       {icon}
@@ -408,14 +485,113 @@ export default function ProfilePage() {
       <div className="profile-inner">
         {/* Hero */}
         <div className="profile-hero">
-          <div className="profile-avatar-wrap">
-            <div className="profile-avatar">{profile.fullName?.[0]?.toUpperCase() || "U"}</div>
-            <div className="profile-avatar-edit">
-              <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="white" strokeWidth="2"/>
-                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="white" strokeWidth="2"/>
-              </svg>
+          <div 
+            className="profile-avatar-wrap" 
+            style={{ position: "relative" }}
+            title={avatarLoading ? "Đang tải..." : "Nhấp để thay đổi ảnh đại diện"}
+          >
+            {profile.avatar ? (
+              <img
+                src={`data:image/png;base64,${profile.avatar}`}
+                alt="User Avatar"
+                title="Nhấp để thay đổi ảnh đại diện"
+                style={{
+                  width: "88px",
+                  height: "88px",
+                  borderRadius: "50%",
+                  border: "3px solid rgba(var(--accent-rgb), 0.4)",
+                  objectFit: "cover",
+                  objectPosition: "center",
+                  opacity: avatarLoading ? 0.6 : 1,
+                  cursor: avatarLoading ? "not-allowed" : "pointer",
+                  transition: "all 0.3s ease",
+                }}
+                onClick={() => {
+                  if (!avatarLoading) {
+                    document.getElementById('avatarFileInput')?.click();
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  if (!avatarLoading) {
+                    e.style.transform = "scale(1.05)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.style.transform = "scale(1)";
+                }}
+              />
+            ) : (
+              <div 
+                className="profile-avatar"
+                style={{
+                  opacity: avatarLoading ? 0.6 : 1,
+                  cursor: avatarLoading ? "not-allowed" : "pointer",
+                  transition: "all 0.3s ease",
+                }}
+                onClick={() => {
+                  if (!avatarLoading) {
+                    document.getElementById('avatarFileInput')?.click();
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  if (!avatarLoading) {
+                    e.target.style.transform = "scale(1.05)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = "scale(1)";
+                }}
+              >
+                {profile.fullName?.[0]?.toUpperCase() || "U"}
+              </div>
+            )}
+            
+            {/* Upload input */}
+            <input
+              id="avatarFileInput"
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              style={{ display: "none" }}
+              disabled={avatarLoading}
+            />
+
+            {/* Edit icon */}
+            <div 
+              className="profile-avatar-edit"
+              style={{ opacity: avatarLoading ? 0.5 : 1 }}
+              onClick={() => !avatarLoading && document.getElementById('avatarFileInput')?.click()}
+            >
+              {avatarLoading ? (
+                <span style={{ fontSize: "14px" }}>⟳</span>
+              ) : (
+                <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="white" strokeWidth="2"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="white" strokeWidth="2"/>
+                </svg>
+              )}
             </div>
+
+            {/* Avatar upload message */}
+            {avatarMessage && (
+              <div style={{
+                position: "absolute",
+                top: "-30px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                padding: "6px 12px",
+                borderRadius: 6,
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+                background: avatarMessage.startsWith('error') ? "rgba(255, 107, 107, 0.9)" : "rgba(62, 207, 142, 0.9)",
+                color: "white",
+                zIndex: 1000,
+                animation: "slideDown 0.3s ease"
+              }}>
+                {avatarMessage.replace('error: ', '').replace('success: ', '')}
+              </div>
+            )}
           </div>
           <div className="profile-info">
             <h1 className="profile-name">{profile.fullName}</h1>
@@ -1006,25 +1182,6 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   )}
-
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 16,
-                    padding: 16,
-                    background: "var(--surface)",
-                    borderRadius: 12,
-                    border: "1px solid var(--border)",
-                    opacity: 0.6
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontWeight: 600, marginBottom: 2 }}>📱 Thiết bị đã đăng nhập</p>
-                      <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>Sắp có</p>
-                    </div>
-                    <button className="order-action-btn" disabled style={{ opacity: 0.5, cursor: "not-allowed" }}>
-                      Xem
-                    </button>
-                  </div>
                 </div>
               </div>
             )}

@@ -335,6 +335,27 @@ export const userAPI = {
       throw error;
     }
   },
+
+  // Upload/Update user avatar
+  uploadAvatar: async (userId, imageBase64) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/upload-avatar`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ imageBase64 }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload avatar');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      throw error;
+    }
+  },
 };
 
 // ============ ORDERS API ============

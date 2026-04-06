@@ -454,4 +454,41 @@ public class UserController {
                     .body(Map.of("message", "Lỗi thay đổi mật khẩu: " + e.getMessage()));
         }
     }
+
+    /**
+     * Upload/Update user avatar
+     * Accepts Base64 encoded image data
+     * @param id User ID
+     * @param request Contains imageBase64 field with Base64 encoded image
+     * @return Response with success/error message and updated user
+     */
+    @PostMapping("/{id}/upload-avatar")
+    public ResponseEntity<Object> uploadAvatar(
+            @PathVariable Integer id,
+            @RequestBody Map<String, String> request) {
+        try {
+            String imageBase64 = request.get("imageBase64");
+
+            // Validate input
+            if (imageBase64 == null || imageBase64.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Dữ liệu hình ảnh không được để trống"));
+            }
+
+            // Update avatar
+            User updatedUser = userService.updateAvatar(id, imageBase64);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Cập nhật ảnh đại diện thành công",
+                    "user", updatedUser
+            ));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi cập nhật ảnh đại diện: " + e.getMessage()));
+        }
+    }
 }

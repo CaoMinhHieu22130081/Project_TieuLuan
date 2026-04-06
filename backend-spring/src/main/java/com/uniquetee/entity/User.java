@@ -39,8 +39,8 @@ public class User {
     @Column(nullable = false)
     private String status = "active"; // active, inactive, blocked
 
-    @Column(length = 10)
-    private String avatar; // chữ cái đầu tên
+    @Column(columnDefinition = "LONGBLOB")
+    private String avatar; // Base64 encoded image data
 
     private String gender; // male, female, other
 

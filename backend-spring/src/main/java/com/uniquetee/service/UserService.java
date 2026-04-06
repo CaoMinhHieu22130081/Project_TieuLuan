@@ -315,4 +315,58 @@ public class UserService {
         foundUser.setPassword(passwordEncoder.encode(newPassword));
         return userRepository.save(foundUser);
     }
+
+    /**
+     * Update user avatar with Base64 image data
+     * @param userId User ID
+     * @param imageBase64 Base64 encoded image data (with data URI prefix or without)
+     * @return User object after successful avatar update
+     */
+    public User updateAvatar(Integer userId, String imageBase64) {
+        // Tìm user
+        Optional<User> user = userRepository.findById(userId);
+        if (!user.isPresent()) {
+            throw new IllegalArgumentException("Không tìm thấy người dùng");
+        }
+
+        User foundUser = user.get();
+        
+        // Validate image data
+        if (imageBase64 == null || imageBase64.trim().isEmpty()) {
+            throw new IllegalArgumentException("Dữ liệu hình ảnh không được để trống");
+        }
+
+        // Remove data URI prefix if present (e.g., "data:image/png;base64,")
+        String cleanedBase64 = imageBase64;
+        if (imageBase64.contains(",")) {
+            cleanedBase64 = imageBase64.split(",", 2)[1];
+        }
+
+        // Validate Base64 format
+        if (!isValidBase64(cleanedBase64)) {
+            throw new IllegalArgumentException("Định dạng hình ảnh không hợp lệ");
+        }
+
+        // Update avatar
+        foundUser.setAvatar(cleanedBase64);
+        return userRepository.save(foundUser);
+    }
+
+    /**
+     * Validate if a string is valid Base64
+     */
+    private boolean isValidBase64(String base64) {
+        try {
+            if (base64 == null || base64.isEmpty()) {
+                return false;
+            }
+            // Remove whitespace
+            String cleaned = base64.replaceAll("\\s+", "");
+            // Check if it's valid Base64
+            java.util.Base64.getDecoder().decode(cleaned);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
 }

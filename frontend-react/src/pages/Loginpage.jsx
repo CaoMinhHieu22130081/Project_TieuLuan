@@ -40,10 +40,10 @@ export default function Loginpage() {
 
   const handleOAuth2Login = (provider) => {
     console.log(`[OAuth2] User clicked ${provider} button`);
-    console.log(`[OAuth2] Redirecting to: http://localhost:8080/api/oauth2/authorization/${provider}`);
+    console.log(`[OAuth2] Redirecting to: http://localhost:8080/login/oauth2/authorization/${provider}`);
     try {
       // Redirect to backend OAuth2 authorization endpoint
-      window.location.href = `http://localhost:8080/api/oauth2/authorization/${provider}`;
+      window.location.href = `http://localhost:8080/login/oauth2/authorization/${provider}`;
     } catch (error) {
       console.error(`[OAuth2] Error redirecting:`, error);
     }

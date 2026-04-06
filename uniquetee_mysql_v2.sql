@@ -27,7 +27,7 @@ CREATE TABLE users (
   password    VARCHAR(255)    NOT NULL,
   role        ENUM('admin','staff','customer') NOT NULL DEFAULT 'customer',
   status      ENUM('active','inactive','blocked')       DEFAULT 'active',
-  avatar      VARCHAR(10)     DEFAULT NULL,
+  avatar      LONGBLOB        DEFAULT NULL,
   gender      ENUM('male','female','other')              DEFAULT NULL,
   dob         DATE            DEFAULT NULL,
   address     TEXT            DEFAULT NULL,
