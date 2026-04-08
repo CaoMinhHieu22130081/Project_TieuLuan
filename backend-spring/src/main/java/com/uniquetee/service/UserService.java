@@ -125,9 +125,13 @@ public class UserService {
         return null;
     }
 
+    @Transactional
     public boolean deleteUser(Integer id) {
-        if (userRepository.existsById(id)) {
-            userRepository.deleteById(id);
+        Optional<User> user = userRepository.findById(id);
+        if (user.isPresent()) {
+            passwordResetRepository.findByEmail(user.get().getEmail())
+                    .ifPresent(passwordResetRepository::delete);
+            userRepository.delete(user.get());
             return true;
         }
         return false;

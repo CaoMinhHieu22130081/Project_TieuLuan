@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.uniquetee.annotation.RequiredRole;
 import com.uniquetee.config.JwtUtil;
 import com.uniquetee.entity.User;
 import com.uniquetee.service.EmailService;
@@ -167,6 +168,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @RequiredRole({"admin"})
     public ResponseEntity<Void> deleteUser(@PathVariable Integer id) {
         if (userService.deleteUser(id)) {
             return ResponseEntity.noContent().build();

@@ -10,7 +10,7 @@ import {
   PANTS_CATEGORIES,
   getCategoryCount,
   DASH_STATUS_MAP,
-} from "../data/AdminDashboardData";
+} from "../data/Admindashboarddata";
 
 function Sparkline({ data, color = "var(--accent)" }) {
   const max = Math.max(...data), min = Math.min(...data);

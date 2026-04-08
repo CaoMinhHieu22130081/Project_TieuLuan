@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { adminAPI } from "../services/api";
 import { AdminLayout } from "./Adminheader";
 import "./css/Admin.css";
-import { STATUS_MAP, STATUS_TABS } from "../data/AdminOrdersData";
+import { STATUS_MAP, STATUS_TABS } from "../data/Adminordersdata";
 
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 

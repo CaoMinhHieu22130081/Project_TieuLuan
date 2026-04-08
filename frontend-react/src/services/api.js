@@ -27,6 +27,7 @@ export const removeToken = () => {
   localStorage.removeItem('userEmail');
   localStorage.removeItem('userName');
   localStorage.removeItem('userData');
+  localStorage.removeItem('user'); // Remove old key if exists
 };
 
 /**
@@ -43,15 +44,50 @@ const getAuthHeaders = () => {
   return headers;
 };
 
+const requestJson = async (url, options = {}, fallbackMessage = 'Request failed') => {
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    let message = fallbackMessage;
+
+    try {
+      const errorData = await response.json();
+      message = errorData.message || errorData.error || fallbackMessage;
+    } catch (parseError) {
+      try {
+        const text = await response.text();
+        message = text || fallbackMessage;
+      } catch (textError) {
+        message = fallbackMessage;
+      }
+    }
+
+    if (response.status === 423) {
+      removeToken();
+      if (typeof window !== 'undefined') {
+        window.location.assign('/login?reason=locked');
+      }
+    }
+
+    throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  return await response.json();
+};
+
 // ============ PRODUCTS API ============
 
 export const productAPI = {
   // Get all products
   getAllProducts: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products`);
-      if (!response.ok) throw new Error('Failed to fetch products');
-      return await response.json();
+      return await requestJson(`${API_BASE_URL}/products`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch products');
     } catch (error) {
       console.error('Error fetching products:', error);
       throw error;
@@ -61,9 +97,9 @@ export const productAPI = {
   // Get product by ID
   getProductById: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products/${id}`);
-      if (!response.ok) throw new Error('Failed to fetch product');
-      return await response.json();
+      return await requestJson(`${API_BASE_URL}/products/${id}`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch product');
     } catch (error) {
       console.error('Error fetching product:', error);
       throw error;
@@ -73,9 +109,9 @@ export const productAPI = {
   // Get products by category
   getProductsByCategory: async (category) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products/category/${category}`);
-      if (!response.ok) throw new Error('Failed to fetch products');
-      return await response.json();
+      return await requestJson(`${API_BASE_URL}/products/category/${encodeURIComponent(category)}`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch products');
     } catch (error) {
       console.error('Error fetching products by category:', error);
       throw error;
@@ -85,9 +121,9 @@ export const productAPI = {
   // Search products
   searchProducts: async (keyword) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products/search?keyword=${encodeURIComponent(keyword)}`);
-      if (!response.ok) throw new Error('Failed to search products');
-      return await response.json();
+      return await requestJson(`${API_BASE_URL}/products/search?keyword=${encodeURIComponent(keyword)}`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to search products');
     } catch (error) {
       console.error('Error searching products:', error);
       throw error;
@@ -97,15 +133,11 @@ export const productAPI = {
   // Create new product (Admin only)
   createProduct: async (productData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products`, {
+      return await requestJson(`${API_BASE_URL}/products`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(productData),
-      });
-      if (!response.ok) throw new Error('Failed to create product');
-      return await response.json();
+      }, 'Failed to create product');
     } catch (error) {
       console.error('Error creating product:', error);
       throw error;
@@ -115,15 +147,11 @@ export const productAPI = {
   // Update product (Admin only)
   updateProduct: async (id, productData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+      return await requestJson(`${API_BASE_URL}/products/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(productData),
-      });
-      if (!response.ok) throw new Error('Failed to update product');
-      return await response.json();
+      }, 'Failed to update product');
     } catch (error) {
       console.error('Error updating product:', error);
       throw error;
@@ -133,13 +161,39 @@ export const productAPI = {
   // Delete product (Admin only)
   deleteProduct: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+      await requestJson(`${API_BASE_URL}/products/${id}`, {
         method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete product');
-      return response.ok;
+        headers: getAuthHeaders(),
+      }, 'Failed to delete product');
+      return true;
     } catch (error) {
       console.error('Error deleting product:', error);
+      throw error;
+    }
+  },
+};
+
+export const categoryAPI = {
+  // Get all categories
+  getAllCategories: async () => {
+    try {
+      return await requestJson(`${API_BASE_URL}/categories`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch categories');
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      throw error;
+    }
+  },
+
+  // Get categories by type
+  getCategoriesByType: async (type) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/categories/type/${encodeURIComponent(type)}`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch categories');
+    } catch (error) {
+      console.error('Error fetching categories by type:', error);
       throw error;
     }
   },
@@ -166,14 +220,25 @@ export const userAPI = {
       
       const data = await response.json();
       
-      // Save token and full user info
+      // Save token and essential user info (exclude avatar to avoid quota exceeded)
       if (data.token && data.user) {
         saveToken(data.token);
         localStorage.setItem('userId', data.user.id);
         localStorage.setItem('userEmail', data.user.email);
         localStorage.setItem('userName', data.user.name);
-        // Lưu toàn bộ user object
-        localStorage.setItem('userData', JSON.stringify(data.user));
+        
+        // Save only essential user data (without avatar or large fields)
+        const essentialUserData = {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          role: data.user.role,
+          status: data.user.status,
+          phone: data.user.phone,
+          gender: data.user.gender,
+          address: data.user.address,
+        };
+        localStorage.setItem('userData', JSON.stringify(essentialUserData));
       }
       
       return data;
@@ -201,14 +266,25 @@ export const userAPI = {
       
       const data = await response.json();
       
-      // Save token and full user info
+      // Save token and essential user info (exclude avatar to avoid quota exceeded)
       if (data.token && data.user) {
         saveToken(data.token);
         localStorage.setItem('userId', data.user.id);
         localStorage.setItem('userEmail', data.user.email);
         localStorage.setItem('userName', data.user.name);
-        // Lưu toàn bộ user object
-        localStorage.setItem('userData', JSON.stringify(data.user));
+        
+        // Save only essential user data (without avatar or large fields)
+        const essentialUserData = {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          role: data.user.role,
+          status: data.user.status,
+          phone: data.user.phone,
+          gender: data.user.gender,
+          address: data.user.address,
+        };
+        localStorage.setItem('userData', JSON.stringify(essentialUserData));
       }
       
       return data;
@@ -226,12 +302,9 @@ export const userAPI = {
   // Get user profile
   getProfile: async (userId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      return await requestJson(`${API_BASE_URL}/users/${userId}`, {
         headers: getAuthHeaders(),
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch profile');
-      return await response.json();
+      }, 'Failed to fetch profile');
     } catch (error) {
       console.error('Error fetching profile:', error);
       throw error;
@@ -241,14 +314,11 @@ export const userAPI = {
   // Update user profile
   updateProfile: async (userId, userData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      return await requestJson(`${API_BASE_URL}/users/${userId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(userData),
-      });
-      
-      if (!response.ok) throw new Error('Failed to update profile');
-      return await response.json();
+      }, 'Failed to update profile');
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
@@ -318,18 +388,11 @@ export const userAPI = {
   // Change password for logged-in user
   changePassword: async (userId, oldPassword, newPassword, confirmPassword) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/change-password`, {
+      return await requestJson(`${API_BASE_URL}/users/${userId}/change-password`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ oldPassword, newPassword, confirmPassword }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to change password');
-      }
-      
-      return await response.json();
+      }, 'Failed to change password');
     } catch (error) {
       console.error('Error changing password:', error);
       throw error;
@@ -339,18 +402,11 @@ export const userAPI = {
   // Upload/Update user avatar
   uploadAvatar: async (userId, imageBase64) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/upload-avatar`, {
+      return await requestJson(`${API_BASE_URL}/users/${userId}/upload-avatar`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ imageBase64 }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to upload avatar');
-      }
-      
-      return await response.json();
+      }, 'Failed to upload avatar');
     } catch (error) {
       console.error('Error uploading avatar:', error);
       throw error;
@@ -364,12 +420,10 @@ export const orderAPI = {
   // Get all orders for user
   getUserOrders: async (userId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/orders/user/${userId}`, {
+      return await requestJson(`${API_BASE_URL}/orders/user/${userId}`, {
         method: 'GET',
         headers: getAuthHeaders(),
-      });
-      if (!response.ok) throw new Error('Failed to fetch orders');
-      return await response.json();
+      }, 'Failed to fetch orders');
     } catch (error) {
       console.error('Error fetching orders:', error);
       throw error;
@@ -379,12 +433,10 @@ export const orderAPI = {
   // Get order by ID
   getOrderById: async (orderId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+      return await requestJson(`${API_BASE_URL}/orders/${orderId}`, {
         method: 'GET',
         headers: getAuthHeaders(),
-      });
-      if (!response.ok) throw new Error('Failed to fetch order');
-      return await response.json();
+      }, 'Failed to fetch order');
     } catch (error) {
       console.error('Error fetching order:', error);
       throw error;
@@ -394,13 +446,11 @@ export const orderAPI = {
   // Create new order
   createOrder: async (orderData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/orders`, {
+      return await requestJson(`${API_BASE_URL}/orders`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(orderData),
-      });
-      if (!response.ok) throw new Error('Failed to create order');
-      return await response.json();
+      }, 'Failed to create order');
     } catch (error) {
       console.error('Error creating order:', error);
       throw error;
@@ -410,13 +460,11 @@ export const orderAPI = {
   // Update order status (Admin only)
   updateOrderStatus: async (orderId, status) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+      return await requestJson(`${API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status }),
-      });
-      if (!response.ok) throw new Error('Failed to update order status');
-      return await response.json();
+      }, 'Failed to update order status');
     } catch (error) {
       console.error('Error updating order status:', error);
       throw error;
@@ -430,13 +478,64 @@ export const adminAPI = {
   // Get all users
   getAllUsers: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/users`, {
+      return await requestJson(`${API_BASE_URL}/admin/users`, {
         headers: getAuthHeaders(),
-      });
-      if (!response.ok) throw new Error('Failed to fetch users');
-      return await response.json();
+      }, 'Failed to fetch users');
     } catch (error) {
       console.error('Error fetching users:', error);
+      throw error;
+    }
+  },
+
+  // Get user by ID
+  getUserById: async (userId) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/admin/users/${userId}`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch user');
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      throw error;
+    }
+  },
+
+  // Update user role
+  updateUserRole: async (userId, role) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/admin/users/${userId}/role`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ role }),
+      }, 'Failed to update user role');
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      throw error;
+    }
+  },
+
+  // Update user status
+  updateUserStatus: async (userId, status) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/admin/users/${userId}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status }),
+      }, 'Failed to update user status');
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      throw error;
+    }
+  },
+
+  // Delete user account
+  deleteUser: async (userId) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      }, 'Failed to delete user');
+    } catch (error) {
+      console.error('Error deleting user:', error);
       throw error;
     }
   },
@@ -444,11 +543,9 @@ export const adminAPI = {
   // Get all orders
   getAllOrders: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/orders`, {
+      return await requestJson(`${API_BASE_URL}/admin/orders`, {
         headers: getAuthHeaders(),
-      });
-      if (!response.ok) throw new Error('Failed to fetch orders');
-      return await response.json();
+      }, 'Failed to fetch orders');
     } catch (error) {
       console.error('Error fetching orders:', error);
       throw error;
@@ -458,11 +555,9 @@ export const adminAPI = {
   // Get dashboard statistics
   getDashboardStats: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+      return await requestJson(`${API_BASE_URL}/admin/stats`, {
         headers: getAuthHeaders(),
-      });
-      if (!response.ok) throw new Error('Failed to fetch statistics');
-      return await response.json();
+      }, 'Failed to fetch statistics');
     } catch (error) {
       console.error('Error fetching statistics:', error);
       throw error;
@@ -500,13 +595,11 @@ export const reviewAPI = {
   // Create review
   createReview: async (reviewData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/reviews`, {
+      return await requestJson(`${API_BASE_URL}/reviews`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(reviewData),
-      });
-      if (!response.ok) throw new Error('Failed to create review');
-      return await response.json();
+      }, 'Failed to create review');
     } catch (error) {
       console.error('Error creating review:', error);
       throw error;
@@ -516,13 +609,11 @@ export const reviewAPI = {
   // Update review
   updateReview: async (id, reviewData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/reviews/${id}`, {
+      return await requestJson(`${API_BASE_URL}/reviews/${id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(reviewData),
-      });
-      if (!response.ok) throw new Error('Failed to update review');
-      return await response.json();
+      }, 'Failed to update review');
     } catch (error) {
       console.error('Error updating review:', error);
       throw error;
@@ -532,12 +623,11 @@ export const reviewAPI = {
   // Delete review
   deleteReview: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/reviews/${id}`, {
+      await requestJson(`${API_BASE_URL}/reviews/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
-      });
-      if (!response.ok) throw new Error('Failed to delete review');
-      return response.ok;
+      }, 'Failed to delete review');
+      return true;
     } catch (error) {
       console.error('Error deleting review:', error);
       throw error;
@@ -559,6 +649,7 @@ export const reviewAPI = {
 
 export default {
   productAPI,
+  categoryAPI,
   userAPI,
   orderAPI,
   adminAPI,

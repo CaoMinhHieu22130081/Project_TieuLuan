@@ -4,16 +4,18 @@ import { productAPI, reviewAPI } from "../services/api";
 import { useWishlist } from "../context/WishlistContext";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
+import { getDisplayRating, getSizeOptions } from "../utils/productDisplay";
 import "./css/Productdetailpage.css";
 
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 
 /* ─── Star helper ─────────────────────────────────────── */
 function Stars({ rating, size = "sm" }) {
+  const safeRating = Number.isFinite(Number(rating)) ? Number(rating) : 0;
   return (
     <div className={`star-row-${size}`}>
       {[1, 2, 3, 4, 5].map((s) => (
-        <span key={s} className={`star-${size} ${s <= Math.round(rating) ? "filled" : ""}`}>★</span>
+        <span key={s} className={`star-${size} ${s <= Math.round(safeRating) ? "filled" : ""}`}>★</span>
       ))}
     </div>
   );
@@ -21,6 +23,7 @@ function Stars({ rating, size = "sm" }) {
 
 /* ─── Related card ────────────────────────────────────── */
 function RelatedCard({ product }) {
+  const rating = getDisplayRating(product);
   const thumb = product.images && product.images.length > 0 
     ? product.images[0].url 
     : (product.image || 'https://via.placeholder.com/300x400?text=No+Image');
@@ -36,7 +39,7 @@ function RelatedCard({ product }) {
       </div>
       <div className="related-info">
         <p className="related-name">{product.name}</p>
-        <Stars rating={typeof product.rating === 'string' ? parseFloat(product.rating) : product.rating} size="sm" />
+        <Stars rating={rating} size="sm" />
         <div className="related-price-row">
           <span className="related-price">{fmt(product.price)}</span>
           {product.originalPrice && <span className="related-orig">{fmt(product.originalPrice)}</span>}
@@ -154,6 +157,8 @@ export default function ProductDetailPage() {
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : null;
+  const displayRating = getDisplayRating(product);
+  const sizeOptions = getSizeOptions(product);
 
   // Format prices to handle both number and string
   const formatPrice = (p) => {
@@ -194,7 +199,7 @@ export default function ProductDetailPage() {
 
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     reviews.forEach(r => {
-      const rating = r.rating || 5;
+      const rating = Number(r.rating) || 0;
       if (rating >= 1 && rating <= 5) {
         counts[rating]++;
       }
@@ -279,9 +284,9 @@ export default function ProductDetailPage() {
 
             {/* Rating */}
             <div className="detail-rating-row">
-              <Stars rating={typeof product.rating === 'string' ? parseFloat(product.rating) : product.rating} size="lg" />
+              <Stars rating={displayRating} size="lg" />
               <span className="detail-rating-text">
-                <strong>{product.rating}</strong> · {product.reviewCount || 0} đánh giá · {product.sold || 0} đã bán
+                <strong>{displayRating}</strong> · {product.reviewCount || 0} đánh giá · {product.sold || 0} đã bán
               </span>
             </div>
 
@@ -338,20 +343,30 @@ export default function ProductDetailPage() {
               {selSize && <span className="selector-chosen"> — {selSize}</span>}
             </p>
             <div className="size-selector">
-              {product.sizes && product.sizes.map((s) => {
-                const sizeValue = s.size || s;
+              {sizeOptions.map((s) => {
+                const sizeValue = s.value;
                 return (
                   <button
                     key={sizeValue}
-                    className={`size-btn ${selSize === sizeValue ? "active" : ""}`}
-                    onClick={() => { setSelSize(sizeValue); setSizeErr(false); }}
-                    title={sizeValue}
+                    className={`size-btn ${selSize === sizeValue ? "active" : ""} ${s.isAvailable ? "" : "unavail"}`}
+                    onClick={() => {
+                      if (!s.isAvailable) return;
+                      setSelSize(sizeValue);
+                      setSizeErr(false);
+                    }}
+                    disabled={!s.isAvailable}
+                    title={s.isAvailable ? sizeValue : `${sizeValue} - Hết hàng`}
                   >
                     {sizeValue}
                   </button>
                 );
               })}
             </div>
+            {sizeOptions.length > 0 && sizeOptions.every((size) => !size.isAvailable) && (
+              <p style={{ fontSize: "0.82rem", color: "#ffb4b4", marginTop: 8 }}>
+                Sản phẩm hiện đã hết size.
+              </p>
+            )}
             <span className="size-guide-link">📏 Hướng dẫn chọn size</span>
 
             <div className="detail-divider" />
@@ -444,8 +459,8 @@ export default function ProductDetailPage() {
               <div>
                 <div className="reviews-summary">
                   <div className="review-big-score">
-                    <div className="review-score-num">{product.rating}</div>
-                    <Stars rating={typeof product.rating === 'string' ? parseFloat(product.rating) : product.rating} size="lg" />
+                    <div className="review-score-num">{displayRating}</div>
+                    <Stars rating={displayRating} size="lg" />
                     <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4 }}>
                       {product.reviewCount || 0} đánh giá
                     </p>

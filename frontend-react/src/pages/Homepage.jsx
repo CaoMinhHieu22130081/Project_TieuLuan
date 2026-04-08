@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { productAPI } from "../services/api";
+import { getDisplayRating } from "../utils/productDisplay";
 import "./css/Homepage.css";
 
 // Danh mục cố định
@@ -93,7 +94,7 @@ function ProductCard({ product }) {
       </div>
       <div className="product-info">
         <p className="product-name">{product.name}</p>
-        <StarRating rating={parseFloat(product.rating) || 0} />
+        <StarRating rating={getDisplayRating(product)} />
         <span className="review-count">({product.reviewCount || 0} đánh giá)</span>
         <div className="color-swatches">
           {(product.colors || []).map((c, i) => (

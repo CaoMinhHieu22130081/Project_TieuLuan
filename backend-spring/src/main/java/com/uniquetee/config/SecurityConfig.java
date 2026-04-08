@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +18,9 @@ public class SecurityConfig {
 
     @Autowired(required = false)
     private CustomOAuth2UserService customOAuth2UserService;
+
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
@@ -33,11 +37,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/login", "/api/users/register").permitAll()
                         .requestMatchers("/api/users/oauth2/**").permitAll()
                         .requestMatchers("/api/products/**", "/api/categories/**").permitAll()
+                        .requestMatchers("/api/login/oauth2/**").permitAll()
                         .requestMatchers("/login/oauth2/**").permitAll()
                         .anyRequest().permitAll() // Allow all for now, can be restricted later
                 )
                 .httpBasic().disable()
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login()
+                    .authorizationEndpoint()
+                        .baseUri("/login/oauth2/authorization")
+                    .and()
                     .userInfoEndpoint()
                         .userService(customOAuth2UserService)
                     .and()

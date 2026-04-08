@@ -4,6 +4,7 @@ import { productAPI } from "../services/api";
 import { useWishlist } from "../context/WishlistContext";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
+import { getDisplayRating, getSizeOptions } from "../utils/productDisplay";
 import "./css/Productspage.css";
 
 const TYPES = ["Tất cả", "Áo", "Quần"];
@@ -72,9 +73,11 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
 
   if (!isOpen || !product) return null;
 
-  const availableSizes = product.sizes && product.sizes.length > 0 
-    ? product.sizes.map(s => s.size || s)
-    : (product.type === "Quần" ? ["28", "29", "30", "31", "32", "34", "S", "M", "L", "XL"] : ["XS", "S", "M", "L", "XL", "XXL"]);
+  const sizeOptions = getSizeOptions(product);
+  const fallbackSizes = product.type === "Quần" ? SIZES_QUAN : SIZES_AO;
+  const displaySizes = sizeOptions.length > 0
+    ? sizeOptions
+    : fallbackSizes.map((value) => ({ value, isAvailable: true }));
 
   return (
     <>
@@ -161,22 +164,30 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
             Kích thước {error && <span style={{ color: "#ff6b6b" }}>- {error}</span>}
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {availableSizes.map((s) => (
+            {displaySizes.map((size) => (
               <button
-                key={s}
-                onClick={() => { setSelectedSize(s); setError(""); }}
+                key={size.value}
+                onClick={() => {
+                  if (!size.isAvailable) return;
+                  setSelectedSize(size.value);
+                  setError("");
+                }}
+                disabled={!size.isAvailable}
                 style={{
                   padding: 10,
-                  border: selectedSize === s ? "2px solid var(--accent)" : "1px solid #333",
-                  background: selectedSize === s ? "var(--accent)" : "#2a2a2a",
-                  color: selectedSize === s ? "#fff" : "#ccc",
+                  border: selectedSize === size.value ? "2px solid var(--accent)" : "1px solid #333",
+                  background: selectedSize === size.value ? "var(--accent)" : "#2a2a2a",
+                  color: selectedSize === size.value ? "#fff" : size.isAvailable ? "#ccc" : "#777",
                   borderRadius: 6,
-                  cursor: "pointer",
+                  cursor: size.isAvailable ? "pointer" : "not-allowed",
                   fontWeight: 600,
                   transition: "all 0.2s",
+                  opacity: size.isAvailable ? 1 : 0.45,
+                  textDecoration: size.isAvailable ? "none" : "line-through",
                 }}
+                title={size.isAvailable ? size.value : `${size.value} - Hết hàng`}
               >
-                {s}
+                {size.value}
               </button>
             ))}
           </div>
@@ -298,8 +309,7 @@ function ProductCard({ product }) {
     ? product.images[0].url 
     : (product.image || 'https://via.placeholder.com/300x400?text=No+Image');
 
-  // Handle rating - convert to number if string
-  const rating = typeof product.rating === 'string' ? parseFloat(product.rating) : (product.rating || 5);
+  const rating = getDisplayRating(product);
 
   const stopAndRun = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
 
@@ -467,17 +477,13 @@ export default function ProductsPage() {
         return catName === category;
       });
     }
-    if (sizes.length && excludeType !== 'size') {
-      temp = temp.filter(p => {
-        if (!p.sizes || p.sizes.length === 0) return false;
-        return sizes.some(selectedSize => 
-          p.sizes.some(s => {
-            const sv = typeof s === 'string' ? s : (s.size || s.name);
-            return sv === selectedSize;
-          })
-        );
-      });
-    }
+      if (sizes.length && excludeType !== 'size') {
+        temp = temp.filter((p) => {
+          const availableSizes = getSizeOptions(p, { availableOnly: true });
+          if (availableSizes.length === 0) return false;
+          return sizes.some((selectedSize) => availableSizes.some((size) => size.value === selectedSize));
+        });
+      }
     if (colors.length && excludeType !== 'color') {
       temp = temp.filter(p => {
         if (!p.colors || p.colors.length === 0) return false;
@@ -502,12 +508,7 @@ export default function ProductsPage() {
     let available = new Set();
     const filtered = getFilteredProductsWithFilters('size');
     filtered.forEach(p => {
-      if (p.sizes && Array.isArray(p.sizes)) {
-        p.sizes.forEach(s => {
-          const sizeValue = typeof s === 'string' ? s : (s.size || s.name);
-          available.add(sizeValue);
-        });
-      }
+      getSizeOptions(p, { availableOnly: true }).forEach((size) => available.add(size.value));
     });
     return Array.from(available).sort((a, b) => {
       const aIsNum = !isNaN(a);
@@ -524,11 +525,8 @@ export default function ProductsPage() {
   const countSizeInFiltered = (sizeValue) => {
     const filtered = getFilteredProductsWithFilters('size');
     return filtered.filter(p => {
-      if (!p.sizes || p.sizes.length === 0) return false;
-      return p.sizes.some(s => {
-        const sv = typeof s === 'string' ? s : (s.size || s.name);
-        return sv === sizeValue;
-      });
+      const availableSizes = getSizeOptions(p, { availableOnly: true });
+      return availableSizes.some((size) => size.value === sizeValue);
     }).length;
   };
 
@@ -591,14 +589,9 @@ export default function ProductsPage() {
   /* Filter sizes - từ MySQL product_sizes - OR logic (sản phẩm có bất kỳ size nào được chọn) */
   if (sizes.length) {
     filtered = filtered.filter((p) => {
-      if (!p.sizes || p.sizes.length === 0) return false;
-      // Sản phẩm có bất kỳ size nào trong selected sizes
-      return sizes.some((selectedSize) => {
-        return p.sizes.some((s) => {
-          const sizeValue = typeof s === 'string' ? s : (s.size || s.name);
-          return sizeValue === selectedSize;
-        });
-      });
+      const availableSizes = getSizeOptions(p, { availableOnly: true });
+      if (availableSizes.length === 0) return false;
+      return sizes.some((selectedSize) => availableSizes.some((size) => size.value === selectedSize));
     });
   }
 
@@ -636,7 +629,7 @@ export default function ProductsPage() {
   if (sortBy === "popular")    filtered = [...filtered].sort((a, b) => (b.sold || 0) - (a.sold || 0));
   if (sortBy === "price_asc")  filtered = [...filtered].sort((a, b) => a.price - b.price);
   if (sortBy === "price_desc") filtered = [...filtered].sort((a, b) => b.price - a.price);
-  if (sortBy === "rating")     filtered = [...filtered].sort((a, b) => b.rating - a.rating);
+  if (sortBy === "rating")     filtered = [...filtered].sort((a, b) => getDisplayRating(b) - getDisplayRating(a));
   if (sortBy === "newest")     filtered = [...filtered].sort((a, b) => b.id - a.id);
 
   const totalAo   = products.filter(p => p.type === "Áo").length;

@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   // Khởi tạo auth từ localStorage
   useEffect(() => {
     const savedToken = localStorage.getItem('authToken');
-    const savedUser = localStorage.getItem('user');
+    const savedUser = localStorage.getItem('userData');
     
     if (savedToken && savedUser) {
       try {
@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
       } catch (e) {
         console.error('Error parsing saved user:', e);
         localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
+        localStorage.removeItem('userData');
       }
     }
     setLoading(false);
@@ -30,7 +30,19 @@ export const AuthProvider = ({ children }) => {
     setToken(token);
     setUser(userData);
     localStorage.setItem('authToken', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+    
+    // Save only essential user data (exclude avatar) to avoid quota exceeded
+    const essentialUserData = {
+      id: userData.id,
+      email: userData.email,
+      name: userData.name,
+      role: userData.role,
+      status: userData.status,
+      phone: userData.phone,
+      gender: userData.gender,
+      address: userData.address,
+    };
+    localStorage.setItem('userData', JSON.stringify(essentialUserData));
   };
 
   // Logout user
@@ -38,7 +50,8 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('user'); // Remove old key if exists
   };
 
   // Check if user has specific role

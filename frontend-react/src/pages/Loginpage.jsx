@@ -6,7 +6,7 @@ import "./css/Loginpage.css";
 
 export default function Loginpage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const [searchParams] = useSearchParams();
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
@@ -14,6 +14,7 @@ export default function Loginpage() {
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [loginRole, setLoginRole] = useState(null); // Track which role to navigate
 
   // Check for OAuth2 error on component mount
   useEffect(() => {
@@ -22,6 +23,20 @@ export default function Loginpage() {
       setServerError("OAuth2 login failed: " + error);
     }
   }, [searchParams]);
+
+  // Handle navigation after successful login
+  useEffect(() => {
+    if (success && user && loginRole) {
+      console.log(`[Login] Navigating user with role: ${loginRole}`);
+      if (loginRole === "admin") {
+        navigate("/admin", { replace: true });
+      } else if (loginRole === "staff") {
+        navigate("/admin/orders", { replace: true });
+      } else {
+        navigate("/profile", { replace: true });
+      }
+    }
+  }, [success, user, loginRole, navigate]);
 
   const validate = () => {
     const e = {};
@@ -40,10 +55,11 @@ export default function Loginpage() {
 
   const handleOAuth2Login = (provider) => {
     console.log(`[OAuth2] User clicked ${provider} button`);
-    console.log(`[OAuth2] Redirecting to: http://localhost:8080/login/oauth2/authorization/${provider}`);
+    console.log(`[OAuth2] Redirecting to: http://localhost:8080/api/login/oauth2/authorization/${provider}`);
     try {
       // Redirect to backend OAuth2 authorization endpoint
-      window.location.href = `http://localhost:8080/login/oauth2/authorization/${provider}`;
+      // Note: Backend has context-path=/api, so endpoint must include /api prefix
+      window.location.href = `http://localhost:8080/api/login/oauth2/authorization/${provider}`;
     } catch (error) {
       console.error(`[OAuth2] Error redirecting:`, error);
     }
@@ -66,23 +82,15 @@ export default function Loginpage() {
       
       // Nếu login thành công
       if (response && response.token && response.user) {
-        setSuccess(true);
-        setLoading(false);
-        
-        // Lưu user info vào AuthContext
+        // Lưu user info vào AuthContext trước
         login(response.token, response.user);
         
-        // Redirect dựa vào role
-        const userRole = response.user.role;
-        setTimeout(() => {
-          if (userRole === "admin") {
-            navigate("/admin");
-          } else if (userRole === "staff") {
-            navigate("/admin/orders");
-          } else {
-            navigate("/profile");
-          }
-        }, 1500);
+        // Store role for navigation
+        setLoginRole(response.user.role);
+        
+        // Show success message
+        setSuccess(true);
+        setLoading(false);
       }
     } catch (error) {
       setServerError(error.message || "Đăng nhập thất bại. Vui lòng thử lại.");

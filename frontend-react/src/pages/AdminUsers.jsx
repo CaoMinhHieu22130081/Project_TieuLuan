@@ -1,95 +1,262 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AdminLayout } from "./Adminheader";
+import { useAuth } from "../context/AuthContext";
 import { adminAPI } from "../services/api";
 import "./css/Admin.css";
-import { ROLE_MAP, ROLE_LABEL, USER_STATUS_MAP } from "../data/AdminUsersData";
 
-const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
+const ROLE_LABEL = {
+  admin: "Admin",
+  staff: "Nhân viên",
+  customer: "Khách hàng",
+};
+
+const ROLE_MAP = {
+  admin: "role-admin",
+  staff: "role-staff",
+  customer: "role-customer",
+};
+
+const USER_STATUS_MAP = {
+  active: { label: "Hoạt động", cls: "st-delivered" },
+  inactive: { label: "Không HĐ", cls: "st-processing" },
+  blocked: { label: "Đã khóa", cls: "st-cancelled" },
+};
+
+const ROLE_TABS = ["Tất cả", "admin", "staff", "customer"];
+const ROLE_OPTIONS = ["admin", "staff", "customer"];
+
+const parseAmount = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const numericValue = Number(String(value).replace(/,/g, ""));
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const formatMoney = (value) => `${parseAmount(value).toLocaleString("vi-VN")}đ`;
+
+const formatJoinedAt = (value) => {
+  if (!value) {
+    return "—";
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+
+  return parsedDate.toLocaleDateString("vi-VN");
+};
+
+const normalizeUser = (user) => {
+  if (!user) {
+    return null;
+  }
+
+  const role = (user.role || "customer").toLowerCase();
+  const status = (user.status || "active").toLowerCase();
+
+  return {
+    ...user,
+    id: user.id,
+    name: user.name || "",
+    email: user.email || "",
+    phone: user.phone || "",
+    role,
+    status,
+    orders: Number(user.orders ?? user.orderCount ?? 0),
+    spent: parseAmount(user.spent),
+    createdAt: user.createdAt || user.joinedAt || user.joined || null,
+  };
+};
 
 export default function AdminUsers() {
-  const [users,    setUsers]    = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
-  const [search,   setSearch]   = useState("");
-  const [roleTab,  setRoleTab]  = useState("Tất cả");
-  const [detail,   setDetail]   = useState(null);
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
+  const [roleTab, setRoleTab] = useState("Tất cả");
+  const [detail, setDetail] = useState(null);
   const [editRole, setEditRole] = useState(null);
+  const [savingUserId, setSavingUserId] = useState(null);
 
-  // Fetch users từ MySQL
+  const loadUsers = async () => {
+    try {
+      setError(null);
+      const data = await adminAPI.getAllUsers();
+      const normalizedUsers = (Array.isArray(data) ? data : [])
+        .map(normalizeUser)
+        .filter(Boolean);
+      setUsers(normalizedUsers);
+    } catch (err) {
+      console.error("Lỗi tải người dùng:", err);
+      setError("Không thể tải dữ liệu người dùng");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const data = await adminAPI.getAllUsers();
-        setUsers(data || []);
-      } catch (err) {
-        console.error("Lỗi tải người dùng:", err);
-        setError("Không thể tải dữ liệu người dùng");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUsers();
+    loadUsers();
   }, []);
 
-  const displayed = users.filter((u) => {
-    const matchS = (u.name || "").toLowerCase().includes(search.toLowerCase()) || (u.email || "").toLowerCase().includes(search.toLowerCase());
-    const matchR = roleTab === "Tất cả" || u.role === roleTab;
-    return matchS && matchR;
+  const replaceUserInState = (updatedUser) => {
+    const normalizedUser = normalizeUser(updatedUser);
+    if (!normalizedUser) {
+      return;
+    }
+
+    setUsers((prev) =>
+      prev.map((user) => (user.id === normalizedUser.id ? normalizedUser : user))
+    );
+    setDetail((current) =>
+      current && current.id === normalizedUser.id ? normalizedUser : current
+    );
+  };
+
+  const handleViewDetail = async (user) => {
+    setDetail(user);
+
+    try {
+      const freshUser = await adminAPI.getUserById(user.id);
+      replaceUserInState(freshUser);
+    } catch (err) {
+      console.error("Lỗi tải chi tiết người dùng:", err);
+    }
+  };
+
+  const handleSaveRole = async () => {
+    if (!editRole) {
+      return;
+    }
+
+    try {
+      setSavingUserId(editRole.userId);
+      const updatedUser = await adminAPI.updateUserRole(
+        editRole.userId,
+        editRole.role
+      );
+      replaceUserInState(updatedUser);
+      setEditRole(null);
+    } catch (err) {
+      console.error("Lỗi cập nhật vai trò:", err);
+      alert(err.message || "Không thể cập nhật vai trò người dùng");
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
+  const handleToggleStatus = async (user) => {
+    const nextStatus = user.status === "active" ? "blocked" : "active";
+
+    try {
+      setSavingUserId(user.id);
+      const updatedUser = await adminAPI.updateUserStatus(user.id, nextStatus);
+      replaceUserInState(updatedUser);
+    } catch (err) {
+      console.error("Lỗi cập nhật trạng thái:", err);
+      alert(err.message || "Không thể cập nhật trạng thái người dùng");
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (Number(currentUser?.id) === Number(user.id)) {
+      alert("Không thể xóa tài khoản đang đăng nhập.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Xóa tài khoản ${user.name || user.email || `#${user.id}`}? Thao tác này không thể hoàn tác.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setSavingUserId(user.id);
+      await adminAPI.deleteUser(user.id);
+      setUsers((prev) => prev.filter((item) => item.id !== user.id));
+      setDetail((current) => (current && current.id === user.id ? null : current));
+    } catch (err) {
+      console.error("Lỗi xóa người dùng:", err);
+      alert(err.message || "Không thể xóa tài khoản người dùng");
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
+  const displayed = users.filter((user) => {
+    const keyword = search.toLowerCase();
+    const matchSearch =
+      (user.name || "").toLowerCase().includes(keyword) ||
+      (user.email || "").toLowerCase().includes(keyword);
+    const matchRole = roleTab === "Tất cả" || user.role === roleTab;
+    return matchSearch && matchRole;
   });
 
-  const toggleStatus = (id) =>
-    setUsers((prev) => prev.map((u) =>
-      u.id !== id ? u : { ...u, status: u.status === "active" ? "blocked" : "active" }
-    ));
-
-  const saveRole = () => {
-    if (!editRole) return;
-    setUsers((prev) => prev.map((u) => u.id === editRole.userId ? { ...u, role: editRole.role } : u));
-    setEditRole(null);
-  };
+  const totalUsers = users.length;
+  const activeUsers = users.filter((user) => user.status === "active").length;
+  const blockedUsers = users.filter((user) => user.status === "blocked").length;
+  const customerUsers = users.filter((user) => user.role === "customer").length;
 
   return (
     <AdminLayout
       title="Quản lý người dùng"
-      subtitle={`${users.length} tài khoản · ${users.filter((u) => u.status === "active").length} đang hoạt động`}
+      subtitle={`${totalUsers} tài khoản · ${activeUsers} đang hoạt động`}
     >
-      {/* Toolbar */}
       <div className="admin-card toolbar-card">
         <div className="status-tabs">
-          {["Tất cả", "admin", "staff", "customer"].map((t) => {
-            const count = t === "Tất cả" ? users.length : users.filter((u) => u.role === t).length;
+          {ROLE_TABS.map((tab) => {
+            const count =
+              tab === "Tất cả"
+                ? totalUsers
+                : users.filter((user) => user.role === tab).length;
+
             return (
-              <button key={t} className={`status-tab ${roleTab === t ? "active" : ""}`}
-                onClick={() => setRoleTab(t)}>
-                {t === "Tất cả" ? "Tất cả" : ROLE_LABEL[t]}
+              <button
+                key={tab}
+                className={`status-tab ${roleTab === tab ? "active" : ""}`}
+                onClick={() => setRoleTab(tab)}
+              >
+                {tab === "Tất cả" ? "Tất cả" : ROLE_LABEL[tab]}
                 <span className="tab-count">{count}</span>
               </button>
             );
           })}
         </div>
+
         <div className="search-input-wrap" style={{ marginTop: 14 }}>
           <span className="search-ico">🔍</span>
-          <input className="admin-search-input" placeholder="Tìm tên, email…"
-            value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input
+            className="admin-search-input"
+            placeholder="Tìm tên, email…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
       </div>
 
-      {/* Stats */}
       <div className="users-stats-row">
         {[
-          { label: "Tổng tài khoản",  value: users.length,                                   color: "var(--accent)" },
-          { label: "Đang hoạt động",  value: users.filter((u) => u.status === "active").length,  color: "#34d399"       },
-          { label: "Đã khóa",         value: users.filter((u) => u.status === "blocked").length, color: "#f87171"       },
-          { label: "Khách hàng",      value: users.filter((u) => u.role === "customer").length,  color: "#60a5fa"       },
-        ].map((s, i) => (
-          <div key={i} className="users-stat-card" style={{ "--uc": s.color }}>
-            <p className="uc-value" style={{ color: s.color }}>{s.value}</p>
-            <p className="uc-label">{s.label}</p>
+          { label: "Tổng tài khoản", value: totalUsers, color: "var(--accent)" },
+          { label: "Đang hoạt động", value: activeUsers, color: "#34d399" },
+          { label: "Đã khóa", value: blockedUsers, color: "#f87171" },
+          { label: "Khách hàng", value: customerUsers, color: "#60a5fa" },
+        ].map((stat, index) => (
+          <div key={index} className="users-stat-card" style={{ "--uc": stat.color }}>
+            <p className="uc-value" style={{ color: stat.color }}>
+              {stat.value}
+            </p>
+            <p className="uc-label">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Table */}
       <div className="admin-card table-card">
         {loading ? (
           <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
@@ -100,145 +267,286 @@ export default function AdminUsers() {
             <p>{error}</p>
           </div>
         ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Người dùng</th><th>Liên hệ</th><th>Vai trò</th><th>Trạng thái</th>
-              <th>Đơn hàng</th><th>Chi tiêu</th><th>Tham gia</th><th>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayed.map((u) => {
-              const initial = (u.name || "User")[0];
-              const status = u.status || "active";
-              return (
-              <tr key={u.id}>
-                <td>
-                  <div className="user-cell">
-                    <div className="user-avatar"
-                      style={{ "--ua-color": u.role === "admin" ? "var(--accent)" : u.role === "staff" ? "#60a5fa" : "#a78bfa" }}>
-                      {initial}
-                    </div>
-                    <div>
-                      <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>{u.name || "N/A"}</p>
-                      <p style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>ID #{u.id}</p>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <p style={{ fontSize: "0.82rem" }}>{u.email || "N/A"}</p>
-                  <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{u.phone || "—"}</p>
-                </td>
-                <td><span className={`role-badge ${ROLE_MAP[u.role] || "role-customer"}`}>{ROLE_LABEL[u.role] || u.role}</span></td>
-                <td>
-                  <span className={`omr-status ${USER_STATUS_MAP[status]?.cls || "status-active"}`}>
-                    {USER_STATUS_MAP[status]?.label || status}
-                  </span>
-                </td>
-                <td style={{ textAlign: "center", fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}>
-                  {u.orders || 0}
-                </td>
-                <td>
-                  <span style={{ color: "var(--accent)", fontWeight: 600, fontSize: "0.85rem" }}>
-                    {(u.spent || 0) > 0 ? fmt(u.spent) : "—"}
-                  </span>
-                </td>
-                <td style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>{u.createdAt || "—"}</td>
-                <td>
-                  <div className="action-btns">
-                    <button className="action-btn edit" onClick={() => setDetail(u)}>👁</button>
-                    <button className="action-btn edit" onClick={() => setEditRole({ userId: u.id, role: u.role })}>🔑</button>
-                    {u.role !== "admin" && (
-                      <button
-                        className={`action-btn ${status === "active" ? "del" : "next"}`}
-                        onClick={() => toggleStatus(u.id)}>
-                        {status === "active" ? "🔒" : "🔓"}
-                      </button>
-                    )}
-                  </div>
-                </td>
+          <table className="admin-table users-table">
+            <thead>
+              <tr>
+                <th>Người dùng</th>
+                <th>Liên hệ</th>
+                <th>Vai trò</th>
+                <th>Trạng thái</th>
+                <th>Đơn hàng</th>
+                <th>Chi tiêu</th>
+                <th>Tham gia</th>
+                <th>Thao tác</th>
               </tr>
-            );
-            })}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {displayed.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="8"
+                    style={{
+                      textAlign: "center",
+                      padding: "28px 14px",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    Không tìm thấy người dùng phù hợp
+                  </td>
+                </tr>
+              ) : (
+                displayed.map((user) => {
+                  const initial = (user.name || "User").charAt(0);
+                  const status = user.status || "active";
+                  const isSaving = savingUserId === user.id;
+                  const isCurrentUser = Number(currentUser?.id) === Number(user.id);
+
+                  return (
+                    <tr key={user.id}>
+                      <td>
+                        <div className="user-cell">
+                          <div
+                            className="user-avatar"
+                            style={{
+                              "--ua-color":
+                                user.role === "admin"
+                                  ? "var(--accent)"
+                                  : user.role === "staff"
+                                    ? "#60a5fa"
+                                    : "#a78bfa",
+                            }}
+                          >
+                            {initial}
+                          </div>
+                          <div>
+                            <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>
+                              {user.name || "N/A"}
+                            </p>
+                            <p style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                              ID #{user.id}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <p style={{ fontSize: "0.82rem" }}>{user.email || "N/A"}</p>
+                        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                          {user.phone || "—"}
+                        </p>
+                      </td>
+                      <td className="users-role-cell">
+                        <span className={`role-badge ${ROLE_MAP[user.role] || "role-customer"}`}>
+                          {ROLE_LABEL[user.role] || user.role}
+                        </span>
+                      </td>
+                      <td className="users-status-cell">
+                        <span
+                          className={`omr-status ${USER_STATUS_MAP[status]?.cls || "status-active"}`}
+                        >
+                          {USER_STATUS_MAP[status]?.label || status}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          textAlign: "center",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        {user.orders || 0}
+                      </td>
+                      <td>
+                        <span style={{ color: "var(--accent)", fontWeight: 600, fontSize: "0.85rem" }}>
+                          {parseAmount(user.spent) > 0 ? formatMoney(user.spent) : "—"}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+                        {formatJoinedAt(user.createdAt)}
+                      </td>
+                      <td className="users-actions-cell">
+                        <div className="action-btns">
+                          <button
+                            className="action-btn edit"
+                            onClick={() => handleViewDetail(user)}
+                            disabled={isSaving}
+                          >
+                            👁
+                          </button>
+                          <button
+                            className="action-btn edit"
+                            onClick={() => setEditRole({ userId: user.id, role: user.role })}
+                            disabled={isSaving}
+                          >
+                            🔑
+                          </button>
+                          {user.role !== "admin" && (
+                            <button
+                              className={`action-btn ${status === "active" ? "del" : "next"}`}
+                              onClick={() => handleToggleStatus(user)}
+                              disabled={isSaving}
+                            >
+                              {status === "active" ? "🔒" : "🔓"}
+                            </button>
+                          )}
+                          <button
+                            className="action-btn del"
+                            onClick={() => handleDeleteUser(user)}
+                            disabled={isSaving || isCurrentUser}
+                            title={isCurrentUser ? "Không thể xóa tài khoản đang đăng nhập" : "Xóa tài khoản"}
+                          >
+                            🗑
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         )}
       </div>
 
-      {/* User Detail Modal */}
       {detail && (
         <div className="modal-overlay" onClick={() => setDetail(null)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Chi tiết tài khoản</h2>
-              <button className="modal-close" onClick={() => setDetail(null)}>✕</button>
+              <button className="modal-close" onClick={() => setDetail(null)}>
+                ✕
+              </button>
             </div>
             <div className="modal-body">
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
-                <div className="user-avatar lg"
-                  style={{ "--ua-color": detail.role === "admin" ? "var(--accent)" : detail.role === "staff" ? "#60a5fa" : "#a78bfa" }}>
-                  {(detail.name || "User")[0]}
+                <div
+                  className="user-avatar lg"
+                  style={{
+                    "--ua-color":
+                      detail.role === "admin"
+                        ? "var(--accent)"
+                        : detail.role === "staff"
+                          ? "#60a5fa"
+                          : "#a78bfa",
+                  }}
+                >
+                  {(detail.name || "User").charAt(0)}
                 </div>
                 <div>
-                  <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.1rem" }}>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 700,
+                      fontSize: "1.1rem",
+                    }}
+                  >
                     {detail.name || "N/A"}
                   </p>
-                  <span className={`role-badge ${ROLE_MAP[detail.role] || "role-customer"}`}>{ROLE_LABEL[detail.role] || detail.role}</span>
-                  <span className={`omr-status ${USER_STATUS_MAP[detail.status || "active"]?.cls || "status-active"}`} style={{ marginLeft: 8 }}>
+                  <span className={`role-badge ${ROLE_MAP[detail.role] || "role-customer"}`}>
+                    {ROLE_LABEL[detail.role] || detail.role}
+                  </span>
+                  <span
+                    className={`omr-status ${USER_STATUS_MAP[detail.status || "active"]?.cls || "status-active"}`}
+                    style={{ marginLeft: 8 }}
+                  >
                     {USER_STATUS_MAP[detail.status || "active"]?.label || "Active"}
                   </span>
                 </div>
               </div>
               <div className="detail-info-grid">
-                <div><span className="di-label">Email</span><span>{detail.email || "N/A"}</span></div>
-                <div><span className="di-label">Điện thoại</span><span>{detail.phone || "—"}</span></div>
-                <div><span className="di-label">Tham gia</span><span>{detail.createdAt || "—"}</span></div>
-                <div><span className="di-label">Đơn hàng</span><span>{detail.orders || 0}</span></div>
+                <div>
+                  <span className="di-label">Email</span>
+                  <span>{detail.email || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="di-label">Điện thoại</span>
+                  <span>{detail.phone || "—"}</span>
+                </div>
+                <div>
+                  <span className="di-label">Tham gia</span>
+                  <span>{formatJoinedAt(detail.createdAt)}</span>
+                </div>
+                <div>
+                  <span className="di-label">Đơn hàng</span>
+                  <span>{detail.orders || 0}</span>
+                </div>
                 <div>
                   <span className="di-label">Tổng chi tiêu</span>
                   <span style={{ color: "var(--accent)", fontWeight: 700 }}>
-                    {(detail.spent || 0) > 0 ? fmt(detail.spent) : "Chưa mua hàng"}
+                    {parseAmount(detail.spent) > 0
+                      ? formatMoney(detail.spent)
+                      : "Chưa mua hàng"}
                   </span>
                 </div>
               </div>
             </div>
             <div className="modal-footer">
-              <button className="modal-btn cancel" onClick={() => setDetail(null)}>Đóng</button>
+              <button className="modal-btn cancel" onClick={() => setDetail(null)}>
+                Đóng
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Role Modal */}
       {editRole && (
         <div className="modal-overlay" onClick={() => setEditRole(null)}>
           <div className="modal-box small" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Đổi vai trò</h2>
-              <button className="modal-close" onClick={() => setEditRole(null)}>✕</button>
+              <button className="modal-close" onClick={() => setEditRole(null)}>
+                ✕
+              </button>
             </div>
             <div className="modal-body">
-              <p style={{ marginBottom: 16, color: "var(--text-secondary)" }}>Chọn vai trò mới:</p>
+              <p style={{ marginBottom: 16, color: "var(--text-secondary)" }}>
+                Chọn vai trò mới:
+              </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {["admin", "staff", "customer"].map((r) => (
-                  <label key={r} style={{
-                    display: "flex", alignItems: "center", gap: 12, cursor: "pointer",
-                    padding: "10px 14px", borderRadius: 10,
-                    background: editRole.role === r ? "var(--accent-dim)" : "var(--surface)",
-                    border: `1px solid ${editRole.role === r ? "rgba(var(--accent-rgb),.3)" : "var(--border)"}`,
-                    transition: "all .2s",
-                  }}>
-                    <input type="radio" name="role" value={r} checked={editRole.role === r}
-                      onChange={() => setEditRole((e) => ({ ...e, role: r }))}
-                      style={{ accentColor: "var(--accent)" }} />
-                    <span className={`role-badge ${ROLE_MAP[r]}`}>{ROLE_LABEL[r]}</span>
+                {ROLE_OPTIONS.map((role) => (
+                  <label
+                    key={role}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      cursor: "pointer",
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      background: editRole.role === role ? "var(--accent-dim)" : "var(--surface)",
+                      border: `1px solid ${
+                        editRole.role === role
+                          ? "rgba(var(--accent-rgb),.3)"
+                          : "var(--border)"
+                      }`,
+                      transition: "all .2s",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="role"
+                      value={role}
+                      checked={editRole.role === role}
+                      onChange={() => setEditRole((current) => ({ ...current, role }))}
+                      style={{ accentColor: "var(--accent)" }}
+                    />
+                    <span className={`role-badge ${ROLE_MAP[role]}`}>
+                      {ROLE_LABEL[role]}
+                    </span>
                   </label>
                 ))}
               </div>
             </div>
             <div className="modal-footer">
-              <button className="modal-btn cancel" onClick={() => setEditRole(null)}>Hủy</button>
-              <button className="modal-btn save" onClick={saveRole}>Lưu</button>
+              <button className="modal-btn cancel" onClick={() => setEditRole(null)}>
+                Hủy
+              </button>
+              <button
+                className="modal-btn save"
+                onClick={handleSaveRole}
+                disabled={savingUserId === editRole.userId}
+              >
+                Lưu
+              </button>
             </div>
           </div>
         </div>

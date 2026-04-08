@@ -1,133 +1,422 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { productAPI } from "../services/api";
+import { categoryAPI, productAPI } from "../services/api";
 import { AdminLayout } from "./Adminheader";
 import "./css/Admin.css";
-import {
-  PRODUCT_TYPES,
-  CATEGORIES_AO,
-  CATEGORIES_QUAN,
-  ALL_CATEGORIES,
-  TAG_OPTIONS,
-  TAG_CSS,
-  SORT_OPTIONS,
-  BLANK_PRODUCT_FORM,
-  DEFAULT_PRODUCT_IMAGE,
-} from "../data/AdminProductsData";
 
-const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
+const PRODUCT_TYPES = ["Tất cả", "Áo", "Quần"];
+
+const TAG_OPTIONS = [
+  { value: "", label: "Không có" },
+  { value: "Mới", label: "Mới" },
+  { value: "Bán chạy", label: "Bán chạy" },
+  { value: "Sale", label: "Sale" },
+];
+
+const TAG_CSS = {
+  "Bán chạy": "tag-hot",
+  "Mới": "tag-new",
+  "Sale": "tag-sale",
+};
+
+const SORT_OPTIONS = [
+  { value: "id", label: "Mặc định" },
+  { value: "price_asc", label: "Giá tăng dần" },
+  { value: "price_desc", label: "Giá giảm dần" },
+  { value: "sold", label: "Bán chạy nhất" },
+];
+
+const DEFAULT_PRODUCT_IMAGE = "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=750&fit=crop";
+const DEFAULT_COLOR_NAME = "Đen";
+const DEFAULT_COLOR_HEX = "#1a1a1a";
+const DEFAULT_SIZES_BY_TYPE = {
+  Áo: ["S", "M", "L"],
+  Quần: ["28", "30", "32"],
+};
+
+const createImageField = (url = "", sortOrder = 0) => ({
+  url,
+  sortOrder,
+});
+
+const createColorField = (name = DEFAULT_COLOR_NAME, hex = DEFAULT_COLOR_HEX) => ({
+  name,
+  hex,
+});
+
+const createSizeField = (size = "", isAvailable = true) => ({
+  size,
+  isAvailable,
+});
+
+const buildDefaultSizes = (type = "Áo") => (DEFAULT_SIZES_BY_TYPE[type] || DEFAULT_SIZES_BY_TYPE.Áo)
+  .map((size) => createSizeField(size, true));
+
+const createFormState = (type = "Áo", categoryId = "") => ({
+  type,
+  categoryId,
+  name: "",
+  sku: "",
+  price: "",
+  originalPrice: "",
+  tag: "",
+  material: "",
+  description: "",
+  isActive: true,
+  images: [createImageField()],
+  colors: [createColorField()],
+  sizes: buildDefaultSizes(type),
+});
+
+const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")}đ`;
+
+const normalizeCategory = (category) => ({
+  ...category,
+  id: Number(category.id),
+  sortOrder: category.sortOrder == null ? 0 : Number(category.sortOrder),
+});
+
+const normalizeImage = (image, index = 0) => {
+  if (typeof image === "string") {
+    return {
+      url: image,
+      sortOrder: index,
+    };
+  }
+
+  return {
+    url: image?.url || "",
+    sortOrder: image?.sortOrder == null ? index : Number(image.sortOrder),
+  };
+};
+
+const normalizeColor = (color) => {
+  if (typeof color === "string") {
+    return {
+      name: color,
+      hex: DEFAULT_COLOR_HEX,
+    };
+  }
+
+  return {
+    name: color?.name || "",
+    hex: color?.hex || DEFAULT_COLOR_HEX,
+  };
+};
+
+const normalizeSize = (size) => {
+  if (typeof size === "string") {
+    return {
+      size,
+      isAvailable: true,
+    };
+  }
+
+  return {
+    size: size?.size || "",
+    isAvailable: size?.isAvailable !== false,
+  };
+};
+
+const normalizeProduct = (product) => {
+  const category = product.category && typeof product.category === "object"
+    ? normalizeCategory(product.category)
+    : null;
+
+  return {
+    ...product,
+    id: Number(product.id),
+    sku: product.sku || "",
+    name: product.name || "",
+    type: product.type || "Áo",
+    category,
+    categoryId: product.categoryId ? Number(product.categoryId) : category?.id || "",
+    price: Number(product.price || 0),
+    originalPrice: product.originalPrice == null ? null : Number(product.originalPrice),
+    tag: product.tag || "",
+    material: product.material || "",
+    description: product.description || "",
+    sold: Number(product.sold || 0),
+    rating: product.rating == null ? 5 : Number(product.rating),
+    reviewCount: product.reviewCount == null ? Number(product.reviews || 0) : Number(product.reviewCount),
+    isActive: product.isActive !== false,
+    images: Array.isArray(product.images) ? product.images.map(normalizeImage).sort((a, b) => a.sortOrder - b.sortOrder) : [],
+    colors: Array.isArray(product.colors) ? product.colors.map(normalizeColor) : [],
+    sizes: Array.isArray(product.sizes) ? product.sizes.map(normalizeSize) : [],
+  };
+};
+
+const normalizeCategories = (categories) =>
+  (categories || [])
+    .map(normalizeCategory)
+    .sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name, "vi"));
 
 export default function AdminProducts() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [products,    setProducts]    = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState(null);
-  const [search,      setSearch]      = useState("");
-  const [typeFilter,  setTypeFilter]  = useState("Tất cả");
-  const [catFilter,   setCatFilter]   = useState("Tất cả");
-  const [sortBy,      setSortBy]      = useState("id");
-  const [showModal,   setShowModal]   = useState(false);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("Tất cả");
+  const [catFilter, setCatFilter] = useState("Tất cả");
+  const [sortBy, setSortBy] = useState("id");
+  const [showModal, setShowModal] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
-  const [deleteId,    setDeleteId]    = useState(null);
-  const [form,        setForm]        = useState(BLANK_PRODUCT_FORM);
+  const [deleteId, setDeleteId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(() => createFormState());
 
-  // Fetch products từ MySQL
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const data = await productAPI.getAllProducts();
-        setProducts(data || []);
-      } catch (err) {
-        console.error("Lỗi tải sản phẩm:", err);
-        setError("Không thể tải dữ liệu sản phẩm");
-      } finally {
-        setLoading(false);
+  const getDefaultCategoryId = (type, categoryList = categories) => {
+    const match = categoryList.find((category) => category.type === type);
+    return match ? String(match.id) : "";
+  };
+
+  const getCategoryName = (product) => {
+    if (product.category && typeof product.category === "object") {
+      return product.category.name || "";
+    }
+
+    const categoryId = Number(product.categoryId);
+    if (!Number.isNaN(categoryId)) {
+      const match = categories.find((category) => category.id === categoryId);
+      if (match) {
+        return match.name;
       }
-    };
-    fetchProducts();
+    }
+
+    return "";
+  };
+
+  const updateFormCollectionItem = (field, index, updater) => {
+    setForm((current) => ({
+      ...current,
+      [field]: current[field].map((item, itemIndex) => (itemIndex === index ? updater(item) : item)),
+    }));
+  };
+
+  const addFormCollectionItem = (field, item) => {
+    setForm((current) => ({
+      ...current,
+      [field]: [...current[field], item],
+    }));
+  };
+
+  const removeFormCollectionItem = (field, index) => {
+    setForm((current) => ({
+      ...current,
+      [field]: current[field].filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [productsData, categoriesData] = await Promise.all([
+        productAPI.getAllProducts(),
+        categoryAPI.getAllCategories(),
+      ]);
+      setProducts((productsData || []).map(normalizeProduct).sort((a, b) => a.id - b.id));
+      setCategories(normalizeCategories(categoriesData));
+    } catch (err) {
+      console.error("Lỗi tải dữ liệu sản phẩm:", err);
+      setError(err.message || "Không thể tải dữ liệu sản phẩm");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
-  /* Danh mục trong form đổi theo loại */
-  const formCategories = form.type === "Quần" ? CATEGORIES_QUAN : CATEGORIES_AO;
-
-  /* Filter + sort */
-  let displayed = products.filter((p) => {
-    const matchS = p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || "").toLowerCase().includes(search.toLowerCase());
-    const matchT = typeFilter === "Tất cả" || p.type === typeFilter;
-    const categoryName = typeof p.category === "string" ? p.category : p.category?.name || "";
+  const displayed = products.filter((product) => {
+    const keyword = search.trim().toLowerCase();
+    const matchS = !keyword
+      || (product.name || "").toLowerCase().includes(keyword)
+      || (product.sku || "").toLowerCase().includes(keyword);
+    const matchT = typeFilter === "Tất cả" || product.type === typeFilter;
+    const categoryName = getCategoryName(product);
     const matchC = catFilter === "Tất cả" || categoryName === catFilter;
     return matchS && matchT && matchC;
   });
-  if (sortBy === "price_asc")  displayed = [...displayed].sort((a, b) => a.price - b.price);
-  if (sortBy === "price_desc") displayed = [...displayed].sort((a, b) => b.price - a.price);
-  if (sortBy === "sold")       displayed = [...displayed].sort((a, b) => (b.sold || 0) - (a.sold || 0));
 
-  /* Mở modal sửa */
-  const openEdit = (p) => {
-    setEditProduct(p);
+  const sortedDisplayed = [...displayed];
+  if (sortBy === "price_asc") {
+    sortedDisplayed.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+  }
+  if (sortBy === "price_desc") {
+    sortedDisplayed.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+  }
+  if (sortBy === "sold") {
+    sortedDisplayed.sort((a, b) => Number(b.sold || 0) - Number(a.sold || 0));
+  }
+
+  const formCategories = categories.filter((category) => category.type === form.type);
+
+  const openEdit = (product) => {
+    setEditProduct(product);
+    const categoryId = product.category?.id || product.categoryId || getDefaultCategoryId(product.type || "Áo");
+    const images = Array.isArray(product.images) && product.images.length > 0
+      ? product.images.map(normalizeImage)
+      : [createImageField()];
+    const colors = Array.isArray(product.colors) && product.colors.length > 0
+      ? product.colors.map(normalizeColor)
+      : [createColorField()];
+    const sizes = Array.isArray(product.sizes) && product.sizes.length > 0
+      ? product.sizes.map(normalizeSize)
+      : buildDefaultSizes(product.type || "Áo");
+
     setForm({
-      type:          p.type || "Áo",
-      name:          p.name,
-      price:         p.price,
-      originalPrice: p.originalPrice || "",
-      category:      p.category,
-      tag:           p.tag || "",
-      sku:           p.sku,
-      material:      p.material,
-      description:   p.description,
+      type: product.type || "Áo",
+      categoryId: categoryId ? String(categoryId) : "",
+      name: product.name || "",
+      sku: product.sku || "",
+      price: product.price ?? "",
+      originalPrice: product.originalPrice ?? "",
+      tag: product.tag || "",
+      material: product.material || "",
+      description: product.description || "",
+      isActive: product.isActive !== false,
+      images,
+      colors,
+      sizes,
     });
+    setNotice(null);
     setShowModal(true);
   };
 
-  /* Mở modal thêm */
   const openAdd = () => {
     setEditProduct(null);
-    setForm(BLANK_PRODUCT_FORM);
+    const defaultType = "Áo";
+    setForm(createFormState(defaultType, getDefaultCategoryId(defaultType)));
+    setNotice(null);
     setShowModal(true);
   };
 
-  /* Lưu */
-  const handleSave = () => {
-    if (editProduct) {
-      setProducts((prev) => prev.map((p) =>
-        p.id === editProduct.id
-          ? { ...p, ...form, price: Number(form.price), originalPrice: form.originalPrice ? Number(form.originalPrice) : null }
-          : p
-      ));
-    } else {
-      const newId = Math.max(...products.map((p) => p.id)) + 1;
-      setProducts((prev) => [
-        ...prev,
-        {
-          ...BLANK_PRODUCT_FORM,
-          ...form,
-          id:            newId,
-          price:         Number(form.price),
-          originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
-          rating:        5,
-          reviews:       0,
-          sold:          0,
-          images:        [DEFAULT_PRODUCT_IMAGE],
-          colors:        [{ hex: "#1a1a1a", name: "Đen" }],
-          sizes:         form.type === "Quần" ? ["28", "30", "32"] : ["S", "M", "L"],
-          unavailSizes:  [],
-          features:      [],
-          reviewList:    [],
-        },
-      ]);
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setNotice(null);
+
+      const sku = form.sku.trim();
+      const name = form.name.trim();
+      const material = form.material.trim();
+      const description = form.description.trim();
+      const categoryId = Number(form.categoryId);
+      const price = Number(form.price);
+      const originalPrice = form.originalPrice === "" ? null : Number(form.originalPrice);
+      const images = (form.images || [])
+        .filter((image) => image && String(image.url || "").trim())
+        .map((image, index) => ({
+          url: String(image.url).trim(),
+          sortOrder: image.sortOrder == null ? index : Number(image.sortOrder),
+        }));
+      const colors = (form.colors || [])
+        .filter((color) => color && (String(color.name || "").trim() || String(color.hex || "").trim()))
+        .map((color) => ({
+          name: String(color.name || DEFAULT_COLOR_NAME).trim() || DEFAULT_COLOR_NAME,
+          hex: String(color.hex || DEFAULT_COLOR_HEX).trim() || DEFAULT_COLOR_HEX,
+        }));
+      const sizes = (form.sizes || [])
+        .filter((size) => size && String(size.size || "").trim())
+        .map((size) => ({
+          size: String(size.size).trim(),
+          isAvailable: size.isAvailable !== false,
+        }));
+
+      if (!sku) throw new Error("Vui lòng nhập SKU.");
+      if (!name) throw new Error("Vui lòng nhập tên sản phẩm.");
+      if (!Number.isFinite(price) || price <= 0) throw new Error("Giá bán phải lớn hơn 0.");
+      if (!Number.isInteger(categoryId) || categoryId <= 0) throw new Error("Vui lòng chọn danh mục hợp lệ.");
+      if (originalPrice !== null && (!Number.isFinite(originalPrice) || originalPrice <= 0)) {
+        throw new Error("Giá gốc không hợp lệ.");
+      }
+      if (images.length === 0) throw new Error("Vui lòng thêm ít nhất 1 hình ảnh.");
+      if (colors.length === 0) throw new Error("Vui lòng thêm ít nhất 1 màu sắc.");
+      if (sizes.length === 0) throw new Error("Vui lòng thêm ít nhất 1 kích cỡ.");
+
+      const payload = {
+        sku,
+        name,
+        type: form.type,
+        category: { id: categoryId },
+        price,
+        originalPrice,
+        tag: form.tag || null,
+        material: material || null,
+        description: description || null,
+        isActive: form.isActive,
+        images,
+        colors,
+        sizes,
+      };
+
+      const savedProduct = editProduct
+        ? await productAPI.updateProduct(editProduct.id, payload)
+        : await productAPI.createProduct(payload);
+
+      const normalizedSavedProduct = normalizeProduct(savedProduct);
+      setProducts((current) => {
+        const nextProducts = editProduct
+          ? current.map((product) => (product.id === normalizedSavedProduct.id ? normalizedSavedProduct : product))
+          : [...current, normalizedSavedProduct];
+        return nextProducts.sort((a, b) => a.id - b.id);
+      });
+
+      setShowModal(false);
+      setEditProduct(null);
+      setForm(createFormState("Áo", getDefaultCategoryId("Áo")));
+      setNotice({
+        type: "success",
+        text: editProduct ? "Đã cập nhật sản phẩm." : "Đã thêm sản phẩm mới.",
+      });
+    } catch (err) {
+      setNotice({
+        type: "error",
+        text: err.message || "Không thể lưu sản phẩm.",
+      });
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
   };
 
-  /* Category chips theo type đang chọn */
-  const chipCategories =
-    typeFilter === "Tất cả" ? ALL_CATEGORIES
-    : typeFilter === "Áo"   ? ["Tất cả", ...CATEGORIES_AO]
-    :                         ["Tất cả", ...CATEGORIES_QUAN];
+  const handleDelete = async () => {
+    if (!deleteId) return;
 
-  const countAo   = products.filter((p) => p.type === "Áo").length;
-  const countQuan = products.filter((p) => p.type === "Quần").length;
+    try {
+      setSaving(true);
+      setNotice(null);
+      const targetProduct = products.find((product) => product.id === deleteId);
+      await productAPI.deleteProduct(deleteId);
+      setProducts((current) => current.filter((product) => product.id !== deleteId));
+      setDeleteId(null);
+      setNotice({
+        type: "success",
+        text: `Đã xóa sản phẩm${targetProduct?.name ? `: ${targetProduct.name}` : ""}.`,
+      });
+    } catch (err) {
+      setNotice({
+        type: "error",
+        text: err.message || "Không thể xóa sản phẩm.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const chipCategories = [
+    "Tất cả",
+    ...categories
+      .filter((category) => typeFilter === "Tất cả" || category.type === typeFilter)
+      .map((category) => category.name),
+  ];
+
+  const countAo = products.filter((product) => product.type === "Áo").length;
+  const countQuan = products.filter((product) => product.type === "Quần").length;
 
   return (
     <AdminLayout
@@ -135,41 +424,73 @@ export default function AdminProducts() {
       subtitle={`${products.length} sản phẩm · ${countAo} áo · ${countQuan} quần`}
       actions={<button className="topbar-btn accent" onClick={openAdd}>+ Thêm sản phẩm</button>}
     >
-      {/* Toolbar */}
       <div className="admin-card toolbar-card">
         <div className="toolbar-row">
           <div className="search-input-wrap">
             <span className="search-ico">🔍</span>
-            <input className="admin-search-input" placeholder="Tìm theo tên, SKU…"
-              value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input
+              className="admin-search-input"
+              placeholder="Tìm theo tên, SKU…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
 
           <div className="status-tabs">
-            {PRODUCT_TYPES.map((t) => {
-              const cnt = t === "Tất cả" ? products.length : products.filter((p) => p.type === t).length;
+            {PRODUCT_TYPES.map((type) => {
+              const count = type === "Tất cả" ? products.length : products.filter((product) => product.type === type).length;
               return (
-                <button key={t} className={`status-tab ${typeFilter === t ? "active" : ""}`}
-                  onClick={() => { setTypeFilter(t); setCatFilter("Tất cả"); }}>
-                  {t === "Áo" ? "👕 " : t === "Quần" ? "👖 " : "🛍️ "}{t}
-                  <span className="tab-count">{cnt}</span>
+                <button
+                  key={type}
+                  className={`status-tab ${typeFilter === type ? "active" : ""}`}
+                  onClick={() => {
+                    setTypeFilter(type);
+                    setCatFilter("Tất cả");
+                  }}
+                >
+                  {type === "Áo" ? "👕 " : type === "Quần" ? "👖 " : "🛍️ "}{type}
+                  <span className="tab-count">{count}</span>
                 </button>
               );
             })}
           </div>
 
           <select className="admin-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-            {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
         </div>
 
+        {notice && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: `1px solid ${notice.type === "error" ? "rgba(248,113,113,.25)" : "rgba(52,211,153,.25)"}`,
+              background: notice.type === "error" ? "rgba(248,113,113,.08)" : "rgba(52,211,153,.08)",
+              color: notice.type === "error" ? "#fecaca" : "#bbf7d0",
+              fontSize: "0.85rem",
+            }}
+          >
+            {notice.text}
+          </div>
+        )}
+
         <div className="toolbar-filters" style={{ marginTop: 12 }}>
-          {chipCategories.map((c) => (
-            <button key={c} className={`filter-chip ${catFilter === c ? "active" : ""}`} onClick={() => setCatFilter(c)}>{c}</button>
+          {chipCategories.map((categoryName) => (
+            <button
+              key={categoryName}
+              className={`filter-chip ${catFilter === categoryName ? "active" : ""}`}
+              onClick={() => setCatFilter(categoryName)}
+            >
+              {categoryName}
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Table */}
       <div className="admin-card table-card">
         {loading ? (
           <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
@@ -180,73 +501,75 @@ export default function AdminProducts() {
             <p>{error}</p>
           </div>
         ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Sản phẩm</th><th>Loại</th><th>SKU</th><th>Danh mục</th>
-              <th>Giá</th><th>Đã bán</th><th>Tag</th><th>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayed.map((p) => {
-              const thumb = p.images && p.images.length > 0 ? p.images[0].url : DEFAULT_PRODUCT_IMAGE;
-              const sizeList = (p.sizes || []).map(s => typeof s === "string" ? s : s.size).join(", ");
-              const categoryName = typeof p.category === "string" ? p.category : p.category?.name || "";
-              return (
-                <tr key={p.id}>
-                  <td>
-                    <div className="tp-product-cell">
-                      <img src={thumb} alt={p.name} className="tp-img" />
-                      <div>
-                        <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>{p.name}</p>
-                        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                          {(p.colors || []).length} màu · {sizeList}
-                        </p>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Sản phẩm</th><th>Loại</th><th>SKU</th><th>Danh mục</th>
+                <th>Giá</th><th>Đã bán</th><th>Tag</th><th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedDisplayed.map((product) => {
+                const thumb = product.images && product.images.length > 0
+                  ? (typeof product.images[0] === "string" ? product.images[0] : product.images[0].url)
+                  : DEFAULT_PRODUCT_IMAGE;
+                const sizeList = (product.sizes || []).map((size) => typeof size === "string" ? size : size.size).join(", ");
+                const categoryName = getCategoryName(product);
+
+                return (
+                  <tr key={product.id}>
+                    <td>
+                      <div className="tp-product-cell">
+                        <img src={thumb} alt={product.name} className="tp-img" />
+                        <div>
+                          <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>{product.name}</p>
+                          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                            {(product.colors || []).length} màu · {sizeList}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`role-badge ${p.type === "Quần" ? "role-staff" : "role-customer"}`}>
-                      {p.type === "Áo" ? "👕 " : "👖 "}{p.type}
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem", color: "var(--accent)" }}>
-                      {p.sku}
-                    </span>
-                  </td>
-                  <td><span className="cat-pill">{categoryName}</span></td>
-                  <td>
-                    <p style={{ fontWeight: 700, color: "var(--accent)" }}>{fmt(p.price)}</p>
-                    {p.originalPrice && (
-                      <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", textDecoration: "line-through" }}>
-                        {fmt(p.originalPrice)}
-                      </p>
-                    )}
-                  </td>
-                  <td><span className="sold-badge">{p.sold || 0}</span></td>
-                  <td>
-                    {p.tag
-                      ? <span className={`tag-badge ${TAG_CSS[p.tag] || "tag-hot"}`}>{p.tag}</span>
-                      : <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>—</span>}
-                  </td>
-                  <td>
-                    <div className="action-btns">
-                      <button className="action-btn edit" onClick={() => openEdit(p)}>✏️ Sửa</button>
-                      {isAdmin && (
-                        <button className="action-btn del" onClick={() => setDeleteId(p.id)}>🗑</button>
+                    </td>
+                    <td>
+                      <span className={`role-badge ${product.type === "Quần" ? "role-staff" : "role-customer"}`}>
+                        {product.type === "Áo" ? "👕 " : "👖 "}{product.type}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem", color: "var(--accent)" }}>
+                        {product.sku}
+                      </span>
+                    </td>
+                    <td><span className="cat-pill">{categoryName}</span></td>
+                    <td>
+                      <p style={{ fontWeight: 700, color: "var(--accent)" }}>{formatCurrency(product.price)}</p>
+                      {product.originalPrice && (
+                        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", textDecoration: "line-through" }}>
+                          {formatCurrency(product.originalPrice)}
+                        </p>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td><span className="sold-badge">{product.sold || 0}</span></td>
+                    <td>
+                      {product.tag
+                        ? <span className={`tag-badge ${TAG_CSS[product.tag] || "tag-hot"}`}>{product.tag}</span>
+                        : <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>—</span>}
+                    </td>
+                    <td>
+                      <div className="action-btns">
+                        <button className="action-btn edit" onClick={() => openEdit(product)}>✏️ Sửa</button>
+                        {isAdmin && (
+                          <button className="action-btn del" onClick={() => setDeleteId(product.id)}>🗑</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
-      {/* Edit / Add Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
@@ -256,15 +579,21 @@ export default function AdminProducts() {
             </div>
             <div className="modal-body">
               <div className="modal-grid">
-                {/* Loại sản phẩm */}
                 <div className="modal-form-group">
                   <label className="modal-label">Loại sản phẩm</label>
-                  <select className="modal-input" value={form.type}
-                    onChange={(e) => setForm((f) => ({
-                      ...f,
-                      type:     e.target.value,
-                      category: e.target.value === "Quần" ? "Jeans" : "Cơ bản",
-                    }))}>
+                  <select
+                    className="modal-input"
+                    value={form.type}
+                    onChange={(e) => setForm((current) => {
+                      const nextType = e.target.value;
+                      return {
+                        ...current,
+                        type: nextType,
+                        categoryId: getDefaultCategoryId(nextType),
+                        sizes: buildDefaultSizes(nextType),
+                      };
+                    })}
+                  >
                     <option value="Áo">👕 Áo</option>
                     <option value="Quần">👖 Quần</option>
                   </select>
@@ -272,52 +601,250 @@ export default function AdminProducts() {
 
                 <div className="modal-form-group">
                   <label className="modal-label">Danh mục</label>
-                  <select className="modal-input" value={form.category}
-                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
-                    {formCategories.map((c) => <option key={c}>{c}</option>)}
+                  <select
+                    className="modal-input"
+                    value={form.categoryId}
+                    onChange={(e) => setForm((current) => ({ ...current, categoryId: e.target.value }))}
+                    disabled={formCategories.length === 0}
+                  >
+                    <option value="">Chọn danh mục</option>
+                    {formCategories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 {[
-                  { label: "Tên sản phẩm", key: "name",          span: 2            },
-                  { label: "SKU",           key: "sku",           span: 1            },
-                  { label: "Chất liệu",     key: "material",      span: 1            },
-                  { label: "Giá bán (đ)",   key: "price",         span: 1, type: "number" },
-                  { label: "Giá gốc (đ)",   key: "originalPrice", span: 1, type: "number" },
+                  { label: "Tên sản phẩm", key: "name", span: 2 },
+                  { label: "SKU", key: "sku", span: 1 },
+                  { label: "Chất liệu", key: "material", span: 1 },
+                  { label: "Giá bán (đ)", key: "price", span: 1, type: "number" },
+                  { label: "Giá gốc (đ)", key: "originalPrice", span: 1, type: "number" },
                 ].map(({ label, key, span, type }) => (
                   <div key={key} className={`modal-form-group ${span === 2 ? "span-2" : ""}`}>
                     <label className="modal-label">{label}</label>
-                    <input className="modal-input" type={type || "text"} value={form[key]}
-                      onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} />
+                    <input
+                      className="modal-input"
+                      type={type || "text"}
+                      value={form[key]}
+                      onChange={(e) => setForm((current) => ({ ...current, [key]: e.target.value }))}
+                    />
                   </div>
                 ))}
 
                 <div className="modal-form-group">
+                  <label className="modal-label">Trạng thái</label>
+                  <select
+                    className="modal-input"
+                    value={form.isActive ? "active" : "inactive"}
+                    onChange={(e) => setForm((current) => ({ ...current, isActive: e.target.value === "active" }))}
+                  >
+                    <option value="active">Đang bán</option>
+                    <option value="inactive">Tạm ẩn</option>
+                  </select>
+                </div>
+
+                <div className="modal-form-group">
                   <label className="modal-label">Tag</label>
-                  <select className="modal-input" value={form.tag}
-                    onChange={(e) => setForm((f) => ({ ...f, tag: e.target.value }))}>
-                    {TAG_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  <select
+                    className="modal-input"
+                    value={form.tag}
+                    onChange={(e) => setForm((current) => ({ ...current, tag: e.target.value }))}
+                  >
+                    {TAG_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div className="modal-form-group span-2">
                   <label className="modal-label">Mô tả</label>
-                  <textarea className="modal-input modal-textarea" value={form.description}
-                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+                  <textarea
+                    className="modal-input modal-textarea"
+                    value={form.description}
+                    onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
+                  />
+                </div>
+
+                <div className="modal-form-group span-2">
+                  <label className="modal-label">Hình ảnh sản phẩm</label>
+                  <div className="media-editor">
+                    {form.images.map((image, index) => (
+                      <div key={`image-${index}`} className="media-row image-row">
+                        <input
+                          className="modal-input"
+                          type="text"
+                          placeholder="URL hình ảnh"
+                          value={image.url}
+                          onChange={(e) => updateFormCollectionItem("images", index, (current) => ({
+                            ...current,
+                            url: e.target.value,
+                          }))}
+                        />
+                        <button
+                          type="button"
+                          className="media-remove-btn"
+                          onClick={() => removeFormCollectionItem("images", index)}
+                          disabled={form.images.length === 1}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="media-add-btn"
+                      onClick={() => addFormCollectionItem("images", createImageField())}
+                    >
+                      + Thêm ảnh
+                    </button>
+                    <div className="media-preview-grid">
+                      {form.images
+                        .filter((image) => String(image.url || "").trim())
+                        .slice(0, 4)
+                        .map((image, index) => (
+                          <div key={`image-preview-${index}`} className="media-preview-item">
+                            <img src={image.url} alt={`Ảnh ${index + 1}`} />
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modal-form-group span-2">
+                  <label className="modal-label">Màu sắc</label>
+                  <div className="media-editor">
+                    {form.colors.map((color, index) => (
+                      <div key={`color-${index}`} className="media-row color-row">
+                        <input
+                          className="modal-input color-name-input"
+                          type="text"
+                          placeholder="Tên màu"
+                          value={color.name}
+                          onChange={(e) => updateFormCollectionItem("colors", index, (current) => ({
+                            ...current,
+                            name: e.target.value,
+                          }))}
+                        />
+                        <input
+                          className="modal-input color-hex-input"
+                          type="color"
+                          value={color.hex || DEFAULT_COLOR_HEX}
+                          onChange={(e) => updateFormCollectionItem("colors", index, (current) => ({
+                            ...current,
+                            hex: e.target.value,
+                          }))}
+                        />
+                        <input
+                          className="modal-input color-code-input"
+                          type="text"
+                          placeholder="#1a1a1a"
+                          value={color.hex}
+                          onChange={(e) => updateFormCollectionItem("colors", index, (current) => ({
+                            ...current,
+                            hex: e.target.value,
+                          }))}
+                        />
+                        <button
+                          type="button"
+                          className="media-remove-btn"
+                          onClick={() => removeFormCollectionItem("colors", index)}
+                          disabled={form.colors.length === 1}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="media-add-btn"
+                      onClick={() => addFormCollectionItem("colors", createColorField())}
+                    >
+                      + Thêm màu
+                    </button>
+                    <div className="chip-preview-list">
+                      {form.colors
+                        .filter((color) => String(color.name || "").trim())
+                        .map((color, index) => (
+                          <span key={`color-chip-${index}`} className="preview-chip">
+                            <span className="preview-dot" style={{ background: color.hex || DEFAULT_COLOR_HEX }} />
+                            {color.name}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modal-form-group span-2">
+                  <label className="modal-label">Kích cỡ</label>
+                  <div className="media-editor">
+                    {form.sizes.map((size, index) => (
+                      <div key={`size-${index}`} className="media-row size-row">
+                        <input
+                          className="modal-input size-input"
+                          type="text"
+                          placeholder="VD: S, M, 28"
+                          value={size.size}
+                          onChange={(e) => updateFormCollectionItem("sizes", index, (current) => ({
+                            ...current,
+                            size: e.target.value,
+                          }))}
+                        />
+                        <label className="size-availability-toggle">
+                          <input
+                            type="checkbox"
+                            checked={size.isAvailable !== false}
+                            onChange={(e) => updateFormCollectionItem("sizes", index, (current) => ({
+                              ...current,
+                              isAvailable: e.target.checked,
+                            }))}
+                          />
+                          Còn hàng
+                        </label>
+                        <button
+                          type="button"
+                          className="media-remove-btn"
+                          onClick={() => removeFormCollectionItem("sizes", index)}
+                          disabled={form.sizes.length === 1}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="media-add-btn"
+                      onClick={() => addFormCollectionItem("sizes", createSizeField())}
+                    >
+                      + Thêm size
+                    </button>
+                    <div className="chip-preview-list">
+                      {form.sizes
+                        .filter((size) => String(size.size || "").trim())
+                        .map((size, index) => (
+                          <span key={`size-chip-${index}`} className={`preview-chip ${size.isAvailable !== false ? "available" : "sold-out"}`}>
+                            {size.size}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
             <div className="modal-footer">
-              <button className="modal-btn cancel" onClick={() => setShowModal(false)}>Hủy</button>
-              <button className="modal-btn save" onClick={handleSave}>
-                {editProduct ? "Lưu thay đổi" : "Thêm sản phẩm"}
+              <button className="modal-btn cancel" onClick={() => setShowModal(false)} disabled={saving}>
+                Hủy
+              </button>
+              <button className="modal-btn save" onClick={handleSave} disabled={saving}>
+                {saving ? "Đang lưu..." : editProduct ? "Lưu thay đổi" : "Thêm sản phẩm"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirm */}
       {deleteId && (
         <div className="modal-overlay" onClick={() => setDeleteId(null)}>
           <div className="modal-box small" onClick={(e) => e.stopPropagation()}>
@@ -325,11 +852,12 @@ export default function AdminProducts() {
             <h3 className="del-confirm-title">Xóa sản phẩm?</h3>
             <p className="del-confirm-sub">Hành động này không thể hoàn tác.</p>
             <div className="modal-footer">
-              <button className="modal-btn cancel" onClick={() => setDeleteId(null)}>Hủy</button>
-              <button className="modal-btn del" onClick={() => {
-                setProducts((p) => p.filter((x) => x.id !== deleteId));
-                setDeleteId(null);
-              }}>Xóa</button>
+              <button className="modal-btn cancel" onClick={() => setDeleteId(null)} disabled={saving}>
+                Hủy
+              </button>
+              <button className="modal-btn del" onClick={handleDelete} disabled={saving}>
+                {saving ? "Đang xóa..." : "Xóa"}
+              </button>
             </div>
           </div>
         </div>

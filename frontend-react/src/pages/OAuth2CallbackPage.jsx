@@ -48,15 +48,25 @@ export default function OAuth2CallbackPage() {
           // Save token to localStorage và AuthContext
           localStorage.setItem("authToken", data.token);
           
-          // Save user info
+          // Save user info (exclude avatar to avoid quota exceeded)
           localStorage.setItem("userId", data.user.id);
           localStorage.setItem("userEmail", data.user.email);
           localStorage.setItem("userName", data.user.name);
           
-          // Save full user object
-          localStorage.setItem("userData", JSON.stringify(data.user));
+          // Save only essential user data (without avatar or large fields)
+          const essentialUserData = {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            role: data.user.role,
+            status: data.user.status,
+            phone: data.user.phone,
+            gender: data.user.gender,
+            address: data.user.address,
+          };
+          localStorage.setItem("userData", JSON.stringify(essentialUserData));
           
-          // Save to AuthContext
+          // Save to AuthContext with full user object
           login(data.token, data.user);
 
           setLoading(false);
