@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { categoryAPI, productAPI } from "../services/api";
 import { AdminLayout } from "./Adminheader";
+import { recordAdminActivity } from "../utils/adminActivity";
 import "./css/Admin.css";
 
 const PRODUCT_TYPES = ["Tất cả", "Áo", "Quần"];
@@ -26,7 +27,6 @@ const SORT_OPTIONS = [
   { value: "sold", label: "Bán chạy nhất" },
 ];
 
-const DEFAULT_PRODUCT_IMAGE = "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=750&fit=crop";
 const DEFAULT_COLOR_NAME = "Đen";
 const DEFAULT_COLOR_HEX = "#1a1a1a";
 const DEFAULT_SIZES_BY_TYPE = {
@@ -63,7 +63,7 @@ const createFormState = (type = "Áo", categoryId = "") => ({
   material: "",
   description: "",
   isActive: true,
-  images: [createImageField()],
+  images: [],
   colors: [createColorField()],
   sizes: buildDefaultSizes(type),
 });
@@ -85,7 +85,7 @@ const normalizeImage = (image, index = 0) => {
   }
 
   return {
-    url: image?.url || "",
+    url: image?.url || image?.src || image?.image || "",
     sortOrder: image?.sortOrder == null ? index : Number(image.sortOrder),
   };
 };
@@ -262,7 +262,7 @@ export default function AdminProducts() {
     const categoryId = product.category?.id || product.categoryId || getDefaultCategoryId(product.type || "Áo");
     const images = Array.isArray(product.images) && product.images.length > 0
       ? product.images.map(normalizeImage)
-      : [createImageField()];
+      : [];
     const colors = Array.isArray(product.colors) && product.colors.length > 0
       ? product.colors.map(normalizeColor)
       : [createColorField()];
@@ -367,6 +367,15 @@ export default function AdminProducts() {
         return nextProducts.sort((a, b) => a.id - b.id);
       });
 
+      recordAdminActivity({
+        type: "product",
+        icon: "🛍️",
+        text: editProduct
+          ? `Đã cập nhật sản phẩm ${normalizedSavedProduct.name || name}`
+          : `Đã thêm sản phẩm ${normalizedSavedProduct.name || name}`,
+        unread: true,
+      });
+
       setShowModal(false);
       setEditProduct(null);
       setForm(createFormState("Áo", getDefaultCategoryId("Áo")));
@@ -394,6 +403,14 @@ export default function AdminProducts() {
       await productAPI.deleteProduct(deleteId);
       setProducts((current) => current.filter((product) => product.id !== deleteId));
       setDeleteId(null);
+
+      recordAdminActivity({
+        type: "product",
+        icon: "🗑️",
+        text: `Đã xóa sản phẩm${targetProduct?.name ? `: ${targetProduct.name}` : ""}`,
+        unread: true,
+      });
+
       setNotice({
         type: "success",
         text: `Đã xóa sản phẩm${targetProduct?.name ? `: ${targetProduct.name}` : ""}.`,
@@ -512,7 +529,7 @@ export default function AdminProducts() {
               {sortedDisplayed.map((product) => {
                 const thumb = product.images && product.images.length > 0
                   ? (typeof product.images[0] === "string" ? product.images[0] : product.images[0].url)
-                  : DEFAULT_PRODUCT_IMAGE;
+                  : "";
                 const sizeList = (product.sizes || []).map((size) => typeof size === "string" ? size : size.size).join(", ");
                 const categoryName = getCategoryName(product);
 
@@ -520,7 +537,29 @@ export default function AdminProducts() {
                   <tr key={product.id}>
                     <td>
                       <div className="tp-product-cell">
-                        <img src={thumb} alt={product.name} className="tp-img" />
+                        {thumb ? (
+                          <img src={thumb} alt={product.name} className="tp-img" />
+                        ) : (
+                          <div
+                            style={{
+                              width: 64,
+                              height: 64,
+                              borderRadius: 12,
+                              border: "1px dashed var(--border-2)",
+                              background: "var(--surface)",
+                              color: "var(--text-muted)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "0.72rem",
+                              fontWeight: 600,
+                              textAlign: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            Chưa có ảnh
+                          </div>
+                        )}
                         <div>
                           <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>{product.name}</p>
                           <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
@@ -676,7 +715,7 @@ export default function AdminProducts() {
                         <input
                           className="modal-input"
                           type="text"
-                          placeholder="URL hình ảnh"
+                          placeholder="Link ảnh trực tiếp (https://...)"
                           value={image.url}
                           onChange={(e) => updateFormCollectionItem("images", index, (current) => ({
                             ...current,
@@ -700,6 +739,11 @@ export default function AdminProducts() {
                     >
                       + Thêm ảnh
                     </button>
+                    {form.images.length === 0 && (
+                      <p style={{ margin: "8px 0 0", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                        Chưa có ảnh. Bấm + Thêm ảnh rồi dán link ảnh trực tiếp từ CDN hoặc host ảnh.
+                      </p>
+                    )}
                     <div className="media-preview-grid">
                       {form.images
                         .filter((image) => String(image.url || "").trim())

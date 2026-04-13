@@ -55,7 +55,7 @@ public class ProductController {
     }
 
     @PostMapping
-    @RequiredRole({"admin"})
+    @RequiredRole({"admin", "staff"})
     public ResponseEntity<?> createProduct(@RequestBody Product product) {
         try {
             Product createdProduct = productService.createProduct(product);
@@ -66,7 +66,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    @RequiredRole({"admin"})
+    @RequiredRole({"admin", "staff"})
     public ResponseEntity<?> updateProduct(@PathVariable Integer id, @RequestBody Product productDetails) {
         try {
             Product updatedProduct = productService.updateProduct(id, productDetails);

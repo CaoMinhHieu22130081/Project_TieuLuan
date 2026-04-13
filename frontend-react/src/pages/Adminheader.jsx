@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import {
+  ADMIN_ACTIVITY_EVENT,
+  formatRelativeTime,
+  markAdminActivitiesRead,
+  mergeNotifications,
+  readAdminActivityLog,
+} from "../utils/adminActivity";
 
 /* ════════════════════════════════════════════════════════════════
    AdminHeader.jsx  —  Header + Sidebar dùng chung cho Admin pages
@@ -10,6 +17,7 @@ const NAV_LINKS = [
   {
     to: "/admin",
     label: "Dashboard",
+    roles: ["admin"],
     icon: (
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
         <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
@@ -22,6 +30,7 @@ const NAV_LINKS = [
   {
     to: "/admin/products",
     label: "Sản phẩm",
+    roles: ["admin", "staff"],
     icon: (
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
         <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="1.8"/>
@@ -34,6 +43,7 @@ const NAV_LINKS = [
   {
     to: "/admin/orders",
     label: "Đơn hàng",
+    roles: ["admin", "staff"],
     icon: (
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
         <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" strokeWidth="1.8"/>
@@ -41,16 +51,26 @@ const NAV_LINKS = [
         <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     ),
-    badge: 3,
   },
   {
     to: "/admin/users",
     label: "Người dùng",
+    roles: ["admin"],
     icon: (
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
         <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.8"/>
         <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
         <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    to: "/admin/reviews",
+    label: "Đánh giá",
+    roles: ["admin"],
+    icon: (
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+        <path d="M12 3l2.92 5.92L21 9.84l-4.5 4.39 1.06 6.22L12 17.37l-5.56 3.08 1.06-6.22L3 9.84l6.08-.92L12 3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
       </svg>
     ),
   },
@@ -61,15 +81,12 @@ export function AdminSidebar({ mobileOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const isAdmin = user?.role === "admin";
-  
-  // Filter nav links dựa trên role
-  const filteredNavLinks = NAV_LINKS.filter(link => {
-    if (link.to === "/admin" || link.to === "/admin/users" || link.to === "/admin/products") {
-      return isAdmin; // Chỉ admin mới thấy Dashboard, Users, và Products
-    }
-    return true; // Staff chỉ thấy Orders
-  });
+  const role = String(user?.role || "").toLowerCase();
+  const isAdmin = role === "admin";
+  const displayName = user?.name || user?.email || "Admin";
+  const roleLabel = isAdmin ? "Admin" : role === "staff" ? "Staff" : "Customer";
+
+  const filteredNavLinks = NAV_LINKS.filter((link) => (link.roles || ["admin"]).includes(role));
 
   const handleLogout = () => {
     logout();
@@ -99,10 +116,10 @@ export function AdminSidebar({ mobileOpen, onClose }) {
 
         {/* Admin info card */}
         <div className="ah-admin-card">
-          <div className="ah-admin-avatar">{user?.name?.charAt(0)?.toUpperCase() || "U"}</div>
+          <div className="ah-admin-avatar">{displayName.charAt(0).toUpperCase()}</div>
           <div>
-            <p className="ah-admin-name">{user?.name || "Users"}</p>
-            <p className="ah-admin-role">{user?.role === "admin" ? "Admin" : user?.role === "staff" ? "Staff" : "Customer"}</p>
+            <p className="ah-admin-name">{displayName}</p>
+            <p className="ah-admin-role">{roleLabel}</p>
           </div>
           <span className="ah-online-dot" />
         </div>
@@ -150,17 +167,41 @@ export function AdminSidebar({ mobileOpen, onClose }) {
 }
 
 /* ── Top Header bar (mobile + breadcrumb + actions) ─────────── */
-export function AdminHeader({ title, subtitle, actions, onMenuOpen }) {
+export function AdminHeader({ title, subtitle, actions, onMenuOpen, notifications = [] }) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [activityNotifications, setActivityNotifications] = useState(() => readAdminActivityLog());
+  const { user } = useAuth();
+  const role = String(user?.role || "").toLowerCase();
+  const homePath = role === "staff" ? "/admin/orders" : "/admin";
+  const avatarLabel = (user?.name || user?.email || "A").charAt(0).toUpperCase();
 
-  const NOTIFS = [
-    { icon: "🛍️", text: "Đơn hàng #UNQ6L8M2 cần xác nhận",  time: "2 phút trước",  unread: true  },
-    { icon: "👤", text: "Người dùng mới đăng ký: Vũ Thanh Long", time: "15 phút trước", unread: true  },
-    { icon: "📦", text: "Sản phẩm Stripe Nautical sắp hết hàng", time: "1 giờ trước",  unread: true  },
-    { icon: "✅", text: "Đơn hàng #UNQ7F3K2 đã giao thành công", time: "3 giờ trước",  unread: false },
-  ];
+  useEffect(() => {
+    const syncNotifications = () => {
+      setActivityNotifications(readAdminActivityLog());
+    };
 
-  const unreadCount = NOTIFS.filter((n) => n.unread).length;
+    syncNotifications();
+    window.addEventListener(ADMIN_ACTIVITY_EVENT, syncNotifications);
+    window.addEventListener("storage", syncNotifications);
+
+    return () => {
+      window.removeEventListener(ADMIN_ACTIVITY_EVENT, syncNotifications);
+      window.removeEventListener("storage", syncNotifications);
+    };
+  }, []);
+
+  const mergedNotifications = mergeNotifications(notifications, activityNotifications);
+  const unreadCount = mergedNotifications.filter((notification) => notification.unread !== false).length;
+
+  const handleNotifToggle = () => {
+    setNotifOpen((current) => {
+      if (!current) {
+        markAdminActivitiesRead();
+      }
+
+      return !current;
+    });
+  };
 
   return (
     <header className="ah-topbar">
@@ -172,7 +213,7 @@ export function AdminHeader({ title, subtitle, actions, onMenuOpen }) {
           </svg>
         </button>
         <div className="ah-breadcrumb">
-          <Link to="/admin" className="ah-breadcrumb-home">
+          <Link to={homePath} className="ah-breadcrumb-home">
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
               <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2"/>
             </svg>
@@ -200,7 +241,7 @@ export function AdminHeader({ title, subtitle, actions, onMenuOpen }) {
         <div className="ah-notif-wrap">
           <button
             className="ah-icon-btn"
-            onClick={() => setNotifOpen((v) => !v)}
+            onClick={handleNotifToggle}
             aria-label="Thông báo"
           >
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
@@ -219,17 +260,24 @@ export function AdminHeader({ title, subtitle, actions, onMenuOpen }) {
                   <p className="ah-notif-title">Thông báo</p>
                   <span className="ah-notif-count">{unreadCount} mới</span>
                 </div>
-                {NOTIFS.map((n, i) => (
-                  <div key={i} className={`ah-notif-item ${n.unread ? "unread" : ""}`}>
-                    <span className="ah-notif-icon">{n.icon}</span>
+                {mergedNotifications.length > 0 ? mergedNotifications.map((notification) => (
+                  <div key={notification.id} className={`ah-notif-item ${notification.unread ? "unread" : ""}`}>
+                    <span className="ah-notif-icon">{notification.icon}</span>
                     <div className="ah-notif-body">
-                      <p className="ah-notif-text">{n.text}</p>
-                      <p className="ah-notif-time">{n.time}</p>
+                      <p className="ah-notif-text">{notification.text}</p>
+                      <p className="ah-notif-time">{formatRelativeTime(notification.createdAt)}</p>
                     </div>
-                    {n.unread && <span className="ah-unread-dot" />}
+                    {notification.unread && <span className="ah-unread-dot" />}
                   </div>
-                ))}
-                <div className="ah-notif-footer">Xem tất cả thông báo</div>
+                )) : (
+                  <div className="ah-notif-item">
+                    <div className="ah-notif-body">
+                      <p className="ah-notif-text">Chưa có thông báo mới</p>
+                      <p className="ah-notif-time">Khi bạn thao tác trong admin, thông báo sẽ xuất hiện ở đây.</p>
+                    </div>
+                  </div>
+                )}
+                <div className="ah-notif-footer">Nhật ký hoạt động gần đây</div>
               </div>
             </>
           )}
@@ -237,7 +285,7 @@ export function AdminHeader({ title, subtitle, actions, onMenuOpen }) {
 
         {/* Admin avatar */}
         <div className="ah-avatar-btn">
-          <div className="ah-topbar-avatar">C</div>
+          <div className="ah-topbar-avatar">{avatarLabel}</div>
         </div>
       </div>
     </header>
@@ -245,7 +293,7 @@ export function AdminHeader({ title, subtitle, actions, onMenuOpen }) {
 }
 
 /* ── Admin Layout wrapper — dùng thay thế cho admin-page div ── */
-export function AdminLayout({ children, title, subtitle, actions }) {
+export function AdminLayout({ children, title, subtitle, actions, notifications }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // close sidebar on route change
@@ -263,6 +311,7 @@ export function AdminLayout({ children, title, subtitle, actions }) {
           title={title}
           subtitle={subtitle}
           actions={actions}
+          notifications={notifications}
           onMenuOpen={() => setSidebarOpen(true)}
         />
         <main className="admin-main">

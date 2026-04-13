@@ -22,6 +22,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
 import AdminOrders from './pages/AdminOrders';
 import AdminUsers from './pages/AdminUsers';
+import AdminReviews from './pages/AdminReviews';
 
 function AppContent() {
   const location = useLocation();
@@ -44,9 +45,10 @@ function AppContent() {
           <Route path="/checkout"       element={<CheckoutPage />} />
           <Route path="/profile"        element={<ProtectedRoute element={<ProfilePage />} />} />
           <Route path="/admin"          element={<ProtectedRoute element={<AdminDashboard />} requiredRoles={["admin"]} />} />
-          <Route path="/admin/products" element={<ProtectedRoute element={<AdminProducts />} requiredRoles={["admin"]} />} />
+          <Route path="/admin/products" element={<ProtectedRoute element={<AdminProducts />} requiredRoles={["admin", "staff"]} />} />
           <Route path="/admin/orders"   element={<ProtectedRoute element={<AdminOrders />} requiredRoles={["admin", "staff"]} />} />
           <Route path="/admin/users"    element={<ProtectedRoute element={<AdminUsers />} requiredRoles={["admin"]} />} />
+          <Route path="/admin/reviews"  element={<ProtectedRoute element={<AdminReviews />} requiredRoles={["admin"]} />} />
         </Routes>
       </main>
     </>

@@ -7,16 +7,144 @@ import { userAPI, orderAPI } from "../services/api";
 import "./css/ProfilePage.css";
 
 // Lấy ảnh thumbnail từ sản phẩm (hỗ trợ cả images[] lẫn image)
-const getThumb = (p) => (Array.isArray(p.images) ? p.images[0] : p.image);
+const getThumb = (p) => {
+  const image = Array.isArray(p?.images) ? p.images[0] : p?.image;
+  if (typeof image === "string") return image;
+  return image?.url || image?.src || image?.image || "";
+};
+
+const getAvatarMimeType = (value) => {
+  if (value.startsWith("iVBORw0KGgo")) return "image/png";
+  if (value.startsWith("/9j/")) return "image/jpeg";
+  if (value.startsWith("R0lGOD")) return "image/gif";
+  if (value.startsWith("UklGR")) return "image/webp";
+  return "image/png";
+};
+
+const resolveAvatarSrc = (avatar) => {
+  if (!avatar) return "";
+  const value = String(avatar).trim();
+  if (!value) return "";
+
+  if (/^data:image\//i.test(value) || /^https?:\/\//i.test(value) || /^blob:/i.test(value)) {
+    return value;
+  }
+
+  const compactValue = value.replace(/\s+/g, "");
+  if (/^[A-Za-z0-9+/=]+$/.test(compactValue) && compactValue.length > 32) {
+    return `data:${getAvatarMimeType(compactValue)};base64,${compactValue}`;
+  }
+
+  return "";
+};
+
+const findProductByOrderItem = (item) => {
+  const productId = Number(item?.productId ?? item?.id);
+  if (Number.isFinite(productId)) {
+    const byId = ALL_PRODUCTS.find((product) => Number(product.id) === productId);
+    if (byId) return byId;
+  }
+
+  const productName = String(item?.productName || item?.name || "").trim().toLowerCase();
+  if (productName) {
+    const byName = ALL_PRODUCTS.find((product) => product.name.toLowerCase() === productName);
+    if (byName) return byName;
+  }
+
+  const productSku = String(item?.productSku || item?.sku || "").trim().toLowerCase();
+  if (productSku) {
+    const bySku = ALL_PRODUCTS.find((product) => String(product.sku || "").toLowerCase() === productSku);
+    if (bySku) return bySku;
+  }
+
+  return null;
+};
+
+const resolveOrderItemImage = (item) => {
+  if (item?.image) return item.image;
+  if (item?.productImage) return item.productImage;
+
+  const product = findProductByOrderItem(item);
+  return getThumb(product) || "https://via.placeholder.com/120?text=UniqTee";
+};
+
+const formatOrderDate = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString("vi-VN");
+};
+
+const normalizeOrderItem = (item, index) => {
+  const product = findProductByOrderItem(item);
+  const qtyValue = Number(item?.qty ?? item?.quantity ?? 1);
+  const qty = Number.isFinite(qtyValue) && qtyValue > 0 ? qtyValue : 1;
+  const unitPriceValue = Number(item?.unitPrice ?? product?.price ?? 0);
+  const unitPrice = Number.isFinite(unitPriceValue) ? unitPriceValue : 0;
+  const subtotalValue = Number(item?.subtotal);
+  const subtotal = Number.isFinite(subtotalValue) ? subtotalValue : unitPrice * qty;
+
+  return {
+    id: item?.id ?? item?.productId ?? `${product?.name || "item"}-${index}`,
+    productId: item?.productId ?? product?.id ?? null,
+    productName: item?.productName || product?.name || "Sản phẩm",
+    productSku: item?.productSku || product?.sku || "",
+    color: item?.color || "",
+    size: item?.size || "",
+    qty,
+    unitPrice,
+    subtotal,
+    image: resolveOrderItemImage(item),
+  };
+};
+
+const normalizeOrder = (order, index = 0) => {
+  const items = Array.isArray(order?.items)
+    ? order.items.map((item, itemIndex) => normalizeOrderItem(item, itemIndex))
+    : [];
+
+  const shippingFeeValue = Number(order?.shippingFee ?? order?.shipping ?? 0);
+  const shippingFee = Number.isFinite(shippingFeeValue) ? shippingFeeValue : 0;
+  const subtotalValue = Number(order?.subtotal);
+  const subtotal = Number.isFinite(subtotalValue)
+    ? subtotalValue
+    : items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+  const totalValue = Number(order?.total ?? order?.totalPrice);
+  const total = Number.isFinite(totalValue) ? totalValue : subtotal + shippingFee;
+  const createdAt = order?.createdAt || order?.createdDate || order?.date || "";
+
+  return {
+    id: order?.id ?? order?.orderId ?? `order-${index}`,
+    orderCode: order?.orderCode || order?.code || order?.order_code || `${order?.id ?? index}`,
+    date: formatOrderDate(createdAt),
+    createdAt,
+    status: String(order?.status || "processing").toLowerCase(),
+    paymentMethod: order?.paymentMethod || order?.payment || "—",
+    customerName: order?.customerName || order?.customer || "",
+    customerPhone: order?.customerPhone || order?.phone || "",
+    customerEmail: order?.customerEmail || order?.email || "",
+    address: order?.address || "",
+    shippingFee,
+    subtotal,
+    total,
+    items,
+    itemCount: Number.isFinite(Number(order?.itemCount)) ? Number(order.itemCount) : items.length,
+  };
+};
 
 const STATUS_MAP = {
+  pending: { label: "Chờ xác nhận", cls: "status-processing" },
   delivered: { label: "Đã giao hàng", cls: "status-delivered" },
   shipping: { label: "Đang giao", cls: "status-shipping" },
   processing: { label: "Đang xử lý", cls: "status-processing" },
   cancelled: { label: "Đã hủy", cls: "status-cancelled" },
 };
 
-const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
+const getOrderStatusMeta = (status) => {
+  const normalizedStatus = String(status || "processing").toLowerCase();
+  return STATUS_MAP[normalizedStatus] || STATUS_MAP.processing;
+};
+
+const formatPrice = (p) => Number(p || 0).toLocaleString("vi-VN") + "đ";
 
 // Password Strength Checker Component
 function PasswordStrengthChecker({ password }) {
@@ -80,12 +208,14 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { wishlist, removeFromWishlist } = useWishlist();
+  const currentUserId = user?.id || localStorage.getItem("userId");
   const isAdmin = user?.role === "admin" || user?.role === "staff";
   const [activeTab, setActiveTab] = useState("orders");
   const [orderFilter, setOrderFilter] = useState("all");
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   // State cho password change
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -127,8 +257,8 @@ export default function ProfilePage() {
       try {
         setLoading(true);
         
-        // Lấy userId từ localStorage
-        const userId = localStorage.getItem('userId');
+        // Lấy userId từ auth context hoặc localStorage
+        const userId = currentUserId;
         
         // Nếu không có userId, chuyển hướng về login
         if (!userId) {
@@ -182,19 +312,17 @@ export default function ProfilePage() {
           const ordersData = await orderAPI.getUserOrders(userId);
           
           // Xử lý dữ liệu orders - chuyển đổi để phù hợp với UI
-          if (ordersData && Array.isArray(ordersData)) {
-            const formattedOrders = ordersData.map((order) => ({
-              id: order.id || order.orderId,
-              date: order.createdDate ? new Date(order.createdDate).toLocaleDateString('vi-VN') : "",
-              status: order.status ? order.status.toLowerCase() : "processing",
-              items: order.items && Array.isArray(order.items) ? order.items.map(item => ({
-                image: item.productImage || getThumb(ALL_PRODUCTS[0])
-              })) : [],
-              total: order.totalPrice || order.total || 0,
-              itemCount: order.items?.length || 0,
-            }));
-            setOrders(formattedOrders);
-          }
+          const orderList = Array.isArray(ordersData)
+            ? ordersData
+            : Array.isArray(ordersData?.content)
+              ? ordersData.content
+              : [];
+
+          const formattedOrders = orderList
+            .map((order, index) => normalizeOrder(order, index))
+            .sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0));
+
+          setOrders(formattedOrders);
         } catch (err) {
           console.error('Error fetching orders:', err);
           // Orders fail không ảnh hưởng đến profile
@@ -212,7 +340,10 @@ export default function ProfilePage() {
     fetchUserData();
   }, [navigate, user]);
 
-  const filteredOrders = orderFilter === "all" ? orders : orders.filter((o) => o.status === orderFilter);
+  const normalizedOrderFilter = String(orderFilter || "all").toLowerCase();
+  const filteredOrders = normalizedOrderFilter === "all"
+    ? orders
+    : orders.filter((o) => String(o.status || "").toLowerCase() === normalizedOrderFilter);
 
   // Xử lý logout
   const handleLogout = () => {
@@ -223,7 +354,7 @@ export default function ProfilePage() {
   // Xử lý lưu thay đổi profile
   const handleSaveProfile = async () => {
     try {
-      const userId = localStorage.getItem('userId');
+      const userId = currentUserId;
       if (!userId) {
         setError('Không tìm thấy user ID');
         return;
@@ -285,7 +416,7 @@ export default function ProfilePage() {
       setPasswordError(null);
       setPasswordLoading(true);
 
-      const userId = localStorage.getItem('userId');
+      const userId = currentUserId;
       if (!userId) {
         setPasswordError('Không tìm thấy user ID');
         return;
@@ -346,7 +477,7 @@ export default function ProfilePage() {
         try {
           const imageBase64 = event.target?.result;
           
-          const userId = localStorage.getItem('userId');
+          const userId = currentUserId;
           if (!userId) {
             setAvatarMessage('error: Không tìm thấy user ID');
             setAvatarLoading(false);
@@ -415,6 +546,9 @@ export default function ProfilePage() {
     </div>
   );
 
+  const avatarSrc = resolveAvatarSrc(profile.avatar);
+  const avatarFallback = profile.fullName?.[0]?.toUpperCase() || profile.email?.[0]?.toUpperCase() || "U";
+
   // Hiển thị loading state
   if (loading && !profile.email) {
     return (
@@ -470,12 +604,12 @@ export default function ProfilePage() {
               textAlign: "center"
             }}
             onMouseEnter={(e) => {
-              e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow = "0 6px 20px rgba(255, 95, 163, 0.4)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 95, 163, 0.4)";
             }}
             onMouseLeave={(e) => {
-              e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "0 4px 12px rgba(255, 95, 163, 0.3)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 95, 163, 0.3)";
             }}
           >
             ← Quay lại {user?.role === "admin" ? "Admin" : "Staff"}
@@ -490,9 +624,9 @@ export default function ProfilePage() {
             style={{ position: "relative" }}
             title={avatarLoading ? "Đang tải..." : "Nhấp để thay đổi ảnh đại diện"}
           >
-            {profile.avatar ? (
+            {avatarSrc ? (
               <img
-                src={`data:image/png;base64,${profile.avatar}`}
+                src={avatarSrc}
                 alt="User Avatar"
                 title="Nhấp để thay đổi ảnh đại diện"
                 style={{
@@ -513,11 +647,11 @@ export default function ProfilePage() {
                 }}
                 onMouseEnter={(e) => {
                   if (!avatarLoading) {
-                    e.style.transform = "scale(1.05)";
+                    e.currentTarget.style.transform = "scale(1.05)";
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.style.transform = "scale(1)";
+                  e.currentTarget.style.transform = "scale(1)";
                 }}
               />
             ) : (
@@ -535,14 +669,14 @@ export default function ProfilePage() {
                 }}
                 onMouseEnter={(e) => {
                   if (!avatarLoading) {
-                    e.target.style.transform = "scale(1.05)";
+                    e.currentTarget.style.transform = "scale(1.05)";
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.transform = "scale(1)";
+                  e.currentTarget.style.transform = "scale(1)";
                 }}
               >
-                {profile.fullName?.[0]?.toUpperCase() || "U"}
+                {avatarFallback}
               </div>
             )}
             
@@ -663,7 +797,7 @@ export default function ProfilePage() {
                   Lịch sử đơn hàng
                 </p>
                 <div className="orders-filter-bar">
-                  {[["all","Tất cả"], ["processing","Đang xử lý"], ["shipping","Đang giao"], ["delivered","Đã giao"], ["cancelled","Đã hủy"]].map(([key, label]) => (
+                     {[["all", "Tất cả"], ["pending", "Chờ xác nhận"], ["processing", "Đang xử lý"], ["shipping", "Đang giao"], ["delivered", "Đã giao"], ["cancelled", "Đã hủy"]].map(([key, label]) => (
                     <button key={key} className={`order-filter-btn ${orderFilter === key ? "active" : ""}`} onClick={() => setOrderFilter(key)}>
                       {label}
                     </button>
@@ -676,41 +810,124 @@ export default function ProfilePage() {
                     <p>Không có đơn hàng nào</p>
                   </div>
                 ) : (
-                  filteredOrders.map((order) => (
-                    <div key={order.id} className="order-card">
-                      <div className="order-card-header">
-                        <div>
-                          <p className="order-id">#{order.id}</p>
-                          <p className="order-date">{order.date}</p>
-                        </div>
-                        <span className={`order-status ${STATUS_MAP[order.status].cls}`}>
-                          {STATUS_MAP[order.status].label}
-                        </span>
-                      </div>
-                      <div className="order-items-preview">
-                        {order.items.slice(0, 3).map((item, i) => (
-                          <div key={i} className="order-item-thumb">
-                            <img src={item.image} alt="" />
+                  filteredOrders.map((order) => {
+                    const normalizedStatus = String(order.status || "processing").toLowerCase();
+                    const statusMeta = getOrderStatusMeta(normalizedStatus);
+                    const orderItems = Array.isArray(order.items) ? order.items : [];
+                    const itemCount = Number.isFinite(Number(order.itemCount)) ? Number(order.itemCount) : orderItems.length;
+
+                    return (
+                      <div key={order.id} className="order-card">
+                        <div className="order-card-header">
+                          <div>
+                            <p className="order-id">#{order.id}</p>
+                            <p className="order-date">{order.date}</p>
                           </div>
-                        ))}
-                        {order.itemCount > 3 && (
-                          <div className="order-more-items">+{order.itemCount - 3}</div>
+                          <span className={`order-status ${statusMeta.cls}`}>
+                            {statusMeta.label}
+                          </span>
+                        </div>
+                        <div className="order-items-preview">
+                          {orderItems.slice(0, 3).map((item, i) => (
+                            <div key={i} className="order-item-thumb">
+                              <img src={item.image} alt={item.productName || "Sản phẩm"} />
+                            </div>
+                          ))}
+                          {itemCount > 3 && (
+                            <div className="order-more-items">+{itemCount - 3}</div>
+                          )}
+                        </div>
+                        {orderItems.length > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                            {orderItems.slice(0, 2).map((item, index) => (
+                              <p
+                                key={`${order.id}-${item.id ?? index}`}
+                                style={{ margin: 0, fontSize: "0.78rem", color: "var(--text-secondary)" }}
+                              >
+                                {item.productName} · x{item.qty}
+                              </p>
+                            ))}
+                            {orderItems.length > 2 && (
+                              <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                                +{orderItems.length - 2} sản phẩm khác
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        <div className="order-card-footer">
+                          <span className="order-total">{formatPrice(order.total)}</span>
+                          <div className="order-actions">
+                            <button
+                              className="order-action-btn"
+                              onClick={() => setSelectedOrderId((prev) => (prev === order.id ? null : order.id))}
+                            >
+                              {selectedOrderId === order.id ? "Ẩn chi tiết" : "Xem chi tiết"}
+                            </button>
+                            {normalizedStatus === "delivered" && (
+                              <button className="order-action-btn primary">Mua lại</button>
+                            )}
+                            {normalizedStatus === "processing" && (
+                              <button className="order-action-btn">Hủy đơn</button>
+                            )}
+                          </div>
+                        </div>
+
+                        {selectedOrderId === order.id && (
+                          <div style={{
+                            marginTop: 14,
+                            padding: 14,
+                            borderRadius: 14,
+                            border: "1px solid var(--border)",
+                            background: "var(--surface)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 12,
+                          }}>
+                            <p style={{
+                              margin: 0,
+                              fontSize: "0.78rem",
+                              fontWeight: 700,
+                              color: "var(--text-muted)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                            }}>
+                              Sản phẩm trong đơn
+                            </p>
+                            {orderItems.length > 0 ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                {orderItems.map((item) => (
+                                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                    <img
+                                      src={item.image}
+                                      alt={item.productName}
+                                      style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
+                                    />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <p style={{ fontWeight: 600, margin: 0 }}>{item.productName}</p>
+                                      <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: "4px 0 0" }}>
+                                        {item.color || "—"} · Size {item.size || "—"} · x{item.qty}
+                                      </p>
+                                    </div>
+                                    <span style={{ fontWeight: 700, color: "var(--accent)" }}>{formatPrice(item.subtotal)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p style={{ margin: 0, color: "var(--text-muted)" }}>Không có sản phẩm</p>
+                            )}
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                              <span>Phí vận chuyển</span>
+                              <span>{Number(order.shippingFee || 0) === 0 ? "Miễn phí" : formatPrice(order.shippingFee)}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+                              <span>Tổng cộng</span>
+                              <span style={{ color: "var(--accent)" }}>{formatPrice(order.total)}</span>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      <div className="order-card-footer">
-                        <span className="order-total">{formatPrice(order.total)}</span>
-                        <div className="order-actions">
-                          <button className="order-action-btn">Xem chi tiết</button>
-                          {order.status === "delivered" && (
-                            <button className="order-action-btn primary">Mua lại</button>
-                          )}
-                          {order.status === "processing" && (
-                            <button className="order-action-btn">Hủy đơn</button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}
@@ -741,7 +958,7 @@ export default function ProfilePage() {
                             style={{ position: "relative" }}
                           >
                             <img 
-                              src={Array.isArray(item.images) && item.images.length > 0 ? item.images[0].url : item.image} 
+                              src={getThumb(item) || item.image || "https://via.placeholder.com/120?text=UniqTee"} 
                               alt={item.name} 
                             />
                           </div>

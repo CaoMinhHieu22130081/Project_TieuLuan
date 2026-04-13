@@ -568,6 +568,18 @@ export const adminAPI = {
 // ============ REVIEWS API ============
 
 export const reviewAPI = {
+  // Get all reviews (Admin only)
+  getAllReviews: async () => {
+    try {
+      return await requestJson(`${API_BASE_URL}/reviews`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch reviews');
+    } catch (error) {
+      console.error('Error fetching all reviews:', error);
+      throw error;
+    }
+  },
+
   // Get reviews by product ID
   getReviewsByProductId: async (productId) => {
     try {

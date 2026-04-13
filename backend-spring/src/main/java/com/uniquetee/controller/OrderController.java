@@ -1,6 +1,7 @@
 package com.uniquetee.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -44,7 +45,12 @@ public class OrderController {
 
     @PutMapping("/{id}/status")
     @RequiredRole({"admin", "staff"})
-    public ResponseEntity<Order> updateStatus(@PathVariable Integer id, @RequestBody String status) {
+    public ResponseEntity<Order> updateStatus(@PathVariable Integer id, @RequestBody Map<String, String> request) {
+        String status = request.get("status");
+        if (status == null || status.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+
         Order updated = orderService.updateOrderStatus(id, status);
         if (updated != null) return ResponseEntity.ok(updated);
         return ResponseEntity.notFound().build();

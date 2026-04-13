@@ -1,6 +1,7 @@
 package com.uniquetee.controller;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,16 @@ public class ReviewController {
     private ReviewService reviewService;
 
     /**
+     * Lấy toàn bộ bình luận để admin moderating
+     */
+    @GetMapping
+    @RequiredRole({"admin"})
+    public ResponseEntity<List<Review>> getAllReviews() {
+        List<Review> reviews = reviewService.getAllReviews();
+        return ResponseEntity.ok(reviews);
+    }
+
+    /**
      * Lấy tất cả bình luận của một sản phẩm
      */
     @GetMapping("/product/{productId}")
@@ -42,7 +53,7 @@ public class ReviewController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<Review> getReviewById(@PathVariable Integer id) {
-        Optional<Review> review = reviewService.getReviewById(id);
+        Optional<Review> review = reviewService.getReviewById(Objects.requireNonNull(id, "id"));
         return review.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -51,7 +62,7 @@ public class ReviewController {
      */
     @PostMapping
     public ResponseEntity<Review> createReview(@RequestBody Review review) {
-        Review createdReview = reviewService.createReview(review);
+        Review createdReview = reviewService.createReview(Objects.requireNonNull(review, "review"));
         return ResponseEntity.status(HttpStatus.CREATED).body(createdReview);
     }
 
@@ -59,8 +70,12 @@ public class ReviewController {
      * Cập nhật bình luận
      */
     @PutMapping("/{id}")
+    @RequiredRole({"admin"})
     public ResponseEntity<Review> updateReview(@PathVariable Integer id, @RequestBody Review reviewDetails) {
-        Review updatedReview = reviewService.updateReview(id, reviewDetails);
+        Review updatedReview = reviewService.updateReview(
+                Objects.requireNonNull(id, "id"),
+                Objects.requireNonNull(reviewDetails, "reviewDetails")
+        );
         if (updatedReview != null) {
             return ResponseEntity.ok(updatedReview);
         }
@@ -73,7 +88,7 @@ public class ReviewController {
     @DeleteMapping("/{id}")
     @RequiredRole({"admin"})
     public ResponseEntity<Void> deleteReview(@PathVariable Integer id) {
-        reviewService.deleteReview(id);
+        reviewService.deleteReview(Objects.requireNonNull(id, "id"));
         return ResponseEntity.noContent().build();
     }
 

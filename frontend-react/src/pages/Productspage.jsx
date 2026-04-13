@@ -29,6 +29,81 @@ const COLORS = [
 
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 
+const normalizeImage = (image, index = 0) => {
+  if (typeof image === "string") {
+    return {
+      url: image,
+      sortOrder: index,
+    };
+  }
+
+  return {
+    url: image?.url || image?.src || image?.image || "",
+    sortOrder: image?.sortOrder == null ? index : Number(image.sortOrder),
+  };
+};
+
+const normalizeColor = (color) => {
+  if (typeof color === "string") {
+    return {
+      name: color,
+      hex: color,
+    };
+  }
+
+  return {
+    name: color?.name || "",
+    hex: color?.hex || color?.color || "",
+  };
+};
+
+const normalizeSize = (size) => {
+  if (typeof size === "string") {
+    return {
+      size,
+      isAvailable: true,
+    };
+  }
+
+  return {
+    size: size?.size || size?.name || "",
+    isAvailable: size?.isAvailable !== false,
+  };
+};
+
+const normalizeProduct = (product) => {
+  const category = product?.category && typeof product.category === "object"
+    ? {
+        ...product.category,
+        id: product.category.id == null ? null : Number(product.category.id),
+      }
+    : product?.category || null;
+
+  return {
+    ...product,
+    id: Number(product?.id || 0),
+    sku: product?.sku || "",
+    name: product?.name || "",
+    type: product?.type || "Áo",
+    category,
+    categoryId: product?.categoryId ? Number(product.categoryId) : category?.id || "",
+    price: Number(product?.price || 0),
+    originalPrice: product?.originalPrice == null ? null : Number(product.originalPrice),
+    tag: product?.tag || "",
+    material: product?.material || "",
+    description: product?.description || "",
+    sold: Number(product?.sold || 0),
+    rating: product?.rating == null ? 0 : Number(product.rating),
+    reviewCount: product?.reviewCount == null ? Number(product?.reviews || 0) : Number(product.reviewCount),
+    isActive: product?.isActive !== false,
+    images: Array.isArray(product?.images)
+      ? product.images.map(normalizeImage).sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
+      : [],
+    colors: Array.isArray(product?.colors) ? product.colors.map(normalizeColor) : [],
+    sizes: Array.isArray(product?.sizes) ? product.sizes.map(normalizeSize) : [],
+  };
+};
+
 function StarRating({ rating }) {
   return (
     <div className="star-row">
@@ -306,7 +381,7 @@ function ProductCard({ product }) {
 
   // Handle images - API returns array of objects with {url, sortOrder}
   const thumb = product.images && product.images.length > 0 
-    ? product.images[0].url 
+    ? (typeof product.images[0] === "string" ? product.images[0] : product.images[0].url)
     : (product.image || 'https://via.placeholder.com/300x400?text=No+Image');
 
   const rating = getDisplayRating(product);
@@ -445,7 +520,16 @@ export default function ProductsPage() {
       try {
         setLoading(true);
         const data = await productAPI.getAllProducts();
-        setProducts(data);
+        const rawProducts = Array.isArray(data) ? data : Array.isArray(data?.content) ? data.content : [];
+        const normalizedProducts = rawProducts
+          .map(normalizeProduct)
+          .sort((left, right) => {
+            const leftDate = new Date(left.createdAt || 0).getTime();
+            const rightDate = new Date(right.createdAt || 0).getTime();
+            if (rightDate !== leftDate) return rightDate - leftDate;
+            return Number(right.id || 0) - Number(left.id || 0);
+          });
+        setProducts(normalizedProducts);
         setError(null);
       } catch (err) {
         setError("Lỗi tải sản phẩm. Vui lòng thử lại sau.");

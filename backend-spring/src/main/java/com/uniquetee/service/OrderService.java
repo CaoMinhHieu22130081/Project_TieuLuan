@@ -72,7 +72,7 @@ public class OrderService {
         Optional<Order> o = orderRepository.findById(id);
         if (o.isPresent()) {
             Order order = o.get();
-            order.setStatus(status);
+            order.setStatus(status == null ? null : status.trim().toLowerCase());
             return orderRepository.save(order);
         }
         return null;

@@ -1,12 +1,16 @@
 package com.uniquetee.service;
 
-import com.uniquetee.entity.Review;
-import com.uniquetee.repository.ReviewRepository;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Optional;
+import com.uniquetee.entity.Review;
+import com.uniquetee.repository.ReviewRepository;
 
 /**
  * Service quản lý Đánh giá sản phẩm
@@ -21,14 +25,14 @@ public class ReviewService {
      * Lấy tất cả bình luận
      */
     public List<Review> getAllReviews() {
-        return reviewRepository.findAll();
+        return reviewRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
     /**
      * Lấy bình luận theo ID
      */
-    public Optional<Review> getReviewById(Integer id) {
-        return reviewRepository.findById(id);
+    public Optional<Review> getReviewById(@NonNull Integer id) {
+        return reviewRepository.findById(Objects.requireNonNull(id, "id"));
     }
 
     /**
@@ -55,15 +59,15 @@ public class ReviewService {
     /**
      * Tạo đánh giá mới
      */
-    public Review createReview(Review review) {
-        return reviewRepository.save(review);
+    public Review createReview(@NonNull Review review) {
+        return reviewRepository.save(Objects.requireNonNull(review, "review"));
     }
 
     /**
      * Cập nhật đánh giá
      */
-    public Review updateReview(Integer id, Review reviewDetails) {
-        Optional<Review> review = reviewRepository.findById(id);
+    public Review updateReview(@NonNull Integer id, @NonNull Review reviewDetails) {
+        Optional<Review> review = reviewRepository.findById(Objects.requireNonNull(id, "id"));
         if (review.isPresent()) {
             Review existingReview = review.get();
             if (reviewDetails.getRating() != null) {
@@ -75,7 +79,7 @@ public class ReviewService {
             if (reviewDetails.getReviewerName() != null) {
                 existingReview.setReviewerName(reviewDetails.getReviewerName());
             }
-            return reviewRepository.save(existingReview);
+            return reviewRepository.save(Objects.requireNonNull(existingReview, "existingReview"));
         }
         return null;
     }
@@ -83,8 +87,8 @@ public class ReviewService {
     /**
      * Xoá đánh giá
      */
-    public void deleteReview(Integer id) {
-        reviewRepository.deleteById(id);
+    public void deleteReview(@NonNull Integer id) {
+        reviewRepository.deleteById(Objects.requireNonNull(id, "id"));
     }
 
     /**
