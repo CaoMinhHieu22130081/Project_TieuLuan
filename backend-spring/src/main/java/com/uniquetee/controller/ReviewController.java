@@ -17,9 +17,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.uniquetee.dto.ReviewCreateRequest;
 import com.uniquetee.annotation.RequiredRole;
 import com.uniquetee.entity.Review;
 import com.uniquetee.service.ReviewService;
+
+import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/reviews")
@@ -61,8 +65,13 @@ public class ReviewController {
      * Tạo bình luận mới
      */
     @PostMapping
-    public ResponseEntity<Review> createReview(@RequestBody Review review) {
-        Review createdReview = reviewService.createReview(Objects.requireNonNull(review, "review"));
+    public ResponseEntity<Review> createReview(@Valid @RequestBody ReviewCreateRequest reviewRequest, HttpServletRequest request) {
+        Integer userId = (Integer) request.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+
+        Review createdReview = reviewService.createReview(Objects.requireNonNull(reviewRequest, "reviewRequest"), userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdReview);
     }
 

@@ -1,33 +1,67 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { productAPI } from "../services/api";
+import { categoryAPI, productAPI } from "../services/api";
 import { useWishlist } from "../context/WishlistContext";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
 import { getDisplayRating, getSizeOptions } from "../utils/productDisplay";
 import "./css/Productspage.css";
 
-const TYPES = ["Tất cả", "Áo", "Quần"];
-
-const CATEGORIES_BY_TYPE = {
-  "Tất cả": ["Tất cả", "Cơ bản", "Graphic", "Oversized", "Vintage", "Thể thao", "Sọc kẻ", "Jeans", "Jogger", "Cargo", "Shorts", "Kaki"],
-  "Áo":     ["Tất cả", "Cơ bản", "Graphic", "Oversized", "Vintage", "Thể thao", "Sọc kẻ"],
-  "Quần":   ["Tất cả", "Jeans", "Jogger", "Cargo", "Shorts", "Kaki"],
-};
-
 const SIZES_AO   = ["XS", "S", "M", "L", "XL", "XXL"];
 const SIZES_QUAN = ["28", "29", "30", "31", "32", "34", "S", "M", "L", "XL"];
 
-const COLORS = [
-  { hex: "#1a1a1a", name: "Đen"     },
-  { hex: "#ffffff", name: "Trắng"   },
-  { hex: "#4A90E2", name: "Xanh"    },
-  { hex: "#ff6b6b", name: "Đỏ"     },
-  { hex: "#90EE90", name: "Xanh lá" },
-  { hex: "#F0E68C", name: "Vàng"    },
-];
-
 const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
+
+const normalizeCategory = (category) => ({
+  ...category,
+  id: Number(category?.id || 0),
+  sortOrder: category?.sortOrder == null ? 0 : Number(category.sortOrder),
+});
+
+const buildCategoriesByType = (categories) => {
+  const grouped = { "Tất cả": ["Tất cả"] };
+
+  (categories || [])
+    .slice()
+    .sort((left, right) => (Number(left.sortOrder || 0) - Number(right.sortOrder || 0)) || String(left.name || "").localeCompare(String(right.name || ""), "vi"))
+    .forEach((category) => {
+      if (!category?.name) return;
+
+      const typeKey = category.type || "Tất cả";
+      if (!grouped[typeKey]) grouped[typeKey] = ["Tất cả"];
+
+      if (!grouped[typeKey].includes(category.name)) {
+        grouped[typeKey].push(category.name);
+      }
+
+      if (!grouped["Tất cả"].includes(category.name)) {
+        grouped["Tất cả"].push(category.name);
+      }
+    });
+
+  return grouped;
+};
+
+const buildCategoriesFromProducts = (products) => {
+  const byKey = new Map();
+
+  (products || []).forEach((product) => {
+    const category = product?.category && typeof product.category === "object" ? product.category : null;
+    if (!category?.name) return;
+
+    const key = String(category.id || category.name);
+    if (!byKey.has(key)) {
+      byKey.set(key, normalizeCategory(category));
+    }
+  });
+
+  return Array.from(byKey.values());
+};
+
+const getAvailableTypes = (categories) => {
+  const types = Array.from(new Set((categories || []).map((category) => category.type).filter(Boolean)));
+  return types.length > 0 ? types : ["Áo", "Quần"];
+};
 
 const normalizeImage = (image, index = 0) => {
   if (typeof image === "string") {
@@ -466,6 +500,7 @@ function ProductCard({ product }) {
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -519,8 +554,17 @@ export default function ProductsPage() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const data = await productAPI.getAllProducts();
-        const rawProducts = Array.isArray(data) ? data : Array.isArray(data?.content) ? data.content : [];
+        const [productsResponse, categoriesResponse] = await Promise.all([
+          productAPI.getAllProducts(),
+          categoryAPI.getAllCategories(),
+        ]);
+
+        const rawProducts = Array.isArray(productsResponse)
+          ? productsResponse
+          : Array.isArray(productsResponse?.content)
+            ? productsResponse.content
+            : [];
+
         const normalizedProducts = rawProducts
           .map(normalizeProduct)
           .sort((left, right) => {
@@ -529,7 +573,18 @@ export default function ProductsPage() {
             if (rightDate !== leftDate) return rightDate - leftDate;
             return Number(right.id || 0) - Number(left.id || 0);
           });
+
+        const rawCategories = Array.isArray(categoriesResponse)
+          ? categoriesResponse
+          : Array.isArray(categoriesResponse?.content)
+            ? categoriesResponse.content
+            : [];
+        const normalizedCategories = rawCategories
+          .map(normalizeCategory)
+          .filter((category) => category.name && category.type);
+
         setProducts(normalizedProducts);
+        setCategories(normalizedCategories.length > 0 ? normalizedCategories : buildCategoriesFromProducts(normalizedProducts));
         setError(null);
       } catch (err) {
         setError("Lỗi tải sản phẩm. Vui lòng thử lại sau.");
@@ -548,7 +603,9 @@ export default function ProductsPage() {
     setSizes([]);
   };
 
-  const CATEGORIES = CATEGORIES_BY_TYPE[typeFilter] || CATEGORIES_BY_TYPE["Tất cả"];
+  const categoriesByType = buildCategoriesByType(categories);
+  const TYPES = ["Tất cả", ...getAvailableTypes(categories)];
+  const CATEGORIES = categoriesByType[typeFilter] || categoriesByType["Tất cả"] || ["Tất cả"];
   
   /* ── SMART FILTER: Tính toán products theo filter hiện tại ── */
   const getFilteredProductsWithFilters = (excludeType = null) => {

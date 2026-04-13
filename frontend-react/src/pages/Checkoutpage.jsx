@@ -1,57 +1,180 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ALL_PRODUCTS } from "../data/Products";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
+import { orderAPI } from "../services/api";
 import "./css/Checkoutpage.css";
-
-
-const buildCheckoutItems = () =>
-  [
-    { productId: 1, color: "Đen", size: "M",  qty: 1 },
-    { productId: 2, color: "Tím", size: "L",  qty: 2 },
-  ].map(({ productId, color, size, qty }) => {
-    const p = ALL_PRODUCTS.find((x) => x.id === productId);
-    return {
-      id:    p.id,
-      name:  p.name,
-      price: p.price,
-      image: Array.isArray(p.images)
-               ? p.images[0].split("?")[0] + "?w=100&h=125&fit=crop"
-               : p.image,
-      color,
-      size,
-      qty,
-    };
-  });
-
-const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
 
 const STEPS = ["Thông tin", "Thanh toán", "Xác nhận"];
 
-export default function CheckoutPage() {
-  const CART_ITEMS = buildCheckoutItems();
+const formatPrice = (value) => Number(value || 0).toLocaleString("vi-VN") + "đ";
 
-  const [step,       setStep]       = useState(0);
-  const [payMethod,  setPayMethod]  = useState("momo");
-  const [success,    setSuccess]    = useState(false);
-  const [loading,    setLoading]    = useState(false);
+const buildOrderCode = () => {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `UNQ-${timestamp}-${suffix}`;
+};
+
+const getItemImage = (item) => item?.image || "https://via.placeholder.com/100x125?text=UniqTee";
+
+export default function CheckoutPage() {
+  const location = useLocation();
+  const { user } = useAuth();
+  const { cart, removeFromCart } = useCart();
+
+  const selectedItemIds = Array.isArray(location.state?.selectedItems)
+    ? location.state.selectedItems
+    : [];
+  const selectedItemSet = new Set(selectedItemIds);
+  const checkoutItems = selectedItemSet.size > 0
+    ? cart.filter((item) => selectedItemSet.has(item.cartItemId))
+    : cart;
+  const hasSelectionMismatch = selectedItemSet.size > 0 && checkoutItems.length === 0;
+
+  const [step, setStep] = useState(0);
+  const [payMethod, setPayMethod] = useState("cod");
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [orderResult, setOrderResult] = useState(null);
 
   const [shippingForm, setShippingForm] = useState({
-    fullName: "", phone: "", email: "",
-    address: "", ward: "", district: "", city: "TP. Hồ Chí Minh",
+    fullName: "",
+    phone: "",
+    email: "",
+    address: "",
+    ward: "",
+    district: "",
+    city: "TP. Hồ Chí Minh",
     note: "",
   });
 
-  const subtotal = CART_ITEMS.reduce((s, i) => s + i.price * i.qty, 0);
-  const shipping  = subtotal >= 299000 ? 0 : 30000;
-  const total     = subtotal + shipping;
+  useEffect(() => {
+    if (!user) return;
 
-  const handleShipChange = (e) =>
-    setShippingForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setShippingForm((current) => ({
+      ...current,
+      fullName: current.fullName || user.name || "",
+      phone: current.phone || user.phone || "",
+      email: current.email || user.email || "",
+      address: current.address || user.address || "",
+    }));
+  }, [user]);
 
-  const handlePlaceOrder = () => {
-    setLoading(true);
-    setTimeout(() => { setLoading(false); setSuccess(true); }, 2000);
+  const subtotal = checkoutItems.reduce(
+    (sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1),
+    0
+  );
+  const shipping = subtotal >= 299000 ? 0 : 30000;
+  const total = subtotal + shipping;
+
+  const handleShipChange = (event) => {
+    setShippingForm((current) => ({
+      ...current,
+      [event.target.name]: event.target.value,
+    }));
   };
+
+  const handlePlaceOrder = async () => {
+    if (!checkoutItems.length) {
+      setError("Không có sản phẩm nào để thanh toán.");
+      return;
+    }
+
+    const fullName = shippingForm.fullName.trim();
+    const phone = shippingForm.phone.trim();
+    const email = shippingForm.email.trim();
+    const address = shippingForm.address.trim();
+
+    if (!fullName || !phone || !address) {
+      setError("Vui lòng nhập họ tên, số điện thoại và địa chỉ giao hàng.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const orderPayload = {
+        orderCode: buildOrderCode(),
+        ...(user?.id ? { user: { id: Number(user.id) } } : {}),
+        customerName: fullName,
+        customerPhone: phone,
+        customerEmail: email || user?.email || "",
+        address,
+        ward: shippingForm.ward.trim(),
+        district: shippingForm.district.trim(),
+        city: shippingForm.city,
+        note: shippingForm.note.trim(),
+        status: "pending",
+        paymentMethod: payMethod,
+        shippingFee: shipping,
+        items: checkoutItems.map((item) => {
+          const qty = Number(item.qty || 1);
+          const price = Number(item.price || 0);
+
+          return {
+            productId: item.productId,
+            productName: item.name,
+            productSku: item.sku || "",
+            color: item.color || "",
+            size: item.size || "",
+            qty,
+            unitPrice: price,
+            subtotal: price * qty,
+          };
+        }),
+      };
+
+      const createdOrder = await orderAPI.createOrder(orderPayload);
+
+      checkoutItems.forEach((item) => removeFromCart(item.cartItemId));
+
+      setOrderResult(createdOrder || { orderCode: orderPayload.orderCode });
+      setSuccess(true);
+      setStep(2);
+    } catch (submitError) {
+      setError(submitError.message || "Không thể tạo đơn hàng. Vui lòng thử lại.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!success && cart.length === 0) {
+    return (
+      <div className="checkout-page">
+        <div className="checkout-inner">
+          <div className="checkout-success">
+            <div className="success-animation">🛒</div>
+            <h2>Giỏ hàng đang trống</h2>
+            <p>Bạn chưa có sản phẩm nào để thanh toán.</p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <Link to="/products" className="btn-primary">Mua sắm ngay</Link>
+              <Link to="/cart" className="btn-secondary">Về giỏ hàng</Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!success && hasSelectionMismatch) {
+    return (
+      <div className="checkout-page">
+        <div className="checkout-inner">
+          <div className="checkout-success">
+            <div className="success-animation">⚠️</div>
+            <h2>Không tìm thấy sản phẩm đã chọn</h2>
+            <p>Các sản phẩm được chọn trước đó không còn trong giỏ hàng nữa.</p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <Link to="/cart" className="btn-primary">Quay lại giỏ hàng</Link>
+              <Link to="/products" className="btn-secondary">Tiếp tục mua sắm</Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -61,13 +184,13 @@ export default function CheckoutPage() {
             <div className="success-animation">🌸</div>
             <h2>Đặt hàng thành công!</h2>
             <p>Cảm ơn bạn đã mua sắm tại <strong>UniqTee</strong></p>
-            <p>Đơn hàng sẽ được giao trong 1–3 ngày làm việc.</p>
+            <p>Đơn hàng sẽ được xử lý trong thời gian sớm nhất.</p>
             <div className="order-code">
-              Mã đơn hàng: #UNQ{Math.random().toString(36).slice(2, 8).toUpperCase()}
+              Mã đơn hàng: #{orderResult?.orderCode || orderResult?.id || "UNQ"}
             </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <Link to="/profile"  className="btn-primary">Xem đơn hàng</Link>
-              <Link to="/"         className="btn-secondary">Về trang chủ</Link>
+              <Link to="/profile" className="btn-primary">Xem đơn hàng</Link>
+              <Link to="/" className="btn-secondary">Về trang chủ</Link>
             </div>
           </div>
         </div>
@@ -78,22 +201,20 @@ export default function CheckoutPage() {
   return (
     <div className="checkout-page">
       <div className="checkout-inner">
-
         <div className="checkout-header">
           <h1 className="checkout-title">
             Thanh toán <span className="accent">đơn hàng</span>
           </h1>
 
-          {/* Steps indicator */}
           <div className="checkout-steps">
-            {STEPS.map((s, i) => (
-              <div key={s} style={{ display: "contents" }}>
-                <div className={`step-item ${step === i ? "active" : ""} ${step > i ? "done" : ""}`}>
-                  <div className="step-circle">{step > i ? "✓" : i + 1}</div>
-                  <span className="step-label">{s}</span>
+            {STEPS.map((label, index) => (
+              <div key={label} style={{ display: "contents" }}>
+                <div className={`step-item ${step === index ? "active" : ""} ${step > index ? "done" : ""}`}>
+                  <div className="step-circle">{step > index ? "✓" : index + 1}</div>
+                  <span className="step-label">{label}</span>
                 </div>
-                {i < STEPS.length - 1 && (
-                  <div className={`step-line ${step > i ? "done" : ""}`} />
+                {index < STEPS.length - 1 && (
+                  <div className={`step-line ${step > index ? "done" : ""}`} />
                 )}
               </div>
             ))}
@@ -101,19 +222,15 @@ export default function CheckoutPage() {
         </div>
 
         <div className="checkout-layout">
-
-          {/* ── Form col ── */}
           <div className="checkout-form-col">
-
-            {/* STEP 0: Thông tin giao hàng */}
             {step === 0 && (
               <>
                 <div className="form-section">
                   <p className="form-section-title">
                     <span className="form-section-icon">
                       <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" strokeWidth="2"/>
-                        <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" />
+                        <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" />
                       </svg>
                     </span>
                     Thông tin giao hàng
@@ -122,33 +239,63 @@ export default function CheckoutPage() {
                   <div className="form-grid">
                     <div className="form-group">
                       <label className="form-label">Họ và tên</label>
-                      <input className="form-input" name="fullName" placeholder="Nguyễn Văn A"
-                        value={shippingForm.fullName} onChange={handleShipChange} />
+                      <input
+                        className="form-input"
+                        name="fullName"
+                        placeholder="Nguyễn Văn A"
+                        value={shippingForm.fullName}
+                        onChange={handleShipChange}
+                      />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Số điện thoại</label>
-                      <input className="form-input" name="phone" placeholder="0901 234 567"
-                        value={shippingForm.phone} onChange={handleShipChange} />
+                      <input
+                        className="form-input"
+                        name="phone"
+                        placeholder="0901 234 567"
+                        value={shippingForm.phone}
+                        onChange={handleShipChange}
+                      />
                     </div>
                     <div className="form-group span-2">
                       <label className="form-label">Email</label>
-                      <input className="form-input" name="email" placeholder="example@email.com"
-                        value={shippingForm.email} onChange={handleShipChange} />
+                      <input
+                        className="form-input"
+                        name="email"
+                        placeholder="example@email.com"
+                        value={shippingForm.email}
+                        onChange={handleShipChange}
+                      />
                     </div>
                     <div className="form-group span-2">
                       <label className="form-label">Địa chỉ</label>
-                      <input className="form-input" name="address" placeholder="Số nhà, tên đường..."
-                        value={shippingForm.address} onChange={handleShipChange} />
+                      <input
+                        className="form-input"
+                        name="address"
+                        placeholder="Số nhà, tên đường..."
+                        value={shippingForm.address}
+                        onChange={handleShipChange}
+                      />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Phường/Xã</label>
-                      <input className="form-input" name="ward" placeholder="Phường Bến Nghé"
-                        value={shippingForm.ward} onChange={handleShipChange} />
+                      <input
+                        className="form-input"
+                        name="ward"
+                        placeholder="Phường Bến Nghé"
+                        value={shippingForm.ward}
+                        onChange={handleShipChange}
+                      />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Quận/Huyện</label>
-                      <input className="form-input" name="district" placeholder="Quận 1"
-                        value={shippingForm.district} onChange={handleShipChange} />
+                      <input
+                        className="form-input"
+                        name="district"
+                        placeholder="Quận 1"
+                        value={shippingForm.district}
+                        onChange={handleShipChange}
+                      />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Tỉnh/Thành phố</label>
@@ -161,9 +308,13 @@ export default function CheckoutPage() {
                     </div>
                     <div className="form-group span-2">
                       <label className="form-label">Ghi chú (tùy chọn)</label>
-                      <input className="form-input" name="note"
+                      <input
+                        className="form-input"
+                        name="note"
                         placeholder="Giao giờ hành chính, gọi trước khi giao..."
-                        value={shippingForm.note} onChange={handleShipChange} />
+                        value={shippingForm.note}
+                        onChange={handleShipChange}
+                      />
                     </div>
                   </div>
                 </div>
@@ -174,15 +325,14 @@ export default function CheckoutPage() {
               </>
             )}
 
-            {/* STEP 1: Thanh toán */}
             {step === 1 && (
               <>
                 <div className="form-section">
                   <p className="form-section-title">
                     <span className="form-section-icon">
                       <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                        <rect x="1" y="4" width="22" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
-                        <path d="M1 10h22" stroke="currentColor" strokeWidth="2"/>
+                        <rect x="1" y="4" width="22" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
+                        <path d="M1 10h22" stroke="currentColor" strokeWidth="2" />
                       </svg>
                     </span>
                     Phương thức thanh toán
@@ -190,47 +340,51 @@ export default function CheckoutPage() {
 
                   <div className="payment-methods">
                     {[
-                      { id: "momo",  icon: "💜", name: "Ví MoMo",                       sub: "Thanh toán nhanh qua ví điện tử",        recommended: true  },
-                      { id: "vnpay", icon: "🔵", name: "VNPAY",                          sub: "QR code hoặc ATM nội địa"                                    },
-                      { id: "cod",   icon: "💵", name: "Thanh toán khi nhận hàng (COD)", sub: "Trả tiền mặt khi nhận hàng"                                  },
-                      { id: "card",  icon: "💳", name: "Thẻ tín dụng / ghi nợ",         sub: "Visa, Mastercard, JCB"                                        },
-                    ].map((pm) => (
+                      {
+                        id: "vnpay",
+                        icon: "🔵",
+                        name: "VNPAY",
+                        sub: "Thanh toán nhanh qua QR hoặc thẻ nội địa",
+                        recommended: true,
+                      },
+                      {
+                        id: "cod",
+                        icon: "💵",
+                        name: "Thanh toán khi nhận hàng (COD)",
+                        sub: "Trả tiền mặt khi nhận hàng",
+                      },
+                    ].map((method) => (
                       <div
-                        key={pm.id}
-                        className={`payment-option ${payMethod === pm.id ? "selected" : ""}`}
-                        onClick={() => setPayMethod(pm.id)}
+                        key={method.id}
+                        className={`payment-option ${payMethod === method.id ? "selected" : ""}`}
+                        onClick={() => setPayMethod(method.id)}
                       >
                         <div className="payment-radio">
                           <div className="payment-radio-dot" />
                         </div>
-                        <span className="payment-icon">{pm.icon}</span>
+                        <span className="payment-icon">{method.icon}</span>
                         <div className="payment-info">
-                          <p className="payment-name">{pm.name}</p>
-                          <p className="payment-sub">{pm.sub}</p>
+                          <p className="payment-name">{method.name}</p>
+                          <p className="payment-sub">{method.sub}</p>
                         </div>
-                        {pm.recommended && (
-                          <span className="payment-recommended">Phổ biến</span>
-                        )}
+                        {method.recommended && <span className="payment-recommended">Phổ biến</span>}
                       </div>
                     ))}
                   </div>
 
-                  {payMethod === "card" && (
-                    <div className="card-form">
-                      <div className="form-group">
-                        <label className="form-label">Số thẻ</label>
-                        <input className="form-input" placeholder="1234 5678 9012 3456" />
-                      </div>
-                      <div className="form-grid">
-                        <div className="form-group">
-                          <label className="form-label">Ngày hết hạn</label>
-                          <input className="form-input" placeholder="MM / YY" />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">CVV</label>
-                          <input className="form-input" placeholder="•••" type="password" />
-                        </div>
-                      </div>
+                  {error && (
+                    <div
+                      style={{
+                        marginTop: 14,
+                        padding: "12px 14px",
+                        borderRadius: 12,
+                        background: "rgba(255, 107, 107, 0.1)",
+                        border: "1px solid rgba(255, 107, 107, 0.2)",
+                        color: "#ff9a9a",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      {error}
                     </div>
                   )}
                 </div>
@@ -249,30 +403,31 @@ export default function CheckoutPage() {
                     disabled={loading}
                     style={{ flex: 1 }}
                   >
-                    {loading ? "Đang xử lý…" : "🌸 Đặt hàng ngay"}
+                    {loading ? "Đang xử lý…" : "Đặt hàng ngay"}
                   </button>
                 </div>
               </>
             )}
           </div>
 
-          {/* ── Order summary ── */}
           <div className="checkout-summary">
             <p className="checkout-summary-title">Đơn hàng của bạn</p>
 
             <div className="checkout-items">
-              {CART_ITEMS.map((item) => (
-                <div key={`${item.id}-${item.size}`} className="checkout-item">
+              {checkoutItems.map((item) => (
+                <div key={`${item.cartItemId}`} className="checkout-item">
                   <div className="checkout-item-img">
-                    <img src={item.image} alt={item.name} />
+                    <img src={getItemImage(item)} alt={item.name} />
                     <span className="checkout-item-qty-badge">{item.qty}</span>
                   </div>
                   <div style={{ flex: 1 }}>
                     <p className="checkout-item-name">{item.name}</p>
-                    <p className="checkout-item-meta">{item.color} · Size {item.size}</p>
+                    <p className="checkout-item-meta">
+                      {item.color || "Mặc định"} · Size {item.size || "—"}
+                    </p>
                   </div>
                   <span className="checkout-item-price">
-                    {formatPrice(item.price * item.qty)}
+                    {formatPrice(Number(item.price || 0) * Number(item.qty || 1))}
                   </span>
                 </div>
               ))}

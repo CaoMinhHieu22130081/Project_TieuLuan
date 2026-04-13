@@ -1,24 +1,59 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { productAPI } from "../services/api";
+import { categoryAPI, productAPI } from "../services/api";
 import { getDisplayRating } from "../utils/productDisplay";
 import "./css/Homepage.css";
 
-// Danh mục cố định
-const CATEGORY_CONFIG = [
-  { id: 1,  name: "Cơ bản",   icon: "◻", type: "Áo"   },
-  { id: 2,  name: "Graphic",  icon: "◈", type: "Áo"   },
-  { id: 3,  name: "Oversized",icon: "▣", type: "Áo"   },
-  { id: 4,  name: "Vintage",  icon: "◉", type: "Áo"   },
-  { id: 5,  name: "Thể thao", icon: "◆", type: "Áo"   },
-  { id: 6,  name: "Sọc kẻ",   icon: "☰", type: "Áo"   },
-  { id: 7,  name: "Jeans",    icon: "▤", type: "Quần" },
-  { id: 8,  name: "Jogger",   icon: "▥", type: "Quần" },
-  { id: 9,  name: "Cargo",    icon: "▦", type: "Quần" },
-  { id: 10, name: "Shorts",   icon: "▧", type: "Quần" },
-  { id: 11, name: "Kaki",     icon: "▨", type: "Quần" },
-];
+// Danh mục lấy từ MySQL
+const CATEGORY_ICON_MAP = {
+  "Cơ bản": "◻",
+  Graphic: "◈",
+  Oversized: "▣",
+  Vintage: "◉",
+  "Thể thao": "◆",
+  "Sọc kẻ": "☰",
+  Jeans: "▤",
+  Jogger: "▥",
+  Cargo: "▦",
+  Shorts: "▧",
+  Kaki: "▨",
+};
+
+const normalizeCategory = (category) => ({
+  ...category,
+  id: Number(category?.id || 0),
+  sortOrder: category?.sortOrder == null ? 0 : Number(category.sortOrder),
+});
+
+const getCategoryIcon = (name) => CATEGORY_ICON_MAP[name] || "◻";
+
+const buildCategoriesFromProducts = (products) => {
+  const byKey = new Map();
+
+  (products || []).forEach((product) => {
+    const category = product?.category && typeof product.category === "object" ? product.category : null;
+    if (!category?.name) return;
+
+    const key = String(category.id || category.name);
+    if (!byKey.has(key)) {
+      byKey.set(key, normalizeCategory(category));
+    }
+  });
+
+  return Array.from(byKey.values());
+};
+
+const buildCategoryCards = (categories, products) => {
+  return (categories || [])
+    .slice()
+    .sort((left, right) => (Number(left.sortOrder || 0) - Number(right.sortOrder || 0)) || String(left.name || "").localeCompare(String(right.name || ""), "vi"))
+    .map((category) => ({
+      ...category,
+      icon: getCategoryIcon(category.name),
+      count: (products || []).filter((product) => product.category && product.category.name === category.name).length,
+    }));
+};
 
 // Hàm tạo featured products từ dữ liệu - chỉ hiển thị sản phẩm bán chạy
 const getFeaturedProducts = (products) => {
@@ -242,24 +277,42 @@ function HomePage() {
   const [products, setProducts] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [aiResults, setAiResults] = useState([]);
-  const [categories, setCategories] = useState(CATEGORY_CONFIG);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await productAPI.getAllProducts();
-        setProducts(data || []);
-        setFeaturedProducts(getFeaturedProducts(data || []));
-        setAiResults(getAiResults(data || []));
-        
-        // Tính toán số lượng sản phẩm cho mỗi danh mục
-        const updatedCategories = CATEGORY_CONFIG.map(cat => ({
-          ...cat,
-          count: (data || []).filter(p => p.category && p.category.name === cat.name).length
-        }));
-        setCategories(updatedCategories);
+        const [productsResponse, categoriesResponse] = await Promise.all([
+          productAPI.getAllProducts(),
+          categoryAPI.getAllCategories(),
+        ]);
+
+        const rawProducts = Array.isArray(productsResponse)
+          ? productsResponse
+          : Array.isArray(productsResponse?.content)
+            ? productsResponse.content
+            : [];
+
+        const rawCategories = Array.isArray(categoriesResponse)
+          ? categoriesResponse
+          : Array.isArray(categoriesResponse?.content)
+            ? categoriesResponse.content
+            : [];
+
+        const normalizedCategories = rawCategories
+          .map(normalizeCategory)
+          .filter((category) => category.name && category.type);
+
+        const categorySource = normalizedCategories.length > 0
+          ? normalizedCategories
+          : buildCategoriesFromProducts(rawProducts);
+
+        setProducts(rawProducts);
+        setFeaturedProducts(getFeaturedProducts(rawProducts));
+        setAiResults(getAiResults(rawProducts));
+        setCategories(buildCategoryCards(categorySource, rawProducts));
       } catch (err) {
         console.error("Lỗi tải sản phẩm:", err);
         setError("Không thể tải dữ liệu sản phẩm");

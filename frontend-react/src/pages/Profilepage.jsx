@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useWishlist } from "../context/WishlistContext";
-import { ALL_PRODUCTS } from "../data/Products";
-import { userAPI, orderAPI } from "../services/api";
-import "./css/ProfilePage.css";
+import { useToast } from "../context/ToastContext";
+import { productAPI, userAPI, orderAPI, reviewAPI } from "../services/api";
+import "./css/Profilepage.css";
 
 // Lấy ảnh thumbnail từ sản phẩm (hỗ trợ cả images[] lẫn image)
 const getThumb = (p) => {
@@ -38,68 +38,38 @@ const resolveAvatarSrc = (avatar) => {
   return "";
 };
 
-const findProductByOrderItem = (item) => {
-  const productId = Number(item?.productId ?? item?.id);
-  if (Number.isFinite(productId)) {
-    const byId = ALL_PRODUCTS.find((product) => Number(product.id) === productId);
-    if (byId) return byId;
-  }
-
-  const productName = String(item?.productName || item?.name || "").trim().toLowerCase();
-  if (productName) {
-    const byName = ALL_PRODUCTS.find((product) => product.name.toLowerCase() === productName);
-    if (byName) return byName;
-  }
-
-  const productSku = String(item?.productSku || item?.sku || "").trim().toLowerCase();
-  if (productSku) {
-    const bySku = ALL_PRODUCTS.find((product) => String(product.sku || "").toLowerCase() === productSku);
-    if (bySku) return bySku;
-  }
-
-  return null;
-};
-
-const resolveOrderItemImage = (item) => {
-  if (item?.image) return item.image;
-  if (item?.productImage) return item.productImage;
-
-  const product = findProductByOrderItem(item);
-  return getThumb(product) || "https://via.placeholder.com/120?text=UniqTee";
-};
-
 const formatOrderDate = (value) => {
   if (!value) return "";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString("vi-VN");
 };
 
-const normalizeOrderItem = (item, index) => {
-  const product = findProductByOrderItem(item);
+const normalizeOrderItem = (item, index, productImageMap = {}) => {
   const qtyValue = Number(item?.qty ?? item?.quantity ?? 1);
   const qty = Number.isFinite(qtyValue) && qtyValue > 0 ? qtyValue : 1;
-  const unitPriceValue = Number(item?.unitPrice ?? product?.price ?? 0);
+  const unitPriceValue = Number(item?.unitPrice ?? 0);
   const unitPrice = Number.isFinite(unitPriceValue) ? unitPriceValue : 0;
   const subtotalValue = Number(item?.subtotal);
   const subtotal = Number.isFinite(subtotalValue) ? subtotalValue : unitPrice * qty;
+  const productId = Number(item?.productId ?? item?.id);
 
   return {
-    id: item?.id ?? item?.productId ?? `${product?.name || "item"}-${index}`,
-    productId: item?.productId ?? product?.id ?? null,
-    productName: item?.productName || product?.name || "Sản phẩm",
-    productSku: item?.productSku || product?.sku || "",
+    id: item?.id ?? item?.productId ?? `item-${index}`,
+    productId: Number.isFinite(productId) ? productId : null,
+    productName: item?.productName || item?.name || "Sản phẩm",
+    productSku: item?.productSku || item?.sku || "",
     color: item?.color || "",
     size: item?.size || "",
     qty,
     unitPrice,
     subtotal,
-    image: resolveOrderItemImage(item),
+    image: item?.image || item?.productImage || (Number.isFinite(productId) ? productImageMap[productId] : "") || "https://via.placeholder.com/120?text=UniqTee",
   };
 };
 
-const normalizeOrder = (order, index = 0) => {
+const normalizeOrder = (order, index = 0, productImageMap = {}) => {
   const items = Array.isArray(order?.items)
-    ? order.items.map((item, itemIndex) => normalizeOrderItem(item, itemIndex))
+    ? order.items.map((item, itemIndex) => normalizeOrderItem(item, itemIndex, productImageMap))
     : [];
 
   const shippingFeeValue = Number(order?.shippingFee ?? order?.shipping ?? 0);
@@ -208,6 +178,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { wishlist, removeFromWishlist } = useWishlist();
+  const { addToast } = useToast();
   const currentUserId = user?.id || localStorage.getItem("userId");
   const isAdmin = user?.role === "admin" || user?.role === "staff";
   const [activeTab, setActiveTab] = useState("orders");
@@ -216,6 +187,14 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [reviewForm, setReviewForm] = useState({
+    reviewerName: "",
+    rating: 5,
+    content: "",
+  });
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   // State cho password change
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -318,8 +297,32 @@ export default function ProfilePage() {
               ? ordersData.content
               : [];
 
+          const productIds = Array.from(
+            new Set(
+              orderList
+                .flatMap((order) => (Array.isArray(order?.items) ? order.items : []))
+                .map((item) => Number(item?.productId))
+                .filter((productId) => Number.isFinite(productId) && productId > 0)
+            )
+          );
+
+          const productImagePairs = await Promise.all(
+            productIds.map(async (productId) => {
+              try {
+                const product = await productAPI.getProductById(productId);
+                return [productId, getThumb(product) || ""];
+              } catch (productError) {
+                return [productId, ""];
+              }
+            })
+          );
+
+          const productImageMap = Object.fromEntries(
+            productImagePairs.filter(([, image]) => Boolean(image))
+          );
+
           const formattedOrders = orderList
-            .map((order, index) => normalizeOrder(order, index))
+            .map((order, index) => normalizeOrder(order, index, productImageMap))
             .sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0));
 
           setOrders(formattedOrders);
@@ -518,6 +521,65 @@ export default function ProfilePage() {
     }
   };
 
+  const openReviewForm = (order, item) => {
+    const productId = Number(item?.productId);
+    if (!Number.isFinite(productId)) {
+      return;
+    }
+
+    setReviewTarget({
+      orderId: order.id,
+      orderCode: order.orderCode,
+      productId,
+      productName: item.productName || "Sản phẩm",
+    });
+    setReviewForm({
+      reviewerName: profile.fullName || user?.name || "",
+      rating: 5,
+      content: "",
+    });
+    setReviewError("");
+    setSelectedOrderId(order.id);
+  };
+
+  const closeReviewForm = () => {
+    setReviewTarget(null);
+    setReviewError("");
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTarget) {
+      return;
+    }
+
+    try {
+      setReviewLoading(true);
+      setReviewError("");
+
+      const payload = {
+        productId: reviewTarget.productId,
+        rating: Number(reviewForm.rating) || 5,
+        reviewerName: reviewForm.reviewerName?.trim() || profile.fullName || user?.name || "Khách hàng",
+        content: reviewForm.content?.trim() || "",
+      };
+
+      await reviewAPI.createReview(payload);
+      addToast("Gửi đánh giá thành công", "success", 3000);
+      setReviewTarget(null);
+      setReviewForm({
+        reviewerName: profile.fullName || user?.name || "",
+        rating: 5,
+        content: "",
+      });
+    } catch (err) {
+      const message = err.message || "Không thể gửi đánh giá";
+      setReviewError(message);
+      addToast(message, "error", 4000);
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
   const NavItem = ({ tabKey, icon, label, badge }) => (
     <div className={`profile-nav-item ${activeTab === tabKey ? "active" : ""}`} onClick={() => setActiveTab(tabKey)}>
       {icon}
@@ -576,41 +638,10 @@ export default function ProfilePage() {
     <div className="profile-page">
       {/* Admin/Staff back button */}
       {isAdmin && (
-        <div style={{
-          padding: "16px",
-          background: "linear-gradient(135deg, #ff5fa3 0%, #ff7fb8 100%)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: "12px"
-        }}>
+        <div className="profile-admin-banner">
           <Link 
             to={user?.role === "admin" ? "/admin" : "/admin/orders"}
-            style={{
-              padding: "10px 24px",
-              background: "white",
-              color: "#ff5fa3",
-              textDecoration: "none",
-              borderRadius: "25px",
-              fontWeight: "600",
-              fontSize: "14px",
-              transition: "all 0.3s ease",
-              cursor: "pointer",
-              border: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              boxShadow: "0 4px 12px rgba(255, 95, 163, 0.3)",
-              textAlign: "center"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 95, 163, 0.4)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 95, 163, 0.3)";
-            }}
+            className="profile-admin-banner-link"
           >
             ← Quay lại {user?.role === "admin" ? "Admin" : "Staff"}
           </Link>
@@ -805,9 +836,10 @@ export default function ProfilePage() {
                 </div>
 
                 {filteredOrders.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-                    <p style={{ fontSize: "2rem", marginBottom: 12 }}>📦</p>
-                    <p>Không có đơn hàng nào</p>
+                  <div className="profile-empty-state">
+                    <p className="profile-empty-state-icon">📦</p>
+                    <p className="profile-empty-state-title">Không có đơn hàng nào</p>
+                    <p className="profile-empty-state-subtitle">Khi bạn đặt hàng, toàn bộ trạng thái và chi tiết sẽ hiển thị tại đây.</p>
                   </div>
                 ) : (
                   filteredOrders.map((order) => {
@@ -908,13 +940,255 @@ export default function ProfilePage() {
                                         {item.color || "—"} · Size {item.size || "—"} · x{item.qty}
                                       </p>
                                     </div>
-                                    <span style={{ fontWeight: 700, color: "var(--accent)" }}>{formatPrice(item.subtotal)}</span>
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+                                      <span style={{ fontWeight: 700, color: "var(--accent)" }}>{formatPrice(item.subtotal)}</span>
+                                      {normalizedStatus === "delivered" && Number.isFinite(Number(item.productId)) && (
+                                        <button
+                                          type="button"
+                                          className="order-action-btn primary"
+                                          onClick={() => openReviewForm(order, item)}
+                                        >
+                                          Đánh giá
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
                             ) : (
                               <p style={{ margin: 0, color: "var(--text-muted)" }}>Không có sản phẩm</p>
                             )}
+
+                            {reviewTarget && reviewTarget.orderId === order.id && (
+                              <div
+                                className="review-compose-card"
+                                style={{
+                                  marginTop: 18,
+                                  padding: 20,
+                                  borderRadius: 24,
+                                  border: "1px solid rgba(var(--accent-rgb), 0.18)",
+                                  background:
+                                    "linear-gradient(180deg, rgba(var(--accent-rgb), 0.09) 0%, rgba(17,17,20,0.98) 28%, rgba(17,17,20,0.98) 100%)",
+                                  boxShadow: "0 20px 48px rgba(0, 0, 0, 0.22)",
+                                }}
+                              >
+                                <div
+                                  className="review-compose-header"
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    justifyContent: "space-between",
+                                    gap: 12,
+                                    marginBottom: 16,
+                                  }}
+                                >
+                                  <div style={{ minWidth: 0 }}>
+                                    <p
+                                      className="review-compose-title"
+                                      style={{
+                                        margin: 0,
+                                        fontFamily: "var(--font-display)",
+                                        fontSize: "1.05rem",
+                                        fontWeight: 800,
+                                        color: "var(--text-primary)",
+                                      }}
+                                    >
+                                      Đánh giá {reviewTarget.productName}
+                                    </p>
+                                    <p
+                                      className="review-compose-subtitle"
+                                      style={{
+                                        margin: "6px 0 0",
+                                        color: "var(--text-secondary)",
+                                        fontSize: "0.86rem",
+                                        lineHeight: 1.55,
+                                        maxWidth: 680,
+                                      }}
+                                    >
+                                      Chỉ gửi sau khi đơn đã được giao. Nếu chấm 5 sao, nội dung nên tích cực hoặc trung tính.
+                                    </p>
+                                  </div>
+                                  <button type="button" className="order-action-btn" onClick={closeReviewForm}>
+                                    Đóng
+                                  </button>
+                                </div>
+
+                                {reviewError && (
+                                  <div
+                                    className="review-compose-error"
+                                    style={{
+                                      marginBottom: 14,
+                                      padding: "11px 14px",
+                                      borderRadius: 14,
+                                      border: "1px solid rgba(255, 107, 107, 0.24)",
+                                      background: "rgba(255, 107, 107, 0.08)",
+                                      color: "#ff9a9a",
+                                      fontSize: "0.88rem",
+                                    }}
+                                  >
+                                    {reviewError}
+                                  </div>
+                                )}
+
+                                <div
+                                  className="review-compose-grid"
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                                    gap: 14,
+                                  }}
+                                >
+                                  <div className="review-compose-field" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    <span
+                                      className="review-compose-label"
+                                      style={{
+                                        fontSize: "0.72rem",
+                                        fontWeight: 700,
+                                        letterSpacing: "0.08em",
+                                        textTransform: "uppercase",
+                                        color: "var(--text-muted)",
+                                      }}
+                                    >
+                                      Tên hiển thị
+                                    </span>
+                                    <input
+                                      type="text"
+                                      className="review-compose-input"
+                                      value={reviewForm.reviewerName}
+                                      onChange={(e) => setReviewForm((prev) => ({ ...prev, reviewerName: e.target.value }))}
+                                      placeholder="Ví dụ: Minh Anh"
+                                      style={{
+                                        width: "100%",
+                                        minHeight: 48,
+                                        padding: "12px 14px",
+                                        borderRadius: 16,
+                                        border: "1px solid var(--border-2)",
+                                        background: "rgba(255, 255, 255, 0.04)",
+                                        color: "var(--text-primary)",
+                                        fontSize: "0.95rem",
+                                        outline: "none",
+                                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
+                                      }}
+                                    />
+                                  </div>
+
+                                  <div className="review-compose-field" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    <span
+                                      className="review-compose-label"
+                                      style={{
+                                        fontSize: "0.72rem",
+                                        fontWeight: 700,
+                                        letterSpacing: "0.08em",
+                                        textTransform: "uppercase",
+                                        color: "var(--text-muted)",
+                                      }}
+                                    >
+                                      Số sao
+                                    </span>
+                                    <div
+                                      className="review-star-picker"
+                                      style={{
+                                        display: "flex",
+                                        gap: 10,
+                                        flexWrap: "wrap",
+                                        alignItems: "center",
+                                      }}
+                                    >
+                                      {[1, 2, 3, 4, 5].map((star) => {
+                                        const active = Number(reviewForm.rating) === star;
+                                        return (
+                                          <button
+                                            key={star}
+                                            type="button"
+                                            className={`review-star-btn ${active ? "active" : ""}`}
+                                            onClick={() => setReviewForm((prev) => ({ ...prev, rating: star }))}
+                                            style={{
+                                              width: 48,
+                                              height: 48,
+                                              borderRadius: 16,
+                                              border: active ? "1px solid rgba(var(--accent-rgb), 0.45)" : "1px solid var(--border-2)",
+                                              background: active
+                                                ? "linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)"
+                                                : "rgba(255, 255, 255, 0.04)",
+                                              color: active ? "#fff" : "var(--text-muted)",
+                                              fontSize: "1.05rem",
+                                              fontWeight: 800,
+                                              boxShadow: active ? "0 12px 24px rgba(var(--accent-rgb), 0.26)" : "none",
+                                              transition: "transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease",
+                                            }}
+                                          >
+                                            ★
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="review-compose-field"
+                                    style={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: 8,
+                                      gridColumn: "1 / -1",
+                                    }}
+                                  >
+                                    <span
+                                      className="review-compose-label"
+                                      style={{
+                                        fontSize: "0.72rem",
+                                        fontWeight: 700,
+                                        letterSpacing: "0.08em",
+                                        textTransform: "uppercase",
+                                        color: "var(--text-muted)",
+                                      }}
+                                    >
+                                      Bình luận
+                                    </span>
+                                    <textarea
+                                      className="review-compose-textarea"
+                                      rows={4}
+                                      value={reviewForm.content}
+                                      onChange={(e) => setReviewForm((prev) => ({ ...prev, content: e.target.value }))}
+                                      placeholder="Hãy chia sẻ cảm nhận của bạn về sản phẩm"
+                                      style={{
+                                        width: "100%",
+                                        minHeight: 128,
+                                        padding: "14px 16px",
+                                        borderRadius: 18,
+                                        border: "1px solid var(--border-2)",
+                                        background: "rgba(255, 255, 255, 0.04)",
+                                        color: "var(--text-primary)",
+                                        fontSize: "0.95rem",
+                                        lineHeight: 1.65,
+                                        resize: "vertical",
+                                        outline: "none",
+                                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div
+                                  className="review-compose-actions"
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                    gap: 10,
+                                    flexWrap: "wrap",
+                                    marginTop: 16,
+                                  }}
+                                >
+                                  <button type="button" className="btn-secondary" onClick={closeReviewForm}>
+                                    Hủy
+                                  </button>
+                                  <button type="button" className="btn-primary" onClick={handleSubmitReview} disabled={reviewLoading}>
+                                    {reviewLoading ? "Đang gửi..." : "Gửi đánh giá"}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
                               <span>Phí vận chuyển</span>
                               <span>{Number(order.shippingFee || 0) === 0 ? "Miễn phí" : formatPrice(order.shippingFee)}</span>
@@ -940,9 +1214,10 @@ export default function ProfilePage() {
                   Sản phẩm yêu thích ({wishlist.length})
                 </p>
                 {wishlist.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-                    <p style={{ fontSize: "2rem", marginBottom: "16px" }}>💔</p>
-                    <p>Bạn chưa có sản phẩm yêu thích nào</p>
+                  <div className="profile-empty-state">
+                    <p className="profile-empty-state-icon">💔</p>
+                    <p className="profile-empty-state-title">Bạn chưa có sản phẩm yêu thích nào</p>
+                    <p className="profile-empty-state-subtitle">Lưu lại các mẫu bạn thích để quay lại mua nhanh hơn.</p>
                   </div>
                 ) : (
                   <div className="wishlist-grid">
@@ -1064,7 +1339,7 @@ export default function ProfilePage() {
                     </div>
                   </>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div className="profile-detail-list">
                     {[
                       { label: "Họ và tên", value: profile.fullName || "Chưa cập nhật", icon: "👤" },
                       { label: "Email", value: profile.email || "Chưa cập nhật", icon: "✉️" },
@@ -1073,11 +1348,11 @@ export default function ProfilePage() {
                       { label: "Giới tính", value: { female: "Nữ", male: "Nam", other: "Khác" }[profile.gender] || "Chưa cập nhật", icon: "🌸" },
                       { label: "Địa chỉ", value: profile.address || "Chưa cập nhật", icon: "📍" },
                     ].map(({ label, value, icon }) => (
-                      <div key={label} style={{ display: "flex", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
-                        <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{icon}</span>
-                        <div>
-                          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: 2 }}>{label}</p>
-                          <p style={{ fontSize: "0.9rem" }}>{value}</p>
+                      <div key={label} className="profile-detail-row">
+                        <span className="profile-detail-icon">{icon}</span>
+                        <div className="profile-detail-copy">
+                          <p className="profile-detail-label">{label}</p>
+                          <p className="profile-detail-value">{value}</p>
                         </div>
                       </div>
                     ))}
@@ -1094,17 +1369,8 @@ export default function ProfilePage() {
                   Bảo mật tài khoản
                 </p>
 
-                {/* Change Password */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 16,
-                    padding: 16,
-                    background: showChangePassword ? "var(--accent-dim)" : "var(--surface)",
-                    borderRadius: 12,
-                    border: "1px solid " + (showChangePassword ? "var(--accent)" : "var(--border)")
-                  }}>
+                <div className="security-stack">
+                  <div className={`security-callout ${showChangePassword ? "active" : ""}`}>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontWeight: 600, marginBottom: 2 }}>🔐 Đổi mật khẩu</p>
                       <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
@@ -1118,17 +1384,10 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  {/* Change Password Form */}
                   {showChangePassword && (
-                    <div style={{
-                      padding: 20,
-                      background: "var(--surface)",
-                      borderRadius: 12,
-                      border: "1px solid var(--border)"
-                    }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                        {/* Old Password */}
-                        <div>
+                    <div className="security-form">
+                      <div className="security-fields">
+                        <div className="security-field">
                           <label style={{
                             fontSize: "0.8rem",
                             fontWeight: 600,
@@ -1141,17 +1400,13 @@ export default function ProfilePage() {
                           }}>
                             Mật khẩu cũ
                           </label>
-                          <div style={{
-                            position: "relative",
-                            display: "flex",
-                            alignItems: "center"
-                          }}>
+                          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                             <input
                               type={showOldPassword ? "text" : "password"}
                               placeholder="Nhập mật khẩu cũ"
                               value={passwordForm.oldPassword}
                               onChange={(e) => {
-                                setPasswordForm(prev => ({ ...prev, oldPassword: e.target.value }));
+                                setPasswordForm((prev) => ({ ...prev, oldPassword: e.target.value }));
                                 setPasswordError(null);
                               }}
                               style={{
@@ -1168,8 +1423,8 @@ export default function ProfilePage() {
                                 boxSizing: "border-box",
                                 transition: "border-color 0.2s"
                               }}
-                              onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
-                              onBlur={(e) => e.target.style.borderColor = "var(--border-2)"}
+                              onFocus={(e) => { e.target.style.borderColor = "var(--accent)"; }}
+                              onBlur={(e) => { e.target.style.borderColor = "var(--border-2)"; }}
                             />
                             <button
                               type="button"
@@ -1188,8 +1443,8 @@ export default function ProfilePage() {
                                 color: "var(--text-secondary)",
                                 transition: "color 0.2s"
                               }}
-                              onMouseEnter={(e) => e.target.style.color = "var(--accent)"}
-                              onMouseLeave={(e) => e.target.style.color = "var(--text-secondary)"}
+                              onMouseEnter={(e) => { e.target.style.color = "var(--accent)"; }}
+                              onMouseLeave={(e) => { e.target.style.color = "var(--text-secondary)"; }}
                               title={showOldPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"}
                             >
                               {showOldPassword ? "👁️" : "👁️‍🗨️"}
@@ -1197,8 +1452,7 @@ export default function ProfilePage() {
                           </div>
                         </div>
 
-                        {/* New Password */}
-                        <div>
+                        <div className="security-field">
                           <label style={{
                             fontSize: "0.8rem",
                             fontWeight: 600,
@@ -1211,17 +1465,13 @@ export default function ProfilePage() {
                           }}>
                             Mật khẩu mới
                           </label>
-                          <div style={{
-                            position: "relative",
-                            display: "flex",
-                            alignItems: "center"
-                          }}>
+                          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                             <input
                               type={showNewPassword ? "text" : "password"}
                               placeholder="Nhập mật khẩu mới"
                               value={passwordForm.newPassword}
                               onChange={(e) => {
-                                setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }));
+                                setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }));
                                 setPasswordError(null);
                               }}
                               style={{
@@ -1238,8 +1488,8 @@ export default function ProfilePage() {
                                 boxSizing: "border-box",
                                 transition: "border-color 0.2s"
                               }}
-                              onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
-                              onBlur={(e) => e.target.style.borderColor = "var(--border-2)"}
+                              onFocus={(e) => { e.target.style.borderColor = "var(--accent)"; }}
+                              onBlur={(e) => { e.target.style.borderColor = "var(--border-2)"; }}
                             />
                             <button
                               type="button"
@@ -1258,8 +1508,8 @@ export default function ProfilePage() {
                                 color: "var(--text-secondary)",
                                 transition: "color 0.2s"
                               }}
-                              onMouseEnter={(e) => e.target.style.color = "var(--accent)"}
-                              onMouseLeave={(e) => e.target.style.color = "var(--text-secondary)"}
+                              onMouseEnter={(e) => { e.target.style.color = "var(--accent)"; }}
+                              onMouseLeave={(e) => { e.target.style.color = "var(--text-secondary)"; }}
                               title={showNewPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"}
                             >
                               {showNewPassword ? "👁️" : "👁️‍🗨️"}
@@ -1267,13 +1517,11 @@ export default function ProfilePage() {
                           </div>
                         </div>
 
-                        {/* Password Strength Indicator */}
                         {passwordForm.newPassword && (
                           <PasswordStrengthChecker password={passwordForm.newPassword} />
                         )}
 
-                        {/* Confirm Password */}
-                        <div>
+                        <div className="security-field">
                           <label style={{
                             fontSize: "0.8rem",
                             fontWeight: 600,
@@ -1286,17 +1534,13 @@ export default function ProfilePage() {
                           }}>
                             Xác nhận mật khẩu mới
                           </label>
-                          <div style={{
-                            position: "relative",
-                            display: "flex",
-                            alignItems: "center"
-                          }}>
+                          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                             <input
                               type={showConfirmPassword ? "text" : "password"}
                               placeholder="Nhập lại mật khẩu mới"
                               value={passwordForm.confirmPassword}
                               onChange={(e) => {
-                                setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }));
+                                setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }));
                                 setPasswordError(null);
                               }}
                               style={{
@@ -1313,8 +1557,8 @@ export default function ProfilePage() {
                                 boxSizing: "border-box",
                                 transition: "border-color 0.2s"
                               }}
-                              onFocus={(e) => e.target.style.borderColor = "var(--accent)"}
-                              onBlur={(e) => e.target.style.borderColor = "var(--border-2)"}
+                              onFocus={(e) => { e.target.style.borderColor = "var(--accent)"; }}
+                              onBlur={(e) => { e.target.style.borderColor = "var(--border-2)"; }}
                             />
                             <button
                               type="button"
@@ -1333,8 +1577,8 @@ export default function ProfilePage() {
                                 color: "var(--text-secondary)",
                                 transition: "color 0.2s"
                               }}
-                              onMouseEnter={(e) => e.target.style.color = "var(--accent)"}
-                              onMouseLeave={(e) => e.target.style.color = "var(--text-secondary)"}
+                              onMouseEnter={(e) => { e.target.style.color = "var(--accent)"; }}
+                              onMouseLeave={(e) => { e.target.style.color = "var(--text-secondary)"; }}
                               title={showConfirmPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"}
                             >
                               {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
@@ -1342,36 +1586,15 @@ export default function ProfilePage() {
                           </div>
                         </div>
 
-                        {/* Error Message */}
                         {passwordError && (
-                          <div style={{
-                            padding: 10,
-                            background: "rgba(255, 107, 107, 0.1)",
-                            border: "1px solid rgba(255, 107, 107, 0.3)",
-                            borderRadius: 8,
-                            color: "#ff6b6b",
-                            fontSize: "0.85rem"
-                          }}>
-                            ❌ {passwordError}
-                          </div>
+                          <div className="security-message error">❌ {passwordError}</div>
                         )}
 
-                        {/* Success Message */}
                         {passwordSuccess && (
-                          <div style={{
-                            padding: 10,
-                            background: "rgba(62, 207, 142, 0.1)",
-                            border: "1px solid rgba(62, 207, 142, 0.3)",
-                            borderRadius: 8,
-                            color: "#3ecf8e",
-                            fontSize: "0.85rem"
-                          }}>
-                            ✓ Mật khẩu đã được thay đổi thành công
-                          </div>
+                          <div className="security-message success">✓ Mật khẩu đã được thay đổi thành công</div>
                         )}
 
-                        {/* Buttons */}
-                        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                        <div className="security-actions">
                           <button
                             className="btn-primary"
                             onClick={handleChangePassword}

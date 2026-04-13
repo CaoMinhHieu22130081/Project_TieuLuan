@@ -80,6 +80,7 @@ export function CartProvider({ children }) {
           {
             cartItemId,
             productId: product.id,
+            sku: product.sku || '',
             name: product.name,
             price: product.price,
             originalPrice: product.originalPrice,
