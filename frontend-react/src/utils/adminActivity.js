@@ -2,6 +2,7 @@ const STORAGE_KEY = "uniqtee-admin-activity-log";
 export const ADMIN_ACTIVITY_EVENT = "uniqtee-admin-activity-changed";
 
 const MAX_ITEMS = 30;
+const NOTIFICATION_TTL_HOURS = 24;
 const DEFAULT_ICON = "ℹ️";
 
 const ICON_MAP = {
@@ -19,6 +20,14 @@ const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}
 const parseDate = (value) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const isWithinHours = (value, hours) => {
+  const date = parseDate(value);
+  if (!date) return false;
+
+  const diff = Date.now() - date.getTime();
+  return diff >= 0 && diff <= hours * 60 * 60 * 1000;
 };
 
 const normalizeNotification = (entry = {}, fallbackSource = "activity") => {
@@ -63,6 +72,20 @@ const emitChange = () => {
 
 const sortByNewest = (items) => [...items].sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0));
 
+const filterByAge = (items, hours = NOTIFICATION_TTL_HOURS) =>
+  sortByNewest((items || []).filter((item) => isWithinHours(item?.createdAt, hours)));
+
+const readAndPruneStorage = () => {
+  const items = readStorage();
+  const pruned = filterByAge(items);
+
+  if (pruned.length !== items.length) {
+    writeStorage(pruned);
+  }
+
+  return pruned;
+};
+
 export const formatRelativeTime = (value) => {
   const date = parseDate(value);
   if (!date) return "Vừa xong";
@@ -82,7 +105,9 @@ export const formatRelativeTime = (value) => {
   return date.toLocaleDateString("vi-VN");
 };
 
-export const readAdminActivityLog = () => sortByNewest(readStorage());
+export const readAdminActivityLog = () => readAndPruneStorage();
+
+export const filterNotificationsWithinHours = (items = [], hours = NOTIFICATION_TTL_HOURS) => filterByAge(items, hours);
 
 export const recordAdminActivity = (entry) => {
   const normalized = normalizeNotification({ ...entry, source: "activity", unread: entry?.unread ?? true });

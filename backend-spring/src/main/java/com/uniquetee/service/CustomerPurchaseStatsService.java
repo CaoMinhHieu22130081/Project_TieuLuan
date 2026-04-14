@@ -25,7 +25,7 @@ public class CustomerPurchaseStatsService {
 
             orderCount += 1;
 
-            if (isCancelled(order.getStatus())) {
+            if (!isSpendableOrder(order)) {
                 continue;
             }
 
@@ -52,5 +52,28 @@ public class CustomerPurchaseStatsService {
 
     private boolean isCancelled(String status) {
         return status != null && "cancelled".equalsIgnoreCase(status.trim());
+    }
+
+    private boolean isSpendableOrder(Order order) {
+        if (order == null || isCancelled(order.getStatus())) {
+            return false;
+        }
+
+        String paymentMethod = normalizePaymentMethod(order.getPaymentMethod());
+        String status = normalizeStatus(order.getStatus());
+
+        if ("cod".equals(paymentMethod)) {
+            return true;
+        }
+
+        return status != null && !"pending".equals(status);
+    }
+
+    private String normalizePaymentMethod(String paymentMethod) {
+        return paymentMethod == null ? "cod" : paymentMethod.trim().toLowerCase();
+    }
+
+    private String normalizeStatus(String status) {
+        return status == null ? null : status.trim().toLowerCase();
     }
 }

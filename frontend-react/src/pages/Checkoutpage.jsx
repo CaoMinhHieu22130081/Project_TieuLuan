@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { orderAPI } from "../services/api";
+import { orderAPI, paymentAPI } from "../services/api";
 import "./css/Checkoutpage.css";
 
 const STEPS = ["Thông tin", "Thanh toán", "Xác nhận"];
@@ -36,7 +36,8 @@ const getItemImage = (item) => item?.image || "https://via.placeholder.com/100x1
 export default function CheckoutPage() {
   const location = useLocation();
   const { user } = useAuth();
-  const { cart, removeFromCart } = useCart();
+  const { cart, removeFromCart, loading: cartLoading } = useCart();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const selectedItemIds = Array.isArray(location.state?.selectedItems)
     ? location.state.selectedItems
@@ -53,6 +54,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [orderResult, setOrderResult] = useState(null);
+  const [paymentResultType, setPaymentResultType] = useState("");
 
   const [shippingForm, setShippingForm] = useState({
     fullName: "",
@@ -77,6 +79,57 @@ export default function CheckoutPage() {
     }));
   }, [user]);
 
+  useEffect(() => {
+    if (cartLoading) {
+      return;
+    }
+
+    const paymentResult = searchParams.get("paymentResult");
+    const orderCode = searchParams.get("orderCode");
+
+    if (!paymentResult || !orderCode) {
+      return;
+    }
+
+    const clearPendingVnpayCheckout = (pendingIds = []) => {
+      pendingIds.forEach((cartItemId) => removeFromCart(cartItemId));
+      sessionStorage.removeItem("pendingVnpayCheckout");
+    };
+
+    const handleVnpayResult = async () => {
+      try {
+        const storedPendingCheckoutRaw = sessionStorage.getItem("pendingVnpayCheckout");
+        const storedPendingCheckout = storedPendingCheckoutRaw ? JSON.parse(storedPendingCheckoutRaw) : null;
+        const pendingIds = Array.isArray(storedPendingCheckout?.cartItemIds) ? storedPendingCheckout.cartItemIds : [];
+
+        if (paymentResult === "success" || paymentResult === "waiting") {
+          const paidOrder = await orderAPI.getOrderByCode(orderCode);
+          clearPendingVnpayCheckout(pendingIds);
+          setOrderResult(paidOrder || { orderCode, paymentMethod: "vnpay" });
+          setPaymentResultType(paymentResult === "waiting" ? "vnpay-waiting" : "vnpay");
+          setSuccess(true);
+          setStep(2);
+          setError("");
+        } else {
+          sessionStorage.removeItem("pendingVnpayCheckout");
+          setPaymentResultType("vnpay");
+          setSuccess(false);
+          setStep(1);
+          setError("Thanh toán VNPAY không thành công hoặc đã bị hủy. Bạn có thể thử lại.");
+        }
+      } catch (callbackError) {
+        console.error("Error handling VNPay return:", callbackError);
+        setError(callbackError.message || "Không thể xác nhận kết quả thanh toán VNPay.");
+        setSuccess(false);
+        setStep(1);
+      } finally {
+        setSearchParams({}, { replace: true });
+      }
+    };
+
+    handleVnpayResult();
+  }, [cartLoading, removeFromCart, searchParams, setSearchParams]);
+
   const subtotal = checkoutItems.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1),
     0
@@ -97,7 +150,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    const fullName = shippingForm.fullName.trim();
+    const fullName = shippingForm.fullName.trim() || user?.name?.trim() || "";
     const phone = shippingForm.phone.trim();
     const email = shippingForm.email.trim();
     const address = shippingForm.address.trim();
@@ -105,8 +158,16 @@ export default function CheckoutPage() {
     const district = shippingForm.district.trim();
     const city = shippingForm.city.trim();
 
-    if (!fullName || !phone || !address || !ward || !district || !city) {
-      setError("Vui lòng nhập đầy đủ họ tên, số điện thoại và địa chỉ giao hàng.");
+    const missingFields = [];
+    if (!fullName) missingFields.push("họ tên");
+    if (!phone) missingFields.push("số điện thoại");
+    if (!address) missingFields.push("địa chỉ");
+    if (!ward) missingFields.push("phường/xã");
+    if (!district) missingFields.push("quận/huyện");
+    if (!city) missingFields.push("tỉnh/thành phố");
+
+    if (missingFields.length > 0) {
+      setError(`Vui lòng nhập đầy đủ ${missingFields.join(", ")}.`);
       return;
     }
 
@@ -149,9 +210,30 @@ export default function CheckoutPage() {
 
       const createdOrder = await orderAPI.createOrder(orderPayload);
 
+      if (selectedPaymentMethod === "vnpay") {
+        const paymentResponse = await paymentAPI.createVnpayPayment(createdOrder?.orderCode || orderPayload.orderCode);
+        const paymentUrl = paymentResponse?.paymentUrl;
+
+        if (!paymentUrl) {
+          throw new Error("Không thể khởi tạo thanh toán VNPay. Vui lòng thử lại.");
+        }
+
+        sessionStorage.setItem(
+          "pendingVnpayCheckout",
+          JSON.stringify({
+            orderCode: createdOrder?.orderCode || orderPayload.orderCode,
+            cartItemIds: checkoutItems.map((item) => item.cartItemId),
+          })
+        );
+
+        window.location.assign(paymentUrl);
+        return;
+      }
+
       checkoutItems.forEach((item) => removeFromCart(item.cartItemId));
 
       setOrderResult(createdOrder || { orderCode: orderPayload.orderCode, paymentMethod: selectedPaymentMethod });
+      setPaymentResultType("cod");
       setSuccess(true);
       setStep(2);
     } catch (submitError) {
@@ -161,7 +243,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (!success && cart.length === 0) {
+  if (!success && !cartLoading && cart.length === 0) {
     return (
       <div className="checkout-page">
         <div className="checkout-inner">
@@ -198,20 +280,30 @@ export default function CheckoutPage() {
   }
 
   if (success) {
+    const isVnpayWaiting = paymentResultType === "vnpay-waiting";
     return (
       <div className="checkout-page">
         <div className="checkout-inner">
           <div className="checkout-success">
             <div className="success-animation">🌸</div>
-            <h2>Đặt hàng thành công!</h2>
+            <h2>{isVnpayWaiting ? "Thanh toán VNPAY đã được ghi nhận" : paymentResultType === "vnpay" ? "Thanh toán VNPAY thành công!" : "Đặt hàng thành công!"}</h2>
             <p>Cảm ơn bạn đã mua sắm tại <strong>UniqTee</strong></p>
-            <p>Đơn hàng sẽ được xử lý trong thời gian sớm nhất.</p>
+            <p>
+              {isVnpayWaiting
+                ? "Đơn hàng đang chờ VNPay xác nhận. Khi xác nhận hoàn tất, trạng thái sẽ chuyển sang đang xử lý."
+                : paymentResultType === "vnpay"
+                ? "Thanh toán đã được xác nhận, đơn hàng sẽ được xử lý trong thời gian sớm nhất."
+                : "Đơn hàng sẽ được xử lý trong thời gian sớm nhất."}
+            </p>
             <div className="order-code">
               Mã đơn hàng: #{orderResult?.orderCode || orderResult?.id || "UNQ"}
             </div>
             <p>
               Phương thức thanh toán: <strong>{formatPaymentMethod(orderResult?.paymentMethod || payMethod)}</strong>
             </p>
+            {isVnpayWaiting && (
+              <p>Trạng thái hiện tại: đang chờ xác nhận thanh toán từ VNPay.</p>
+            )}
             {(orderResult?.paymentMethod || payMethod || "").toLowerCase() === "cod" && (
               <p>Bạn thanh toán bằng tiền mặt khi nhận hàng.</p>
             )}

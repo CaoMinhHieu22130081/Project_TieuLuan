@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   ADMIN_ACTIVITY_EVENT,
   formatRelativeTime,
+  filterNotificationsWithinHours,
   markAdminActivitiesRead,
   mergeNotifications,
   readAdminActivityLog,
@@ -169,6 +170,7 @@ export function AdminSidebar({ mobileOpen, onClose }) {
 /* ── Top Header bar (mobile + breadcrumb + actions) ─────────── */
 export function AdminHeader({ title, subtitle, actions, onMenuOpen, notifications = [] }) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [activityNotifications, setActivityNotifications] = useState(() => readAdminActivityLog());
   const { user } = useAuth();
   const role = String(user?.role || "").toLowerCase();
@@ -191,12 +193,19 @@ export function AdminHeader({ title, subtitle, actions, onMenuOpen, notification
   }, []);
 
   const mergedNotifications = mergeNotifications(notifications, activityNotifications);
-  const unreadCount = mergedNotifications.filter((notification) => notification.unread !== false).length;
+  const recentNotifications = filterNotificationsWithinHours(mergedNotifications, 24);
+  const unreadCount = recentNotifications.filter((notification) => notification.unread !== false).length;
+  const visibleNotifications = showAllNotifications
+    ? recentNotifications
+    : recentNotifications.slice(0, 5);
+  const hasMoreNotifications = recentNotifications.length > 5;
 
   const handleNotifToggle = () => {
     setNotifOpen((current) => {
       if (!current) {
         markAdminActivitiesRead();
+      } else {
+        setShowAllNotifications(false);
       }
 
       return !current;
@@ -260,24 +269,36 @@ export function AdminHeader({ title, subtitle, actions, onMenuOpen, notification
                   <p className="ah-notif-title">Thông báo</p>
                   <span className="ah-notif-count">{unreadCount} mới</span>
                 </div>
-                {mergedNotifications.length > 0 ? mergedNotifications.map((notification) => (
-                  <div key={notification.id} className={`ah-notif-item ${notification.unread ? "unread" : ""}`}>
-                    <span className="ah-notif-icon">{notification.icon}</span>
-                    <div className="ah-notif-body">
-                      <p className="ah-notif-text">{notification.text}</p>
-                      <p className="ah-notif-time">{formatRelativeTime(notification.createdAt)}</p>
-                    </div>
-                    {notification.unread && <span className="ah-unread-dot" />}
+                  <div className="ah-notif-list">
+                    {visibleNotifications.length > 0 ? visibleNotifications.map((notification) => (
+                      <div key={notification.id} className={`ah-notif-item ${notification.unread ? "unread" : ""}`}>
+                        <span className="ah-notif-icon">{notification.icon}</span>
+                        <div className="ah-notif-body">
+                          <p className="ah-notif-text">{notification.text}</p>
+                          <p className="ah-notif-time">{formatRelativeTime(notification.createdAt)}</p>
+                        </div>
+                        {notification.unread && <span className="ah-unread-dot" />}
+                      </div>
+                    )) : (
+                      <div className="ah-notif-item">
+                        <div className="ah-notif-body">
+                          <p className="ah-notif-text">Chưa có thông báo mới</p>
+                          <p className="ah-notif-time">Khi bạn thao tác trong admin, thông báo sẽ xuất hiện ở đây.</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )) : (
-                  <div className="ah-notif-item">
-                    <div className="ah-notif-body">
-                      <p className="ah-notif-text">Chưa có thông báo mới</p>
-                      <p className="ah-notif-time">Khi bạn thao tác trong admin, thông báo sẽ xuất hiện ở đây.</p>
-                    </div>
-                  </div>
-                )}
-                <div className="ah-notif-footer">Nhật ký hoạt động gần đây</div>
+                  {hasMoreNotifications && (
+                    <button
+                      type="button"
+                      className="ah-notif-footer"
+                      onClick={() => setShowAllNotifications((current) => !current)}
+                    >
+                      {showAllNotifications
+                        ? "Thu gọn thông báo"
+                        : `Xem thêm ${recentNotifications.length - 5} thông báo`}
+                    </button>
+                  )}
               </div>
             </>
           )}
