@@ -50,6 +50,14 @@ spring.mail.properties.mail.smtp.writetimeout=5000
 # Password Reset Token Expiration (in minutes)
 password.reset.token.expiration=30
 
+# Review sentiment moderation (optional)
+review.sentiment.use-remote-model=true
+review.sentiment.model=5CD-AI/Vietnamese-Sentiment-visobert
+review.sentiment.api-base-url=https://api-inference.huggingface.co/models
+review.sentiment.min-confidence=0.58
+review.sentiment.request-timeout-ms=3000
+review.sentiment.hf-token=${HF_TOKEN:}
+
 # OAuth2 Configuration for Google (set via environment variables)
 spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID:your-client-id}
 spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET:your-client-secret}

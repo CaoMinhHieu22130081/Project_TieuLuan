@@ -1005,7 +1005,7 @@ export default function ProfilePage() {
                                         maxWidth: 680,
                                       }}
                                     >
-                                      Chỉ gửi sau khi đơn đã được giao. Nếu chấm 5 sao, nội dung nên tích cực hoặc trung tính.
+                                      Chỉ gửi sau khi đơn đã được giao. Hệ thống sẽ đối chiếu nội dung với số sao bạn chọn.
                                     </p>
                                   </div>
                                   <button type="button" className="order-action-btn" onClick={closeReviewForm}>

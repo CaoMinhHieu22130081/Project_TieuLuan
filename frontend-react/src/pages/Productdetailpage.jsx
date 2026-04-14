@@ -159,6 +159,10 @@ export default function ProductDetailPage() {
     : null;
   const displayRating = getDisplayRating(product);
   const sizeOptions = getSizeOptions(product);
+  const reviewCount = Number(product?.reviewCount ?? 0);
+  const soldCount = Number(product?.sold ?? 0);
+  const availableSizeCount = sizeOptions.filter((size) => size.isAvailable).length;
+  const isProductSellable = product?.isActive !== false && availableSizeCount > 0;
 
   // Format prices to handle both number and string
   const formatPrice = (p) => {
@@ -167,6 +171,11 @@ export default function ProductDetailPage() {
   };
 
   const handleAddCart = () => {
+    if (!isProductSellable) {
+      addToast("Sản phẩm hiện không khả dụng", "error", 3000);
+      return;
+    }
+
     if (!selSize) { setSizeErr(true); return; }
     setSizeErr(false);
     
@@ -181,7 +190,7 @@ export default function ProductDetailPage() {
 
   const TABS = [
     { key: "desc",    label: "Mô tả sản phẩm"           },
-    { key: "reviews", label: `Đánh giá (${reviews.length})` },
+    { key: "reviews", label: `Đánh giá (${reviewCount})` },
     { key: "size",    label: "Bảng size"                 },
   ];
 
@@ -286,7 +295,7 @@ export default function ProductDetailPage() {
             <div className="detail-rating-row">
               <Stars rating={displayRating} size="lg" />
               <span className="detail-rating-text">
-                <strong>{displayRating}</strong> · {product.reviewCount || 0} đánh giá · {product.sold || 0} đã bán
+                <strong>{displayRating}</strong> · {reviewCount} đánh giá · {soldCount} đã bán
               </span>
             </div>
 
@@ -299,7 +308,11 @@ export default function ProductDetailPage() {
 
             <div className="detail-stock">
               <span className="stock-dot" />
-              Còn hàng · Giao ngay hôm nay
+              {product.isActive === false
+                ? "Ngừng kinh doanh"
+                : availableSizeCount > 0
+                  ? `Còn ${availableSizeCount} size đang bán`
+                  : "Hết hàng"}
             </div>
 
             {/* Material */}
@@ -380,7 +393,7 @@ export default function ProductDetailPage() {
                 <button className="qty-btn" onClick={() => setQty((q) => q + 1)}>+</button>
               </div>
               <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                {product.sold || 0}+ đã mua
+                Đã mua {soldCount.toLocaleString("vi-VN")} sản phẩm
               </span>
             </div>
 
@@ -462,7 +475,7 @@ export default function ProductDetailPage() {
                     <div className="review-score-num">{displayRating}</div>
                     <Stars rating={displayRating} size="lg" />
                     <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4 }}>
-                      {product.reviewCount || 0} đánh giá
+                      {reviewCount} đánh giá
                     </p>
                   </div>
                   <div className="review-bars">

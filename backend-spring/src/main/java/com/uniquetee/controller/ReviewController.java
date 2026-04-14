@@ -17,13 +17,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.uniquetee.dto.ReviewCreateRequest;
 import com.uniquetee.annotation.RequiredRole;
+import com.uniquetee.dto.ReviewCreateRequest;
 import com.uniquetee.entity.Review;
 import com.uniquetee.service.ReviewService;
 
-import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/reviews")
@@ -71,7 +71,13 @@ public class ReviewController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
 
-        Review createdReview = reviewService.createReview(Objects.requireNonNull(reviewRequest, "reviewRequest"), userId);
+        Review createdReview = reviewService.createReview(
+                Objects.requireNonNull(reviewRequest, "reviewRequest").getProductId(),
+                reviewRequest.getRating(),
+                reviewRequest.getReviewerName(),
+                reviewRequest.getContent(),
+                userId
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(createdReview);
     }
 

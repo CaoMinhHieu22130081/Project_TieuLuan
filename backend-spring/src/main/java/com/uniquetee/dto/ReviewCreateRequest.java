@@ -1,8 +1,5 @@
 package com.uniquetee.dto;
 
-import com.uniquetee.validation.ReviewToneRules;
-
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -23,15 +20,6 @@ public class ReviewCreateRequest {
 
     @Size(max = 2000, message = "Nội dung đánh giá không được vượt quá 2000 ký tự")
     private String content;
-
-    @AssertTrue(message = "Nếu chấm 5 sao thì nội dung không được mang tính tiêu cực")
-    public boolean isFiveStarContentValid() {
-        if (rating == null || rating.intValue() < 5) {
-            return true;
-        }
-
-        return !ReviewToneRules.hasNegativeTone(content);
-    }
 
     public Integer getProductId() {
         return productId;

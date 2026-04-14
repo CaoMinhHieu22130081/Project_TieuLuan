@@ -2,6 +2,7 @@ package com.uniquetee.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,7 @@ public class OrderService {
     private UserRepository userRepository;
 
     public Optional<Order> getOrderById(Integer id) {
-        return orderRepository.findById(id);
+        return orderRepository.findById(Objects.requireNonNull(id, "id"));
     }
 
     public List<Order> getOrdersByUser(Integer userId) {
@@ -65,16 +66,66 @@ public class OrderService {
             }
         }
 
-        return orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+        syncProductSoldCounts(savedOrder, null, normalizeStatus(savedOrder.getStatus()));
+        return savedOrder;
     }
 
+    @Transactional
     public Order updateOrderStatus(Integer id, String status) {
-        Optional<Order> o = orderRepository.findById(id);
+        Optional<Order> o = orderRepository.findById(Objects.requireNonNull(id, "id"));
         if (o.isPresent()) {
             Order order = o.get();
-            order.setStatus(status == null ? null : status.trim().toLowerCase());
-            return orderRepository.save(order);
+            String previousStatus = normalizeStatus(order.getStatus());
+            String nextStatus = normalizeStatus(status);
+            order.setStatus(nextStatus);
+            Order updatedOrder = orderRepository.save(order);
+            syncProductSoldCounts(updatedOrder, previousStatus, nextStatus);
+            return updatedOrder;
         }
         return null;
+    }
+
+    private void syncProductSoldCounts(Order order, String previousStatus, String nextStatus) {
+        boolean wasDelivered = isDelivered(previousStatus);
+        boolean isDelivered = isDelivered(nextStatus);
+
+        if (wasDelivered == isDelivered) {
+            return;
+        }
+
+        int multiplier = isDelivered ? 1 : -1;
+        adjustSoldCounts(order, multiplier);
+    }
+
+    private void adjustSoldCounts(Order order, int multiplier) {
+        if (order == null || order.getItems() == null || order.getItems().isEmpty()) {
+            return;
+        }
+
+        for (OrderItem item : order.getItems()) {
+            Integer productId = item.getProductId();
+            if (productId == null) {
+                continue;
+            }
+
+            Integer quantityValue = item.getQty();
+            int quantity = quantityValue == null ? 1 : quantityValue;
+            productRepository.findById(productId).ifPresent(product -> {
+                Integer currentSoldValue = product.getSold();
+                int currentSold = currentSoldValue == null ? 0 : currentSoldValue;
+                int updatedSold = currentSold + (multiplier * quantity);
+                product.setSold(Math.max(0, updatedSold));
+                productRepository.save(product);
+            });
+        }
+    }
+
+    private String normalizeStatus(String status) {
+        return status == null ? null : status.trim().toLowerCase();
+    }
+
+    private boolean isDelivered(String status) {
+        return status != null && "delivered".equalsIgnoreCase(status.trim());
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -26,5 +27,17 @@ public class ApiExceptionHandler {
         Map<String, String> body = new LinkedHashMap<>();
         body.put("message", message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, String>> handleResponseStatusException(ResponseStatusException ex) {
+        String message = ex.getReason();
+        if (message == null || message.isBlank()) {
+            message = "Yêu cầu không hợp lệ";
+        }
+
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("message", message);
+        return ResponseEntity.status(ex.getStatusCode()).body(body);
     }
 }

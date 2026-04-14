@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.uniquetee.dto.ReviewCreateRequest;
 import com.uniquetee.entity.Order;
 import com.uniquetee.entity.Product;
 import com.uniquetee.entity.Review;
@@ -25,7 +24,6 @@ import com.uniquetee.repository.OrderRepository;
 import com.uniquetee.repository.ProductRepository;
 import com.uniquetee.repository.ReviewRepository;
 import com.uniquetee.repository.UserRepository;
-import com.uniquetee.validation.ReviewToneRules;
 
 /**
  * Service quản lý Đánh giá sản phẩm
@@ -44,6 +42,9 @@ public class ReviewService {
 
     @Autowired
     private OrderRepository orderRepository;
+
+    @Autowired
+    private ReviewSentimentAnalyzer reviewSentimentAnalyzer;
 
     /**
      * Lấy tất cả bình luận
@@ -84,41 +85,40 @@ public class ReviewService {
      * Tạo đánh giá mới
      */
     @Transactional
-    public Review createReview(@NonNull ReviewCreateRequest reviewRequest, @NonNull Integer authenticatedUserId) {
-        Objects.requireNonNull(reviewRequest, "reviewRequest");
+    public Review createReview(Integer productId, Integer rating, String reviewerName, String content, Integer authenticatedUserId) {
         Integer userId = Objects.requireNonNull(authenticatedUserId, "authenticatedUserId");
 
-        Integer productId = Objects.requireNonNull(reviewRequest.getProductId(), "productId");
+        Integer safeProductId = Objects.requireNonNull(productId, "productId");
 
-        if (reviewRepository.existsByUserIdAndProductId(userId, productId)) {
+        if (reviewRepository.existsByUserIdAndProductId(userId, safeProductId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bạn đã đánh giá sản phẩm này rồi");
         }
 
-        if (!hasDeliveredOrderContainingProduct(userId, productId)) {
+        if (!hasDeliveredOrderContainingProduct(userId, safeProductId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể đánh giá sau khi đơn hàng đã được giao");
         }
 
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findById(safeProductId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sản phẩm không tồn tại"));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Người dùng không tồn tại"));
 
-        int rating = validateAndNormalizeRating(reviewRequest.getRating());
-        String content = normalizeContent(reviewRequest.getContent());
-        validateReviewTone(rating, content);
+        int normalizedRating = validateAndNormalizeRating(rating);
+        String normalizedContent = normalizeContent(content);
+        validateReviewTone(normalizedRating, normalizedContent);
 
         Review newReview = new Review();
         newReview.setProduct(product);
         newReview.setUser(user);
-        newReview.setReviewerName(StringUtils.hasText(reviewRequest.getReviewerName())
-                ? reviewRequest.getReviewerName().trim()
+        newReview.setReviewerName(StringUtils.hasText(reviewerName)
+                ? reviewerName.trim()
                 : user.getName());
-        newReview.setRating(rating);
-        newReview.setContent(content);
+        newReview.setRating(normalizedRating);
+        newReview.setContent(normalizedContent);
         newReview.setCreatedAt(LocalDateTime.now());
 
         Review savedReview = reviewRepository.save(newReview);
-        refreshProductReviewStats(productId);
+        refreshProductReviewStats(safeProductId);
         return savedReview;
     }
 
@@ -226,12 +226,8 @@ public class ReviewService {
     }
 
     private void validateReviewTone(Integer rating, String content) {
-        if (!Integer.valueOf(5).equals(rating)) {
-            return;
-        }
-
-        if (ReviewToneRules.hasNegativeTone(content)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đánh giá 5 sao nên mang tính tích cực hoặc trung tính");
+        if (!reviewSentimentAnalyzer.isToneAlignedWithRating(rating, content)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nội dung đánh giá chưa khớp với số sao đã chọn");
         }
     }
 
