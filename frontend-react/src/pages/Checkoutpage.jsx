@@ -9,6 +9,22 @@ const STEPS = ["Thông tin", "Thanh toán", "Xác nhận"];
 
 const formatPrice = (value) => Number(value || 0).toLocaleString("vi-VN") + "đ";
 
+const PAYMENT_METHOD_LABELS = {
+  cod: "Thanh toán khi nhận hàng (COD)",
+  vnpay: "VNPAY",
+  momo: "MoMo",
+  card: "Thẻ thanh toán",
+};
+
+const formatPaymentMethod = (method) => {
+  if (!method) {
+    return "—";
+  }
+
+  const normalizedMethod = String(method).trim().toLowerCase();
+  return PAYMENT_METHOD_LABELS[normalizedMethod] || String(method).toUpperCase();
+};
+
 const buildOrderCode = () => {
   const timestamp = Date.now().toString(36).toUpperCase();
   const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -45,7 +61,7 @@ export default function CheckoutPage() {
     address: "",
     ward: "",
     district: "",
-    city: "TP. Hồ Chí Minh",
+    city: "",
     note: "",
   });
 
@@ -85,15 +101,20 @@ export default function CheckoutPage() {
     const phone = shippingForm.phone.trim();
     const email = shippingForm.email.trim();
     const address = shippingForm.address.trim();
+    const ward = shippingForm.ward.trim();
+    const district = shippingForm.district.trim();
+    const city = shippingForm.city.trim();
 
-    if (!fullName || !phone || !address) {
-      setError("Vui lòng nhập họ tên, số điện thoại và địa chỉ giao hàng.");
+    if (!fullName || !phone || !address || !ward || !district || !city) {
+      setError("Vui lòng nhập đầy đủ họ tên, số điện thoại và địa chỉ giao hàng.");
       return;
     }
 
     try {
       setLoading(true);
       setError("");
+
+      const selectedPaymentMethod = (payMethod || "cod").trim().toLowerCase();
 
       const orderPayload = {
         orderCode: buildOrderCode(),
@@ -102,12 +123,12 @@ export default function CheckoutPage() {
         customerPhone: phone,
         customerEmail: email || user?.email || "",
         address,
-        ward: shippingForm.ward.trim(),
-        district: shippingForm.district.trim(),
-        city: shippingForm.city,
+        ward,
+        district,
+        city,
         note: shippingForm.note.trim(),
         status: "pending",
-        paymentMethod: payMethod,
+        paymentMethod: selectedPaymentMethod,
         shippingFee: shipping,
         items: checkoutItems.map((item) => {
           const qty = Number(item.qty || 1);
@@ -130,7 +151,7 @@ export default function CheckoutPage() {
 
       checkoutItems.forEach((item) => removeFromCart(item.cartItemId));
 
-      setOrderResult(createdOrder || { orderCode: orderPayload.orderCode });
+      setOrderResult(createdOrder || { orderCode: orderPayload.orderCode, paymentMethod: selectedPaymentMethod });
       setSuccess(true);
       setStep(2);
     } catch (submitError) {
@@ -188,6 +209,12 @@ export default function CheckoutPage() {
             <div className="order-code">
               Mã đơn hàng: #{orderResult?.orderCode || orderResult?.id || "UNQ"}
             </div>
+            <p>
+              Phương thức thanh toán: <strong>{formatPaymentMethod(orderResult?.paymentMethod || payMethod)}</strong>
+            </p>
+            {(orderResult?.paymentMethod || payMethod || "").toLowerCase() === "cod" && (
+              <p>Bạn thanh toán bằng tiền mặt khi nhận hàng.</p>
+            )}
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
               <Link to="/profile" className="btn-primary">Xem đơn hàng</Link>
               <Link to="/" className="btn-secondary">Về trang chủ</Link>
@@ -225,24 +252,33 @@ export default function CheckoutPage() {
           <div className="checkout-form-col">
             {step === 0 && (
               <>
-                <div className="form-section">
-                  <p className="form-section-title">
-                    <span className="form-section-icon">
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" />
-                        <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" />
-                      </svg>
-                    </span>
-                    Thông tin giao hàng
-                  </p>
+                <div className="form-section address-section">
+                  <div className="address-section-header">
+                    <div>
+                      <p className="form-section-title">
+                        <span className="form-section-icon">
+                          <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" />
+                            <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" />
+                          </svg>
+                        </span>
+                        Thông tin giao hàng
+                      </p>
+                      <p className="address-section-note">
+                        Nhập địa chỉ rõ ràng để đơn COD được giao nhanh và chính xác hơn.
+                      </p>
+                    </div>
+                    <span className="address-status-pill">COD · Giao tận nơi</span>
+                  </div>
 
-                  <div className="form-grid">
+                  <div className="form-grid address-grid">
                     <div className="form-group">
                       <label className="form-label">Họ và tên</label>
                       <input
                         className="form-input"
                         name="fullName"
                         placeholder="Nguyễn Văn A"
+                        autoComplete="name"
                         value={shippingForm.fullName}
                         onChange={handleShipChange}
                       />
@@ -251,8 +287,11 @@ export default function CheckoutPage() {
                       <label className="form-label">Số điện thoại</label>
                       <input
                         className="form-input"
+                        type="tel"
                         name="phone"
                         placeholder="0901 234 567"
+                        autoComplete="tel"
+                        inputMode="tel"
                         value={shippingForm.phone}
                         onChange={handleShipChange}
                       />
@@ -261,8 +300,10 @@ export default function CheckoutPage() {
                       <label className="form-label">Email</label>
                       <input
                         className="form-input"
+                        type="email"
                         name="email"
                         placeholder="example@email.com"
+                        autoComplete="email"
                         value={shippingForm.email}
                         onChange={handleShipChange}
                       />
@@ -273,49 +314,60 @@ export default function CheckoutPage() {
                         className="form-input"
                         name="address"
                         placeholder="Số nhà, tên đường..."
+                        autoComplete="street-address"
                         value={shippingForm.address}
                         onChange={handleShipChange}
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Phường/Xã</label>
+                      <label className="form-label">Phường/Xã (tự nhập)</label>
                       <input
                         className="form-input"
                         name="ward"
-                        placeholder="Phường Bến Nghé"
+                        placeholder="Nhập phường/xã bất kỳ"
+                        autoComplete="off"
                         value={shippingForm.ward}
                         onChange={handleShipChange}
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Quận/Huyện</label>
+                      <label className="form-label">Quận/Huyện (tự nhập)</label>
                       <input
                         className="form-input"
                         name="district"
-                        placeholder="Quận 1"
+                        placeholder="Nhập quận/huyện bất kỳ"
+                        autoComplete="off"
                         value={shippingForm.district}
                         onChange={handleShipChange}
                       />
                     </div>
-                    <div className="form-group">
-                      <label className="form-label">Tỉnh/Thành phố</label>
-                      <select className="form-select" name="city" value={shippingForm.city} onChange={handleShipChange}>
-                        <option>TP. Hồ Chí Minh</option>
-                        <option>Hà Nội</option>
-                        <option>Đà Nẵng</option>
-                        <option>Cần Thơ</option>
-                      </select>
-                    </div>
                     <div className="form-group span-2">
-                      <label className="form-label">Ghi chú (tùy chọn)</label>
+                      <label className="form-label">Tỉnh/Thành phố</label>
                       <input
                         className="form-input"
+                        name="city"
+                        placeholder="Nhập tự do tỉnh/thành phố"
+                        autoComplete="address-level1"
+                        value={shippingForm.city}
+                        onChange={handleShipChange}
+                      />
+                      <p className="field-hint">Không giới hạn danh sách, bạn có thể nhập tự do tỉnh/thành phố, phường/xã và quận/huyện.</p>
+                    </div>
+                    <div className="form-group span-2">
+                      <label className="form-label">Ghi chú giao hàng (tùy chọn)</label>
+                      <textarea
+                        className="form-input form-textarea"
                         name="note"
-                        placeholder="Giao giờ hành chính, gọi trước khi giao..."
+                        placeholder="Giao giờ hành chính, gọi trước khi giao, để hàng trước cửa..."
+                        rows={3}
                         value={shippingForm.note}
                         onChange={handleShipChange}
                       />
                     </div>
+                  </div>
+
+                  <div className="address-guidance">
+                    <strong>Gợi ý:</strong> Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố. Tất cả đều có thể nhập tự do theo địa chỉ thực tế của bạn.
                   </div>
                 </div>
 

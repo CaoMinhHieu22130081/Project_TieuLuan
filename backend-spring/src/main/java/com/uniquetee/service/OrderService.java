@@ -1,9 +1,11 @@
 package com.uniquetee.service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import com.uniquetee.repository.UserRepository;
 @Service
 public class OrderService {
 
+    private static final Set<String> SUPPORTED_PAYMENT_METHODS = Set.of("cod", "vnpay", "momo", "card");
+
     @Autowired
     private OrderRepository orderRepository;
 
@@ -32,15 +36,32 @@ public class OrderService {
         return orderRepository.findById(Objects.requireNonNull(id, "id"));
     }
 
+    public Optional<Order> getOrderByCode(String orderCode) {
+        return orderRepository.findByOrderCode(Objects.requireNonNull(orderCode, "orderCode"));
+    }
+
     public List<Order> getOrdersByUser(Integer userId) {
         return orderRepository.findByUserId(userId);
     }
 
     @Transactional
     public Order createOrder(Order order) {
+        order.setPaymentMethod(resolvePaymentMethod(order.getPaymentMethod()));
+        order.setStatus(resolveInitialStatus(order.getStatus()));
+
         // compute subtotal from items if not provided
+        List<OrderItem> items = order.getItems();
+        if (items == null) {
+            items = new ArrayList<>();
+            order.setItems(items);
+        }
+
         BigDecimal subtotal = BigDecimal.ZERO;
-        for (OrderItem item : order.getItems()) {
+        for (OrderItem item : items) {
+            if (item == null) {
+                continue;
+            }
+
             // if unitPrice missing, try to fetch product price
             Integer pid = item.getProductId();
             if (item.getUnitPrice() == null && pid != null) {
@@ -86,6 +107,28 @@ public class OrderService {
         return null;
     }
 
+    private String resolvePaymentMethod(String paymentMethod) {
+        String normalizedPaymentMethod = normalizeValue(paymentMethod);
+        if (normalizedPaymentMethod == null || normalizedPaymentMethod.isBlank()) {
+            return "cod";
+        }
+
+        if (SUPPORTED_PAYMENT_METHODS.contains(normalizedPaymentMethod)) {
+            return normalizedPaymentMethod;
+        }
+
+        return "cod";
+    }
+
+    private String resolveInitialStatus(String status) {
+        String normalizedStatus = normalizeValue(status);
+        if (normalizedStatus == null || normalizedStatus.isBlank()) {
+            return "pending";
+        }
+
+        return normalizedStatus;
+    }
+
     private void syncProductSoldCounts(Order order, String previousStatus, String nextStatus) {
         boolean wasDelivered = isDelivered(previousStatus);
         boolean isDelivered = isDelivered(nextStatus);
@@ -121,8 +164,12 @@ public class OrderService {
         }
     }
 
+    private String normalizeValue(String value) {
+        return value == null ? null : value.trim().toLowerCase();
+    }
+
     private String normalizeStatus(String status) {
-        return status == null ? null : status.trim().toLowerCase();
+        return normalizeValue(status);
     }
 
     private boolean isDelivered(String status) {

@@ -1,6 +1,5 @@
 package com.uniquetee.controller;
 
-import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +24,8 @@ import com.uniquetee.entity.Order;
 import com.uniquetee.entity.User;
 import com.uniquetee.repository.OrderRepository;
 import com.uniquetee.repository.UserRepository;
+import com.uniquetee.service.CustomerPurchaseStats;
+import com.uniquetee.service.CustomerPurchaseStatsService;
 import com.uniquetee.service.UserService;
 
 @RestController
@@ -47,6 +48,9 @@ public class AdminController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private CustomerPurchaseStatsService customerPurchaseStatsService;
 
     @GetMapping("/users")
     @RequiredRole({"admin"})
@@ -145,6 +149,9 @@ public class AdminController {
     }
 
     private Map<String, Object> mapUserSummary(User user) {
+        CustomerPurchaseStats purchaseStats = customerPurchaseStatsService.calculate(
+            user.getId() == null ? List.of() : orderRepository.findByUserId(user.getId()));
+
         Map<String, Object> summary = new HashMap<>();
         summary.put("id", user.getId());
         summary.put("name", user.getName());
@@ -152,8 +159,8 @@ public class AdminController {
         summary.put("phone", user.getPhone());
         summary.put("role", normalizeValue(user.getRole(), "customer"));
         summary.put("status", normalizeValue(user.getStatus(), "active"));
-        summary.put("orders", user.getOrderCount() == null ? Integer.valueOf(0) : user.getOrderCount());
-        summary.put("spent", user.getSpent() != null ? user.getSpent() : BigDecimal.ZERO);
+        summary.put("orders", purchaseStats.orderCount());
+        summary.put("spent", purchaseStats.spent());
         summary.put("createdAt", user.getJoinedAt() != null ? user.getJoinedAt().format(ADMIN_USER_DATE_FORMAT) : null);
         summary.put("gender", user.getGender());
         summary.put("dob", user.getDob());

@@ -37,6 +37,11 @@ public class OrderController {
         return orderService.getOrderById(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/code/{orderCode}")
+    public ResponseEntity<Order> getOrderByCode(@PathVariable String orderCode) {
+        return orderService.getOrderByCode(orderCode).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @PostMapping
     public ResponseEntity<Order> createOrder(@RequestBody Order order) {
         Order created = orderService.createOrder(order);

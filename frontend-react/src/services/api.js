@@ -443,6 +443,19 @@ export const orderAPI = {
     }
   },
 
+  // Get order by order code
+  getOrderByCode: async (orderCode) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/orders/code/${encodeURIComponent(orderCode)}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch order');
+    } catch (error) {
+      console.error('Error fetching order by code:', error);
+      throw error;
+    }
+  },
+
   // Create new order
   createOrder: async (orderData) => {
     try {
@@ -467,6 +480,37 @@ export const orderAPI = {
       }, 'Failed to update order status');
     } catch (error) {
       console.error('Error updating order status:', error);
+      throw error;
+    }
+  },
+};
+
+// ============ PAYMENTS API ============
+
+export const paymentAPI = {
+  // Create VNPay payment URL for an existing order
+  createVnpayPayment: async (orderCode) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/payments/vnpay/create`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ orderCode }),
+      }, 'Failed to create VNPay payment');
+    } catch (error) {
+      console.error('Error creating VNPay payment:', error);
+      throw error;
+    }
+  },
+
+  // Check whether VNPay credentials are available on the backend
+  getVnpayConfiguration: async () => {
+    try {
+      return await requestJson(`${API_BASE_URL}/payments/vnpay/configured`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }, 'Failed to check VNPay configuration');
+    } catch (error) {
+      console.error('Error checking VNPay configuration:', error);
       throw error;
     }
   },
