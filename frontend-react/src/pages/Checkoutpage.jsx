@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { orderAPI, paymentAPI } from "../services/api";
+import { orderAPI, paymentAPI, shippingAPI } from "../services/api";
+import { FREE_SHIPPING_THRESHOLD, formatShippingThreshold, isFreeShippingEligible } from "../utils/shipping";
 import "./css/Checkoutpage.css";
 
 const STEPS = ["Thông tin", "Thanh toán", "Xác nhận"];
@@ -33,6 +34,11 @@ const buildOrderCode = () => {
 
 const getItemImage = (item) => item?.image || "https://via.placeholder.com/100x125?text=UniqTee";
 
+const getSelectedOptionLabel = (options, key, value, labelKey) => {
+  const match = options.find((option) => String(option[key]) === String(value));
+  return match?.[labelKey] || "";
+};
+
 export default function CheckoutPage() {
   const location = useLocation();
   const { user } = useAuth();
@@ -53,16 +59,33 @@ export default function CheckoutPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [shippingError, setShippingError] = useState("");
   const [orderResult, setOrderResult] = useState(null);
   const [paymentResultType, setPaymentResultType] = useState("");
+  const [ghnConfig, setGhnConfig] = useState({
+    configured: false,
+    masterDataConfigured: false,
+    missingFields: [],
+  });
+  const [ghnProvinces, setGhnProvinces] = useState([]);
+  const [ghnDistricts, setGhnDistricts] = useState([]);
+  const [ghnWards, setGhnWards] = useState([]);
+  const [ghnLoading, setGhnLoading] = useState(false);
+  const [districtsLoading, setDistrictsLoading] = useState(false);
+  const [wardsLoading, setWardsLoading] = useState(false);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [shippingQuote, setShippingQuote] = useState(null);
 
   const [shippingForm, setShippingForm] = useState({
     fullName: "",
     phone: "",
     email: "",
     address: "",
+    provinceId: "",
     ward: "",
+    districtId: "",
     district: "",
+    wardCode: "",
     city: "",
     note: "",
   });
@@ -130,18 +153,262 @@ export default function CheckoutPage() {
     handleVnpayResult();
   }, [cartLoading, removeFromCart, searchParams, setSearchParams]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadGhnConfiguration = async () => {
+      try {
+        setGhnLoading(true);
+        setShippingError("");
+
+        const configuration = await shippingAPI.getGhnConfiguration();
+        if (cancelled) {
+          return;
+        }
+
+        const normalizedConfiguration = {
+          configured: Boolean(configuration?.configured),
+          masterDataConfigured: Boolean(configuration?.masterDataConfigured),
+          missingFields: Array.isArray(configuration?.missingFields) ? configuration.missingFields : [],
+        };
+
+        setGhnConfig(normalizedConfiguration);
+
+        if (normalizedConfiguration.masterDataConfigured) {
+          const provinceData = await shippingAPI.getGhnProvinces();
+          if (cancelled) {
+            return;
+          }
+
+          setGhnProvinces(Array.isArray(provinceData) ? provinceData : []);
+        } else {
+          setGhnProvinces([]);
+        }
+      } catch (configurationError) {
+        if (!cancelled) {
+          setShippingError(configurationError.message || "Không thể tải cấu hình GHN");
+          setGhnConfig({ configured: false, masterDataConfigured: false, missingFields: [] });
+          setGhnProvinces([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setGhnLoading(false);
+        }
+      }
+    };
+
+    loadGhnConfiguration();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const subtotal = checkoutItems.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1),
     0
   );
-  const shipping = subtotal >= 299000 ? 0 : 30000;
-  const total = subtotal + shipping;
+  const checkoutSignature = checkoutItems.map((item) => `${item.cartItemId}:${item.qty}`).join("|");
+  const freeShippingEligible = isFreeShippingEligible(subtotal);
+  const ghnReady = Boolean(ghnConfig.configured && ghnConfig.masterDataConfigured);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDistricts = async () => {
+      if (!ghnReady || !shippingForm.provinceId) {
+        setGhnDistricts([]);
+        return;
+      }
+
+      try {
+        setDistrictsLoading(true);
+        const districtData = await shippingAPI.getGhnDistricts(shippingForm.provinceId);
+        if (!cancelled) {
+          setGhnDistricts(Array.isArray(districtData) ? districtData : []);
+        }
+      } catch (districtError) {
+        if (!cancelled) {
+          setShippingError(districtError.message || "Không thể tải quận/huyện GHN");
+          setGhnDistricts([]);
+          setGhnWards([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setDistrictsLoading(false);
+        }
+      }
+    };
+
+    loadDistricts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ghnReady, shippingForm.provinceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadWards = async () => {
+      if (!ghnReady || !shippingForm.districtId) {
+        setGhnWards([]);
+        return;
+      }
+
+      try {
+        setWardsLoading(true);
+        const wardData = await shippingAPI.getGhnWards(shippingForm.districtId);
+        if (!cancelled) {
+          setGhnWards(Array.isArray(wardData) ? wardData : []);
+        }
+      } catch (wardError) {
+        if (!cancelled) {
+          setShippingError(wardError.message || "Không thể tải phường/xã GHN");
+          setGhnWards([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setWardsLoading(false);
+        }
+      }
+    };
+
+    loadWards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ghnReady, shippingForm.districtId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const quoteShipping = async () => {
+      if (!ghnReady || freeShippingEligible) {
+        setShippingQuote(null);
+        setQuoteLoading(false);
+        return;
+      }
+
+      if (!shippingForm.provinceId || !shippingForm.districtId || !shippingForm.wardCode) {
+        setShippingQuote(null);
+        setQuoteLoading(false);
+        return;
+      }
+
+      try {
+        setQuoteLoading(true);
+        setShippingError("");
+
+        const itemCount = checkoutItems.reduce((sum, item) => sum + Number(item.qty || 1), 0);
+        const quote = await shippingAPI.quoteGhnFee({
+          districtId: Number(shippingForm.districtId),
+          wardCode: shippingForm.wardCode,
+          itemCount,
+          insuranceValue: subtotal,
+        });
+
+        if (!cancelled) {
+          setShippingQuote(quote || null);
+        }
+      } catch (quoteError) {
+        if (!cancelled) {
+          setShippingQuote({
+            configured: ghnConfig.configured,
+            source: "fallback",
+            shippingFee: 0,
+            serviceName: "Phí tạm tính",
+            message: quoteError.message || "Không thể tính phí GHN",
+          });
+          setShippingError(quoteError.message || "Không thể tính phí GHN");
+        }
+      } finally {
+        if (!cancelled) {
+          setQuoteLoading(false);
+        }
+      }
+    };
+
+    quoteShipping();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ghnReady, freeShippingEligible, shippingForm.provinceId, shippingForm.districtId, shippingForm.wardCode, checkoutSignature, subtotal, ghnConfig.configured]);
+
+  const shippingFee = freeShippingEligible ? 0 : Number(shippingQuote?.shippingFee ?? 0);
+  const shippingServiceName = freeShippingEligible ? "Miễn phí" : (shippingQuote?.serviceName || "GHN");
+  const shippingLineValue = freeShippingEligible
+    ? "Miễn phí 🎉"
+    : ghnReady
+    ? quoteLoading
+      ? "Đang tính phí GHN..."
+      : shippingQuote?.source === "ghn"
+      ? formatPrice(shippingFee)
+      : shippingQuote?.message || "GHN chưa trả được phí ship"
+    : "GHN hiện chưa sẵn sàng";
+  const shippingNote = freeShippingEligible
+    ? `Đơn từ ${formatShippingThreshold()} được miễn phí ship.`
+    : ghnReady
+    ? quoteLoading
+      ? "GHN đang tính phí ship theo địa chỉ đã chọn..."
+      : shippingQuote?.message || `Phí ship cho đơn dưới ${formatShippingThreshold()} sẽ được GHN tính theo địa chỉ đã chọn.`
+    : `GHN hiện chưa sẵn sàng, phí ship sẽ được tính theo địa chỉ khi GHN trả kết quả.`;
+  const total = subtotal + shippingFee;
 
   const handleShipChange = (event) => {
     setShippingForm((current) => ({
       ...current,
       [event.target.name]: event.target.value,
     }));
+  };
+
+  const handleProvinceChange = (event) => {
+    const provinceId = event.target.value;
+    const provinceName = getSelectedOptionLabel(ghnProvinces, "provinceId", provinceId, "provinceName");
+
+    setShippingForm((current) => ({
+      ...current,
+      provinceId,
+      city: provinceName,
+      districtId: "",
+      district: "",
+      wardCode: "",
+      ward: "",
+    }));
+    setGhnDistricts([]);
+    setGhnWards([]);
+    setShippingQuote(null);
+    setShippingError("");
+  };
+
+  const handleDistrictChange = (event) => {
+    const districtId = event.target.value;
+    const districtName = getSelectedOptionLabel(ghnDistricts, "districtId", districtId, "districtName");
+
+    setShippingForm((current) => ({
+      ...current,
+      districtId,
+      district: districtName,
+      wardCode: "",
+      ward: "",
+    }));
+    setGhnWards([]);
+    setShippingQuote(null);
+    setShippingError("");
+  };
+
+  const handleWardChange = (event) => {
+    const wardCode = event.target.value;
+    const wardName = getSelectedOptionLabel(ghnWards, "wardCode", wardCode, "wardName");
+
+    setShippingForm((current) => ({
+      ...current,
+      wardCode,
+      ward: wardName,
+    }));
+    setShippingError("");
   };
 
   const handlePlaceOrder = async () => {
@@ -158,17 +425,40 @@ export default function CheckoutPage() {
     const district = shippingForm.district.trim();
     const city = shippingForm.city.trim();
 
+    if (ghnReady && (!shippingForm.provinceId || !shippingForm.districtId || !shippingForm.wardCode)) {
+      setError("Vui lòng chọn đầy đủ tỉnh/thành phố, quận/huyện và phường/xã GHN.");
+      return;
+    }
+
     const missingFields = [];
     if (!fullName) missingFields.push("họ tên");
     if (!phone) missingFields.push("số điện thoại");
     if (!address) missingFields.push("địa chỉ");
-    if (!ward) missingFields.push("phường/xã");
-    if (!district) missingFields.push("quận/huyện");
-    if (!city) missingFields.push("tỉnh/thành phố");
+    if (ghnReady) {
+      if (!shippingForm.wardCode) missingFields.push("phường/xã GHN");
+      if (!shippingForm.districtId) missingFields.push("quận/huyện GHN");
+      if (!shippingForm.provinceId) missingFields.push("tỉnh/thành phố GHN");
+    } else {
+      if (!ward) missingFields.push("phường/xã");
+      if (!district) missingFields.push("quận/huyện");
+      if (!city) missingFields.push("tỉnh/thành phố");
+    }
 
     if (missingFields.length > 0) {
       setError(`Vui lòng nhập đầy đủ ${missingFields.join(", ")}.`);
       return;
+    }
+
+    if (ghnReady && !freeShippingEligible) {
+      if (quoteLoading) {
+        setError("Vui lòng chờ GHN tính phí ship trước khi đặt hàng.");
+        return;
+      }
+
+      if (!shippingQuote || shippingQuote.source !== "ghn") {
+        setError("GHN chưa trả được phí ship, vui lòng thử lại.");
+        return;
+      }
     }
 
     try {
@@ -176,6 +466,19 @@ export default function CheckoutPage() {
       setError("");
 
       const selectedPaymentMethod = (payMethod || "cod").trim().toLowerCase();
+      const selectedProvince = ghnReady
+        ? ghnProvinces.find((province) => String(province.provinceId) === String(shippingForm.provinceId))
+        : null;
+      const selectedDistrict = ghnReady
+        ? ghnDistricts.find((districtItem) => String(districtItem.districtId) === String(shippingForm.districtId))
+        : null;
+      const selectedWard = ghnReady
+        ? ghnWards.find((wardItem) => String(wardItem.wardCode) === String(shippingForm.wardCode))
+        : null;
+
+      const resolvedCity = ghnReady ? selectedProvince?.provinceName || city : city;
+      const resolvedDistrict = ghnReady ? selectedDistrict?.districtName || district : district;
+      const resolvedWard = ghnReady ? selectedWard?.wardName || ward : ward;
 
       const orderPayload = {
         orderCode: buildOrderCode(),
@@ -184,13 +487,13 @@ export default function CheckoutPage() {
         customerPhone: phone,
         customerEmail: email || user?.email || "",
         address,
-        ward,
-        district,
-        city,
+        ward: resolvedWard,
+        district: resolvedDistrict,
+        city: resolvedCity,
         note: shippingForm.note.trim(),
         status: "pending",
         paymentMethod: selectedPaymentMethod,
-        shippingFee: shipping,
+        shippingFee: freeShippingEligible ? 0 : shippingFee,
         items: checkoutItems.map((item) => {
           const qty = Number(item.qty || 1);
           const price = Number(item.price || 0);
@@ -357,11 +660,32 @@ export default function CheckoutPage() {
                         Thông tin giao hàng
                       </p>
                       <p className="address-section-note">
-                        Nhập địa chỉ rõ ràng để đơn COD được giao nhanh và chính xác hơn.
+                        {ghnReady
+                          ? `Đơn từ ${formatShippingThreshold()} được miễn phí ship. Đơn dưới mức này sẽ tính phí theo GHN.`
+                          : "Nhập địa chỉ rõ ràng để đơn COD được giao nhanh và chính xác hơn."}
                       </p>
                     </div>
-                    <span className="address-status-pill">COD · Giao tận nơi</span>
+                    <span className="address-status-pill">
+                      {ghnReady ? "GHN · Miễn phí từ 500.000đ" : "COD · Giao tận nơi"}
+                    </span>
                   </div>
+
+                  {shippingError && (
+                    <div
+                      style={{
+                        padding: "12px 14px",
+                        marginBottom: 16,
+                        borderRadius: 12,
+                        background: "rgba(255, 107, 107, 0.12)",
+                        border: "1px solid rgba(255, 107, 107, 0.25)",
+                        color: "#ffb3b3",
+                        fontSize: "0.9rem",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {shippingError}
+                    </div>
+                  )}
 
                   <div className="form-grid address-grid">
                     <div className="form-group">
@@ -411,40 +735,109 @@ export default function CheckoutPage() {
                         onChange={handleShipChange}
                       />
                     </div>
-                    <div className="form-group">
-                      <label className="form-label">Phường/Xã (tự nhập)</label>
-                      <input
-                        className="form-input"
-                        name="ward"
-                        placeholder="Nhập phường/xã bất kỳ"
-                        autoComplete="off"
-                        value={shippingForm.ward}
-                        onChange={handleShipChange}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Quận/Huyện (tự nhập)</label>
-                      <input
-                        className="form-input"
-                        name="district"
-                        placeholder="Nhập quận/huyện bất kỳ"
-                        autoComplete="off"
-                        value={shippingForm.district}
-                        onChange={handleShipChange}
-                      />
-                    </div>
-                    <div className="form-group span-2">
-                      <label className="form-label">Tỉnh/Thành phố</label>
-                      <input
-                        className="form-input"
-                        name="city"
-                        placeholder="Nhập tự do tỉnh/thành phố"
-                        autoComplete="address-level1"
-                        value={shippingForm.city}
-                        onChange={handleShipChange}
-                      />
-                      <p className="field-hint">Không giới hạn danh sách, bạn có thể nhập tự do tỉnh/thành phố, phường/xã và quận/huyện.</p>
-                    </div>
+                    {ghnReady ? (
+                      <>
+                        <div className="form-group">
+                          <label className="form-label">Tỉnh/Thành phố</label>
+                          <select
+                            className="form-select"
+                            name="provinceId"
+                            value={shippingForm.provinceId}
+                            onChange={handleProvinceChange}
+                            disabled={ghnLoading || ghnProvinces.length === 0}
+                          >
+                            <option value="">
+                              {ghnLoading ? "Đang tải tỉnh/thành phố..." : "Chọn tỉnh/thành phố"}
+                            </option>
+                            {ghnProvinces.map((province) => (
+                              <option key={province.provinceId} value={province.provinceId}>
+                                {province.provinceName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Quận/Huyện</label>
+                          <select
+                            className="form-select"
+                            name="districtId"
+                            value={shippingForm.districtId}
+                            onChange={handleDistrictChange}
+                            disabled={!shippingForm.provinceId || districtsLoading}
+                          >
+                            <option value="">
+                              {districtsLoading ? "Đang tải quận/huyện..." : "Chọn quận/huyện"}
+                            </option>
+                            {ghnDistricts.map((districtItem) => (
+                              <option key={districtItem.districtId} value={districtItem.districtId}>
+                                {districtItem.districtName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group span-2">
+                          <label className="form-label">Phường/Xã</label>
+                          <select
+                            className="form-select"
+                            name="wardCode"
+                            value={shippingForm.wardCode}
+                            onChange={handleWardChange}
+                            disabled={!shippingForm.districtId || wardsLoading}
+                          >
+                            <option value="">
+                              {wardsLoading ? "Đang tải phường/xã..." : "Chọn phường/xã"}
+                            </option>
+                            {ghnWards.map((wardItem) => (
+                              <option key={wardItem.wardCode} value={wardItem.wardCode}>
+                                {wardItem.wardName}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="field-hint">
+                            {quoteLoading
+                              ? "GHN đang tính phí ship theo địa chỉ đã chọn..."
+                              : "Phí ship sẽ được cập nhật tự động khi chọn xong phường/xã."}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="form-group">
+                          <label className="form-label">Phường/Xã (tự nhập)</label>
+                          <input
+                            className="form-input"
+                            name="ward"
+                            placeholder="Nhập phường/xã bất kỳ"
+                            autoComplete="off"
+                            value={shippingForm.ward}
+                            onChange={handleShipChange}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Quận/Huyện (tự nhập)</label>
+                          <input
+                            className="form-input"
+                            name="district"
+                            placeholder="Nhập quận/huyện bất kỳ"
+                            autoComplete="off"
+                            value={shippingForm.district}
+                            onChange={handleShipChange}
+                          />
+                        </div>
+                        <div className="form-group span-2">
+                          <label className="form-label">Tỉnh/Thành phố</label>
+                          <input
+                            className="form-input"
+                            name="city"
+                            placeholder="Nhập tự do tỉnh/thành phố"
+                            autoComplete="address-level1"
+                            value={shippingForm.city}
+                            onChange={handleShipChange}
+                          />
+                          <p className="field-hint">Không giới hạn danh sách, bạn có thể nhập tự do tỉnh/thành phố, phường/xã và quận/huyện.</p>
+                        </div>
+                      </>
+                    )}
                     <div className="form-group span-2">
                       <label className="form-label">Ghi chú giao hàng (tùy chọn)</label>
                       <textarea
@@ -583,11 +976,15 @@ export default function CheckoutPage() {
                 <span>{formatPrice(subtotal)}</span>
               </div>
               <div className="summary-line green">
-                <span className="label">Phí vận chuyển</span>
+                <span className="label">Phí vận chuyển {ghnReady ? `(${shippingServiceName})` : ""}</span>
                 <span className="value">
-                  {shipping === 0 ? "Miễn phí 🎉" : formatPrice(shipping)}
+                  {shippingLineValue}
                 </span>
               </div>
+            </div>
+
+            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
+              {shippingNote}
             </div>
 
             <div className="summary-divider" />

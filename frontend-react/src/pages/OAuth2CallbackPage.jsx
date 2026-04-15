@@ -1,40 +1,28 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { userAPI } from "../services/api";
 
 /**
  * OAuth2 Callback Page
  * Backend redirects here after OAuth2 authentication success
- * Query params: ?userId=X&email=Y
  */
 export default function OAuth2CallbackPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const handleOAuth2Callback = async () => {
       try {
-        const userId = searchParams.get("userId");
-        const email = searchParams.get("email");
-
-        if (!userId || !email) {
-          setError("OAuth2 callback parameters missing");
-          setLoading(false);
-          setTimeout(() => navigate("/login"), 2000);
-          return;
-        }
-
-        // Call backend endpoint to generate JWT token
+        // Call backend endpoint to generate JWT token from the active OAuth2 session
         const response = await fetch("http://localhost:8080/api/users/oauth2/callback", {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ userId, email }),
+          body: "{}",
         });
 
         if (!response.ok) {
@@ -96,7 +84,7 @@ export default function OAuth2CallbackPage() {
     };
 
     handleOAuth2Callback();
-  }, [searchParams, navigate]);
+  }, [navigate, login]);
 
   return (
     <div style={{

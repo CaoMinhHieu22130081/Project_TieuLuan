@@ -199,6 +199,72 @@ export const categoryAPI = {
   },
 };
 
+// ============ SHIPPING API ============
+
+export const shippingAPI = {
+  // Get GHN configuration state
+  getGhnConfiguration: async () => {
+    try {
+      return await requestJson(`${API_BASE_URL}/shipping/ghn/configured`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch GHN configuration');
+    } catch (error) {
+      console.error('Error fetching GHN configuration:', error);
+      throw error;
+    }
+  },
+
+  // Get GHN provinces
+  getGhnProvinces: async () => {
+    try {
+      return await requestJson(`${API_BASE_URL}/shipping/ghn/provinces`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch GHN provinces');
+    } catch (error) {
+      console.error('Error fetching GHN provinces:', error);
+      throw error;
+    }
+  },
+
+  // Get GHN districts
+  getGhnDistricts: async (provinceId) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/shipping/ghn/districts?provinceId=${encodeURIComponent(provinceId)}`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch GHN districts');
+    } catch (error) {
+      console.error('Error fetching GHN districts:', error);
+      throw error;
+    }
+  },
+
+  // Get GHN wards
+  getGhnWards: async (districtId) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/shipping/ghn/wards?districtId=${encodeURIComponent(districtId)}`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch GHN wards');
+    } catch (error) {
+      console.error('Error fetching GHN wards:', error);
+      throw error;
+    }
+  },
+
+  // Quote GHN shipping fee
+  quoteGhnFee: async (quoteData) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/shipping/ghn/quote`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(quoteData),
+      }, 'Failed to quote GHN shipping fee');
+    } catch (error) {
+      console.error('Error quoting GHN shipping fee:', error);
+      throw error;
+    }
+  },
+};
+
 // ============ USERS API ============
 
 export const userAPI = {

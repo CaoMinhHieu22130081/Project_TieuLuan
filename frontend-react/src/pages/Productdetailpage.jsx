@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { productAPI, reviewAPI } from "../services/api";
+import { formatShippingThreshold } from "../utils/shipping";
 import { useWishlist } from "../context/WishlistContext";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
@@ -429,7 +430,7 @@ export default function ProductDetailPage() {
 
             {/* Shipping */}
             <div className="shipping-info">
-              <div className="shipping-item"><span className="shipping-icon">🚚</span> Miễn phí giao hàng đơn từ 299.000đ</div>
+              <div className="shipping-item"><span className="shipping-icon">🚚</span> Miễn phí giao hàng đơn từ {formatShippingThreshold()}</div>
               <div className="shipping-item"><span className="shipping-icon">↩️</span> Đổi trả miễn phí trong 30 ngày</div>
               <div className="shipping-item"><span className="shipping-icon">🔒</span> Thanh toán bảo mật qua VNPAY / Momo</div>
               <div className="shipping-item"><span className="shipping-icon">✅</span> Cam kết hàng chính hãng 100%</div>

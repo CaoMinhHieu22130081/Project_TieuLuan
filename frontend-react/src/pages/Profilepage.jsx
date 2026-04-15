@@ -366,9 +366,8 @@ export default function ProfilePage() {
       // Cập nhật profile trên server
       await userAPI.updateProfile(userId, {
         name: profile.fullName,
-        email: profile.email,
         phone: profile.phone,
-        dateOfBirth: profile.dob,
+        dob: profile.dob,
         gender: profile.gender,
         address: profile.address,
       });
@@ -1315,6 +1314,7 @@ export default function ProfilePage() {
                             className="edit-form-input"
                             type={type}
                             value={profile[key]}
+                            readOnly={key === "email"}
                             onChange={(e) => setProfile((prev) => ({ ...prev, [key]: e.target.value }))}
                           />
                         </div>

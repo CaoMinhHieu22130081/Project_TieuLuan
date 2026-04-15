@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { FREE_SHIPPING_THRESHOLD, formatShippingThreshold } from "../utils/shipping";
 import "./css/Cartpage.css";
 
 const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
@@ -44,8 +45,8 @@ export default function CartPage() {
   const selectedItemsData = items.filter(item => selectedItems.has(item.cartItemId));
   const subtotal = selectedItemsData.reduce((sum, item) => sum + item.price * item.qty, 0);
   const discount = promoApplied ? Math.round(subtotal * 0.1) : 0;
-  const shipping  = subtotal >= 299000 ? 0 : 30000;
-  const total     = subtotal - discount + shipping;
+  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : null;
+  const total    = subtotal - discount + (shipping ?? 0);
 
   const handlePromo = () => {
     if (promoCode.toUpperCase() === "UNIQ10") setPromoApplied(true);
@@ -231,9 +232,13 @@ export default function CartPage() {
               <div className="summary-line shipping">
                 <span className="summary-line-label">Phí vận chuyển</span>
                 <span className="summary-line-value">
-                  {shipping === 0 ? "Miễn phí 🎉" : formatPrice(shipping)}
+                  {shipping === 0 ? "Miễn phí 🎉" : `GHN sẽ tính ở bước thanh toán`}
                 </span>
               </div>
+            </div>
+
+            <div style={{ marginTop: 10, fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+              Đơn từ {formatPrice(FREE_SHIPPING_THRESHOLD)} được miễn phí ship. Đơn dưới mức này sẽ tính theo GHN ở bước thanh toán.
             </div>
 
             <div className="summary-divider" />

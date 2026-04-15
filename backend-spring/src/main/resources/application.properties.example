@@ -32,6 +32,18 @@ logging.level.org.springframework.security.oauth2=DEBUG
 spring.application.name=UniqueTee Backend
 app.frontend-base-url=${APP_FRONTEND_BASE_URL:http://localhost:5176}
 
+# GHN Shipping Configuration
+ghn.api-base-url=${GHN_API_BASE_URL:https://online-gateway.ghn.vn/shiip/public-api/v2}
+ghn.token=${GHN_TOKEN:your-ghn-token}
+ghn.shop-id=${GHN_SHOP_ID:your-ghn-shop-id}
+ghn.from-district-id=${GHN_FROM_DISTRICT_ID:your-origin-district-id}
+ghn.from-ward-code=${GHN_FROM_WARD_CODE:your-origin-ward-code}
+ghn.package-weight-grams=${GHN_PACKAGE_WEIGHT_GRAMS:500}
+ghn.package-length-cm=${GHN_PACKAGE_LENGTH_CM:20}
+ghn.package-width-cm=${GHN_PACKAGE_WIDTH_CM:15}
+ghn.package-height-cm=${GHN_PACKAGE_HEIGHT_CM:10}
+ghn.default-service-type-id=${GHN_DEFAULT_SERVICE_TYPE_ID:2}
+
 # VNPay Configuration
 vnpay.pay-url=${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
 vnpay.hash-secret=${VNPAY_HASH_SECRET:your-vnpay-hash-secret}

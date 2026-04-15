@@ -15,13 +15,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.uniquetee.entity.Order;
 import com.uniquetee.entity.OrderItem;
+import com.uniquetee.entity.Product;
 import com.uniquetee.repository.OrderRepository;
+import com.uniquetee.repository.ProductRepository;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
     @Mock
     private OrderRepository orderRepository;
+
+    @Mock
+    private ProductRepository productRepository;
 
     @InjectMocks
     private OrderService orderService;
@@ -60,5 +65,32 @@ class OrderServiceTest {
         Optional<Order> foundOrder = orderService.getOrderByCode("UNQ-ABC-1234");
 
         assertEquals(Optional.of(order), foundOrder);
+    }
+
+    @Test
+    void createOrder_countsCodSalesImmediately() {
+        Product product = new Product();
+        product.setId(11);
+        product.setPrice(new BigDecimal("50000"));
+        product.setSold(4);
+
+        Order order = new Order();
+        order.setPaymentMethod("cod");
+        order.setStatus("pending");
+
+        OrderItem item = new OrderItem();
+        item.setProductId(11);
+        item.setQty(2);
+        order.setItems(new ArrayList<>(java.util.List.of(item)));
+
+        when(productRepository.findById(11)).thenReturn(Optional.of(product));
+        when(productRepository.save(product)).thenReturn(product);
+        when(orderRepository.save(order)).thenReturn(order);
+
+        Order savedOrder = orderService.createOrder(order);
+
+        assertSame(order, savedOrder);
+        assertEquals(new BigDecimal("100000"), savedOrder.getSubtotal());
+        assertEquals(6, product.getSold());
     }
 }

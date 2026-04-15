@@ -130,14 +130,14 @@ public class OrderService {
     }
 
     private void syncProductSoldCounts(Order order, String previousStatus, String nextStatus) {
-        boolean wasDelivered = isDelivered(previousStatus);
-        boolean isDelivered = isDelivered(nextStatus);
+        boolean wasCountedAsSold = previousStatus != null && isCountedAsSold(order, previousStatus);
+        boolean isCountedAsSold = isCountedAsSold(order, nextStatus);
 
-        if (wasDelivered == isDelivered) {
+        if (wasCountedAsSold == isCountedAsSold) {
             return;
         }
 
-        int multiplier = isDelivered ? 1 : -1;
+        int multiplier = isCountedAsSold ? 1 : -1;
         adjustSoldCounts(order, multiplier);
     }
 
@@ -172,7 +172,22 @@ public class OrderService {
         return normalizeValue(status);
     }
 
-    private boolean isDelivered(String status) {
-        return status != null && "delivered".equalsIgnoreCase(status.trim());
+    private boolean isCountedAsSold(Order order, String status) {
+        if (order == null || isCancelled(status)) {
+            return false;
+        }
+
+        String paymentMethod = normalizeValue(order.getPaymentMethod());
+        String normalizedStatus = normalizeStatus(status);
+
+        if ("cod".equals(paymentMethod)) {
+            return true;
+        }
+
+        return normalizedStatus != null && !"pending".equals(normalizedStatus);
+    }
+
+    private boolean isCancelled(String status) {
+        return status != null && "cancelled".equalsIgnoreCase(status.trim());
     }
 }

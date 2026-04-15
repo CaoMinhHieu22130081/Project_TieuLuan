@@ -33,15 +33,14 @@ public class AuthorizationAspect {
         String userRole = (String) request.getAttribute("role");
         Integer userId = (Integer) request.getAttribute("userId");
         
-        // Nếu không có role, kiểm tra tất cả required roles, nếu có "admin" hoặc "staff" thì block
         String[] requiredRoles = requiredRole.value();
         
         if (userRole == null) {
-            // Không có token, kiểm tra xem có yêu cầu role không
-            if (requiredRoles.length > 0 && !Arrays.asList(requiredRoles).contains("customer")) {
-                throw new SecurityException("❌ Unauthorized: Token required. Required roles: " + Arrays.toString(requiredRoles));
-            }
-            return; // Allow if no specific role required
+            throw new SecurityException("❌ Unauthorized: Token required. Required roles: " + Arrays.toString(requiredRoles));
+        }
+
+        if (requiredRoles == null || requiredRoles.length == 0) {
+            return;
         }
         
         // Kiểm tra xem role của user có trong required roles không

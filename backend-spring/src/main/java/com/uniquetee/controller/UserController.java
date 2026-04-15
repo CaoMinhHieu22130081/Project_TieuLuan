@@ -8,6 +8,8 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,13 +25,14 @@ import com.uniquetee.config.JwtUtil;
 import com.uniquetee.entity.User;
 import com.uniquetee.service.EmailService;
 import com.uniquetee.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/users")
 @CrossOrigin(origins = {"http://127.0.0.1:5173", "http://localhost:5173",
                         "http://127.0.0.1:5174", "http://localhost:5174",
                         "http://127.0.0.1:5175", "http://localhost:5175",
-                        "http://127.0.0.1:5176", "http://localhost:5176"})
+                        "http://127.0.0.1:5176", "http://localhost:5176"}, allowCredentials = "true")
 public class UserController {
 
     @Autowired
@@ -42,6 +45,7 @@ public class UserController {
     private EmailService emailService;
 
     @GetMapping
+    @RequiredRole({"admin"})
     public ResponseEntity<List<User>> getAllUsers() {
         List<User> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
@@ -58,7 +62,12 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Integer id) {
+    @RequiredRole({"admin", "staff", "customer"})
+    public ResponseEntity<User> getUserById(@PathVariable Integer id, HttpServletRequest request) {
+        if (!canAccessUser(id, request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         Optional<User> user = userService.getUserById(id);
         return user.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -159,7 +168,22 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody User userDetails) {
+    @RequiredRole({"admin", "staff", "customer"})
+    public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody User userDetails, HttpServletRequest request) {
+        if (!canAccessUser(id, request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // Prevent profile update from mutating privileged or derived fields.
+        userDetails.setPassword(null);
+        userDetails.setSpent(null);
+        userDetails.setOrderCount(null);
+
+        if (!isAdminOrStaff(getCurrentUserRole(request))) {
+            userDetails.setRole(null);
+            userDetails.setStatus(null);
+        }
+
         User updatedUser = userService.updateUser(id, userDetails);
         if (updatedUser != null) {
             return ResponseEntity.ok(updatedUser);
@@ -254,6 +278,7 @@ public class UserController {
 
     // ============ TEST ENDPOINT (FOR DEVELOPMENT ONLY) ============
     @PostMapping("/get-reset-token")
+    @RequiredRole({"admin"})
     public ResponseEntity<Object> getResetToken(@RequestBody Map<String, String> request) {
         try {
             String email = request.get("email");
@@ -283,125 +308,66 @@ public class UserController {
     // ============ OAUTH2 ENDPOINTS ============
     
     /**
-     * Generate JWT token for OAuth2 user after successful OAuth2 authentication
-     * Called from frontend after OAuth2 user is authenticated
+     * Generate JWT token for OAuth2 user after successful OAuth2 authentication.
+     * Uses the authenticated OAuth2 session instead of trusting request body data.
      */
     @PostMapping("/oauth2/callback")
-    public ResponseEntity<Object> oauth2Callback(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Object> oauth2Callback(@AuthenticationPrincipal OAuth2User oauth2User) {
+        return buildOAuth2LoginResponse(oauth2User, "Đăng nhập OAuth2 thành công");
+    }
+
+    /**
+     * Get OAuth2 user info endpoint for frontend.
+     * Reuses the authenticated OAuth2 session.
+     */
+    @PostMapping("/oauth2/user-info")
+    public ResponseEntity<Object> getOAuth2UserInfo(@AuthenticationPrincipal OAuth2User oauth2User) {
+        return buildOAuth2LoginResponse(oauth2User, "OAuth2 user info lấy thành công");
+    }
+
+    private ResponseEntity<Object> buildOAuth2LoginResponse(OAuth2User oauth2User, String successMessage) {
         try {
-            String userId = request.get("userId");
-            String email = request.get("email");
-
-            if (userId == null || userId.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("message", "userId là bắt buộc"));
+            if (oauth2User == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Phiên OAuth2 không hợp lệ hoặc đã hết hạn"));
             }
 
-            if (email == null || email.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("message", "email là bắt buộc"));
+            Integer userId = resolveOAuth2UserId(oauth2User.getAttribute("userId"));
+            String email = resolveOAuth2Email(oauth2User.getAttribute("email"));
+
+            Optional<User> userOpt = Optional.empty();
+            if (userId != null) {
+                userOpt = userService.getUserById(userId);
+            }
+            if (userOpt.isEmpty() && email != null) {
+                userOpt = userService.getUserByEmail(email);
             }
 
-            // Verify user exists
-            Optional<User> userOpt = userService.getUserById(Integer.parseInt(userId));
-            if (!userOpt.isPresent()) {
+            if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("message", "Người dùng không tìm thấy"));
             }
 
             User user = userOpt.get();
 
+            if (user.getStatus() == null || !"active".equalsIgnoreCase(user.getStatus())) {
+                return ResponseEntity.status(423)
+                        .body(Map.of("message", "Tài khoản này đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên."));
+            }
+
             // Generate JWT token with role
             String token = jwtUtil.generateToken(user.getEmail(), user.getId(), user.getRole());
 
             // Return response with token and user info
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Đăng nhập OAuth2 thành công");
+            response.put("message", successMessage);
             response.put("token", token);
             response.put("user", user);
 
             return ResponseEntity.ok(response);
-
-        } catch (NumberFormatException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("message", "userId phải là số"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi OAuth2 callback: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * Get OAuth2 user info endpoint for frontend
-     * Frontend calls this endpoint with OAuth2 attributes to create user or get existing user
-     */
-    @PostMapping("/oauth2/user-info")
-    public ResponseEntity<Object> getOAuth2UserInfo(@RequestBody Map<String, Object> attributes) {
-        try {
-            String provider = (String) attributes.get("provider"); // "google" or "facebook"
-            String email = (String) attributes.get("email");
-            String name = (String) attributes.get("name");
-            String picture = (String) attributes.get("picture");
-
-            if (provider == null || provider.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("message", "provider là bắt buộc"));
-            }
-
-            if (email == null || email.isEmpty()) {
-                // For Facebook without email
-                if ("facebook".equals(provider)) {
-                    email = "facebook_" + attributes.get("id") + "@sociallogin.local";
-                } else {
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                            .body(Map.of("message", "email là bắt buộc"));
-                }
-            }
-
-            // Check if user exists
-            Optional<User> userOpt = userService.getUserByEmail(email);
-            User user;
-
-            if (userOpt.isPresent()) {
-                user = userOpt.get();
-            } else {
-                // Create new user from OAuth2 info
-                user = new User();
-                user.setEmail(email);
-                user.setName(name != null ? name : email);
-                user.setPassword("OAUTH2_" + provider.toUpperCase() + "_" + System.currentTimeMillis());
-                user.setRole("customer");
-                user.setStatus("active");
-                user.setAvatar(name != null && !name.isEmpty() ? name.substring(0, 1).toUpperCase() : "U");
-
-                try {
-                    user = userService.createUser(user);
-                } catch (Exception createEx) {
-                    // If user creation fails (e.g., email already exists in between),
-                    // try to fetch again
-                    Optional<User> retryOpt = userService.getUserByEmail(email);
-                    if (retryOpt.isPresent()) {
-                        user = retryOpt.get();
-                    } else {
-                        throw createEx;
-                    }
-                }
-            }
-
-            // Generate JWT token with role
-            String token = jwtUtil.generateToken(user.getEmail(), user.getId(), user.getRole());
-
-            // Return response with token and user info
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "OAuth2 user info lấy thành công");
-            response.put("token", token);
-            response.put("user", user);
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("message", "Lỗi OAuth2 user info: " + e.getMessage()));
         }
     }
 
@@ -412,10 +378,17 @@ public class UserController {
      * @return Response with success/error message
      */
     @PostMapping("/{id}/change-password")
+    @RequiredRole({"admin", "staff", "customer"})
     public ResponseEntity<Object> changePassword(
             @PathVariable Integer id,
-            @RequestBody Map<String, String> request) {
+            @RequestBody Map<String, String> request,
+            HttpServletRequest servletRequest) {
         try {
+            if (!canAccessUser(id, servletRequest)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("message", "Bạn không có quyền thay đổi mật khẩu tài khoản này"));
+            }
+
             String oldPassword = request.get("oldPassword");
             String newPassword = request.get("newPassword");
             String confirmPassword = request.get("confirmPassword");
@@ -465,10 +438,17 @@ public class UserController {
      * @return Response with success/error message and updated user
      */
     @PostMapping("/{id}/upload-avatar")
+    @RequiredRole({"admin", "staff", "customer"})
     public ResponseEntity<Object> uploadAvatar(
             @PathVariable Integer id,
-            @RequestBody Map<String, String> request) {
+            @RequestBody Map<String, String> request,
+            HttpServletRequest servletRequest) {
         try {
+            if (!canAccessUser(id, servletRequest)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("message", "Bạn không có quyền cập nhật ảnh đại diện tài khoản này"));
+            }
+
             String imageBase64 = request.get("imageBase64");
 
             // Validate input
@@ -492,5 +472,74 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi cập nhật ảnh đại diện: " + e.getMessage()));
         }
+    }
+
+    private Integer resolveOAuth2UserId(Object userIdValue) {
+        if (userIdValue instanceof Integer integerUserId) {
+            return integerUserId;
+        }
+        if (userIdValue instanceof Number numberUserId) {
+            return numberUserId.intValue();
+        }
+        if (userIdValue instanceof String stringUserId) {
+            String trimmedUserId = stringUserId.trim();
+            if (trimmedUserId.isEmpty()) {
+                return null;
+            }
+            try {
+                return Integer.valueOf(trimmedUserId);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private String resolveOAuth2Email(Object emailValue) {
+        if (emailValue == null) {
+            return null;
+        }
+        String email = emailValue.toString().trim();
+        return email.isEmpty() ? null : email;
+    }
+
+    private Integer getCurrentUserId(HttpServletRequest request) {
+        Object currentUserId = request.getAttribute("userId");
+        if (currentUserId instanceof Integer integerUserId) {
+            return integerUserId;
+        }
+        if (currentUserId instanceof Number numberUserId) {
+            return numberUserId.intValue();
+        }
+        if (currentUserId instanceof String stringUserId) {
+            try {
+                return Integer.valueOf(stringUserId.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private String getCurrentUserRole(HttpServletRequest request) {
+        Object currentRole = request.getAttribute("role");
+        return currentRole == null ? null : currentRole.toString();
+    }
+
+    private boolean isAdminOrStaff(String role) {
+        if (role == null) {
+            return false;
+        }
+        return "admin".equalsIgnoreCase(role) || "staff".equalsIgnoreCase(role);
+    }
+
+    private boolean canAccessUser(Integer targetUserId, HttpServletRequest request) {
+        String currentRole = getCurrentUserRole(request);
+        if (isAdminOrStaff(currentRole)) {
+            return true;
+        }
+
+        Integer currentUserId = getCurrentUserId(request);
+        return currentUserId != null && currentUserId.equals(targetUserId);
     }
 }

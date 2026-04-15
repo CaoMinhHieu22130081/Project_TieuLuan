@@ -3,6 +3,8 @@ import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
+const GUEST_CART_KEY = 'guestCart';
+
 export function CartProvider({ children }) {
   const { user } = useAuth();
   const [cart, setCart] = useState([]);
@@ -13,24 +15,45 @@ export function CartProvider({ children }) {
     if (user && user.id) {
       return `cart_${user.id}`;
     }
-    return null; // Không lưu localStorage nếu chưa đăng nhập
+    return GUEST_CART_KEY;
+  };
+
+  const mergeCartItems = (primaryCart, secondaryCart) => {
+    const merged = [...primaryCart];
+
+    secondaryCart.forEach((incomingItem) => {
+      const existingItemIndex = merged.findIndex((item) => item.cartItemId === incomingItem.cartItemId);
+      if (existingItemIndex >= 0) {
+        merged[existingItemIndex] = {
+          ...merged[existingItemIndex],
+          qty: merged[existingItemIndex].qty + incomingItem.qty,
+        };
+      } else {
+        merged.push(incomingItem);
+      }
+    });
+
+    return merged;
   };
 
   // Load cart từ localStorage khi component mount hoặc user thay đổi
   useEffect(() => {
     try {
       const storageKey = getStorageKey();
-      if (storageKey) {
-        // User đã đăng nhập - load cart của user này
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-          setCart(JSON.parse(saved));
-        } else {
-          setCart([]);
-        }
+      if (user && user.id) {
+        // User đã đăng nhập - gộp giỏ khách với giỏ đã lưu của user
+        const savedUserCart = localStorage.getItem(storageKey);
+        const savedGuestCart = localStorage.getItem(GUEST_CART_KEY);
+        const userCart = savedUserCart ? JSON.parse(savedUserCart) : [];
+        const guestCart = savedGuestCart ? JSON.parse(savedGuestCart) : [];
+        const mergedCart = mergeCartItems(userCart, guestCart);
+        setCart(mergedCart);
+        localStorage.setItem(storageKey, JSON.stringify(mergedCart));
+        localStorage.removeItem(GUEST_CART_KEY);
       } else {
-        // Chưa đăng nhập - reset giỏ hàng (session only)
-        setCart([]);
+        // Chưa đăng nhập - tiếp tục dùng giỏ khách
+        const savedGuestCart = localStorage.getItem(storageKey);
+        setCart(savedGuestCart ? JSON.parse(savedGuestCart) : []);
       }
     } catch (err) {
       console.error('Failed to load cart:', err);
@@ -44,11 +67,7 @@ export function CartProvider({ children }) {
     if (!loading) {
       try {
         const storageKey = getStorageKey();
-        if (storageKey) {
-          // User đã đăng nhập - lưu vào localStorage với key theo user
-          localStorage.setItem(storageKey, JSON.stringify(cart));
-        }
-        // Nếu chưa đăng nhập, không lưu vào localStorage
+        localStorage.setItem(storageKey, JSON.stringify(cart));
       } catch (err) {
         console.error('Failed to save cart:', err);
       }

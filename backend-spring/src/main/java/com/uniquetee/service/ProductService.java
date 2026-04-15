@@ -1,9 +1,11 @@
 package com.uniquetee.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -11,12 +13,17 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.uniquetee.entity.Category;
+import com.uniquetee.entity.Order;
+import com.uniquetee.entity.OrderItem;
 import com.uniquetee.entity.Product;
 import com.uniquetee.entity.ProductColor;
 import com.uniquetee.entity.ProductImage;
 import com.uniquetee.entity.ProductSize;
+import com.uniquetee.entity.Review;
 import com.uniquetee.repository.CategoryRepository;
+import com.uniquetee.repository.OrderRepository;
 import com.uniquetee.repository.ProductRepository;
+import com.uniquetee.repository.ReviewRepository;
 
 @Service
 public class ProductService {
@@ -27,20 +34,32 @@ public class ProductService {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    @Autowired
+    private ReviewRepository reviewRepository;
+
+    @Autowired
+    private OrderRepository orderRepository;
+
     public List<Product> getAllProducts() {
-        return productRepository.findAll();
+        return productRepository.findAll().stream()
+                .map(this::syncProductStatistics)
+                .collect(Collectors.toList());
     }
 
     public Optional<Product> getProductById(int id) {
-        return productRepository.findById(id);
+        return productRepository.findById(id).map(this::syncProductStatistics);
     }
 
     public List<Product> getProductsByCategory(String category) {
-        return productRepository.findByCategoryName(category);
+        return productRepository.findByCategoryName(category).stream()
+                .map(this::syncProductStatistics)
+                .collect(Collectors.toList());
     }
 
     public List<Product> searchProducts(String keyword) {
-        return productRepository.findByNameContainingIgnoreCase(keyword);
+        return productRepository.findByNameContainingIgnoreCase(keyword).stream()
+                .map(this::syncProductStatistics)
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -48,7 +67,7 @@ public class ProductService {
         validateProduct(product);
         product.setCategory(resolveCategory(product.getCategory(), product.getType()));
         syncProductRelations(product, product);
-        return productRepository.save(product);
+        return syncProductStatistics(productRepository.save(product));
     }
 
     @Transactional
@@ -75,7 +94,7 @@ public class ProductService {
             existingProduct.setIsActive(productDetails.getIsActive());
         }
 
-        return productRepository.save(existingProduct);
+        return syncProductStatistics(productRepository.save(existingProduct));
     }
 
     public boolean deleteProduct(int id) {
@@ -228,5 +247,99 @@ public class ProductService {
         }
 
         return normalizedSizes;
+    }
+
+    private Product syncProductStatistics(Product product) {
+        if (product == null || product.getId() == null) {
+            return product;
+        }
+
+        Integer productId = product.getId();
+        List<Review> reviews = reviewRepository.findByProductId(productId);
+        int reviewCount = reviews.size();
+        double averageRating = reviews.stream()
+                .map(Review::getRating)
+                .filter(java.util.Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0.0);
+        BigDecimal rating = BigDecimal.valueOf(averageRating).setScale(2, RoundingMode.HALF_UP);
+        int soldCount = calculateSoldCount(productId);
+
+        boolean changed = false;
+        if (!java.util.Objects.equals(product.getReviewCount(), reviewCount)) {
+            product.setReviewCount(reviewCount);
+            changed = true;
+        }
+
+        if (product.getRating() == null || product.getRating().compareTo(rating) != 0) {
+            product.setRating(rating);
+            changed = true;
+        }
+
+        if (!java.util.Objects.equals(product.getSold(), soldCount)) {
+            product.setSold(soldCount);
+            changed = true;
+        }
+
+        if (changed) {
+            return productRepository.save(product);
+        }
+
+        return product;
+    }
+
+    private int calculateSoldCount(Integer productId) {
+        if (productId == null) {
+            return 0;
+        }
+
+        List<Order> orders = orderRepository.findByProductId(productId);
+        int soldCount = 0;
+
+        for (Order order : orders) {
+            if (!isCountedAsSold(order)) {
+                continue;
+            }
+
+            List<OrderItem> items = order.getItems();
+            if (items == null || items.isEmpty()) {
+                continue;
+            }
+
+            for (OrderItem item : items) {
+                if (item == null || !productId.equals(item.getProductId())) {
+                    continue;
+                }
+
+                Integer quantityValue = item.getQty();
+                soldCount += quantityValue == null ? 1 : quantityValue;
+            }
+        }
+
+        return soldCount;
+    }
+
+    private boolean isCountedAsSold(Order order) {
+        if (order == null || isCancelled(order.getStatus())) {
+            return false;
+        }
+
+        String paymentMethod = normalizeValue(order.getPaymentMethod());
+        String status = normalizeValue(order.getStatus());
+
+        if ("cod".equals(paymentMethod)) {
+            return true;
+        }
+
+        return status != null && !"pending".equals(status);
+    }
+
+    private boolean isCancelled(String status) {
+        return status != null && "cancelled".equalsIgnoreCase(status.trim());
+    }
+
+    private String normalizeValue(String value) {
+        return value == null ? null : value.trim().toLowerCase();
     }
 }
