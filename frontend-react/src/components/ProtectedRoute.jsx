@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import './RouteGuard.css';
+import '../pages/css/RouteGuard.css';
 
 /**
  * ProtectedRoute Component - Bảo vệ routes dựa trên role

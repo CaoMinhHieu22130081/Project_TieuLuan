@@ -428,11 +428,11 @@ function ProductCard({ product }) {
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", height: "100%" }}>
       <Link
         to={`/products/${product.id}`}
         className={`product-card ${hovered ? "hovered" : ""}`}
-        style={{ textDecoration: "none", display: "block" }}
+        style={{ textDecoration: "none", display: "flex", flexDirection: "column", height: "100%" }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
