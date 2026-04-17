@@ -7,9 +7,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.uniquetee.entity.Order;
 import com.uniquetee.entity.OrderItem;
@@ -22,6 +26,7 @@ import com.uniquetee.repository.UserRepository;
 public class OrderService {
 
     private static final Set<String> SUPPORTED_PAYMENT_METHODS = Set.of("cod", "vnpay", "momo", "card");
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
     @Autowired
     private OrderRepository orderRepository;
@@ -31,6 +36,9 @@ public class OrderService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private EmailService emailService;
 
     public Optional<Order> getOrderById(Integer id) {
         return orderRepository.findById(Objects.requireNonNull(id, "id"));
@@ -89,7 +97,33 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
         syncProductSoldCounts(savedOrder, null, normalizeStatus(savedOrder.getStatus()));
+        if (isCodPayment(savedOrder)) {
+            notifyOrderConfirmationAfterCommit(savedOrder);
+        }
         return savedOrder;
+    }
+
+    @Transactional
+    public Order confirmPaymentSuccess(Integer id) {
+        Optional<Order> o = orderRepository.findById(Objects.requireNonNull(id, "id"));
+        if (o.isPresent()) {
+            Order order = o.get();
+            if (!isVnpayPayment(order)) {
+                return order;
+            }
+
+            String previousStatus = normalizeStatus(order.getStatus());
+            if ("processing".equals(previousStatus) || isCancelled(previousStatus) || "delivered".equals(previousStatus)) {
+                return order;
+            }
+
+            order.setStatus("processing");
+            Order updatedOrder = orderRepository.save(order);
+            syncProductSoldCounts(updatedOrder, previousStatus, normalizeStatus(updatedOrder.getStatus()));
+            notifyOrderConfirmationAfterCommit(updatedOrder);
+            return updatedOrder;
+        }
+        return null;
     }
 
     @Transactional
@@ -185,6 +219,107 @@ public class OrderService {
         }
 
         return normalizedStatus != null && !"pending".equals(normalizedStatus);
+    }
+
+    private boolean isCodPayment(Order order) {
+        return order != null && "cod".equals(normalizeValue(order.getPaymentMethod()));
+    }
+
+    private boolean isVnpayPayment(Order order) {
+        return order != null && "vnpay".equals(normalizeValue(order.getPaymentMethod()));
+    }
+
+    private void notifyOrderConfirmationAfterCommit(Order order) {
+        if (order == null) {
+            return;
+        }
+
+        String recipientEmail = resolveNotificationEmail(order);
+        if (!hasText(recipientEmail)) {
+            log.warn("Skipping order confirmation email for order {} because no recipient email was found", order.getOrderCode());
+            return;
+        }
+
+        String recipientName = resolveNotificationName(order);
+        Runnable sendEmailTask = () -> {
+            try {
+                emailService.sendOrderConfirmationEmail(recipientEmail, recipientName, order);
+            } catch (Exception ex) {
+                log.warn("Failed to send order confirmation email for order {}: {}", order.getOrderCode(), ex.getMessage());
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void suspend() {
+                }
+
+                @Override
+                public void resume() {
+                }
+
+                @Override
+                public void flush() {
+                }
+
+                @Override
+                public void beforeCommit(boolean readOnly) {
+                }
+
+                @Override
+                public void beforeCompletion() {
+                }
+
+                @Override
+                public void afterCommit() {
+                    sendEmailTask.run();
+                }
+
+                @Override
+                public void afterCompletion(int status) {
+                }
+            });
+            return;
+        }
+
+        sendEmailTask.run();
+    }
+
+    private String resolveNotificationEmail(Order order) {
+        if (order == null) {
+            return null;
+        }
+
+        if (order.getUser() != null && hasText(order.getUser().getEmail())) {
+            return order.getUser().getEmail().trim();
+        }
+
+        if (hasText(order.getCustomerEmail())) {
+            return order.getCustomerEmail().trim();
+        }
+
+        return null;
+    }
+
+    private String resolveNotificationName(Order order) {
+        if (order == null) {
+            return null;
+        }
+
+        if (order.getUser() != null && hasText(order.getUser().getName())) {
+            return order.getUser().getName().trim();
+        }
+
+        if (hasText(order.getCustomerName())) {
+            return order.getCustomerName().trim();
+        }
+
+        return null;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     private boolean isCancelled(String status) {

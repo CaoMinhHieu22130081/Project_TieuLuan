@@ -1,9 +1,5 @@
 package com.uniquetee.service;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +13,8 @@ import java.util.stream.Collectors;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -25,7 +23,7 @@ import com.uniquetee.entity.Order;
 class VnpayPaymentServiceTest {
 
     @Test
-    void processCallback_waitsForIpnBeforeUpdatingOrderStatus() {
+    void processCallback_confirmsSuccessfulReturnAndKeepsIpnIdempotent() {
         RecordingOrderService orderService = new RecordingOrderService();
         VnpayPaymentService vnpayPaymentService = new VnpayPaymentService(orderService);
         ReflectionTestUtils.setField(vnpayPaymentService, "hashSecret", "test-secret");
@@ -45,15 +43,14 @@ class VnpayPaymentServiceTest {
         assertTrue(returnResult.signatureValid());
         assertTrue(returnResult.orderFound());
         assertTrue(returnResult.paymentSuccess());
-        assertFalse(orderService.wasUpdateCalled());
+        assertEquals(1, orderService.getConfirmCallCount());
 
         VnpayCallbackResult ipnResult = vnpayPaymentService.processCallback(params, true);
 
         assertTrue(ipnResult.signatureValid());
         assertTrue(ipnResult.orderFound());
         assertTrue(ipnResult.paymentSuccess());
-        assertEquals(1, orderService.getUpdatedOrderId());
-        assertEquals("processing", orderService.getUpdatedStatus());
+        assertEquals(2, orderService.getConfirmCallCount());
     }
 
     private Map<String, String> createSignedSuccessParams(String orderCode) {
@@ -105,8 +102,7 @@ class VnpayPaymentServiceTest {
     private static final class RecordingOrderService extends OrderService {
 
         private Optional<Order> order = Optional.empty();
-        private Integer updatedOrderId;
-        private String updatedStatus;
+        private int confirmCallCount;
 
         void setOrder(Order order) {
             this.order = Optional.ofNullable(order);
@@ -118,22 +114,14 @@ class VnpayPaymentServiceTest {
         }
 
         @Override
-        public Order updateOrderStatus(Integer id, String status) {
-            this.updatedOrderId = id;
-            this.updatedStatus = status;
-            return null;
+        public Order confirmPaymentSuccess(Integer id) {
+            this.confirmCallCount++;
+            order.ifPresent(currentOrder -> currentOrder.setStatus("processing"));
+            return order.orElse(null);
         }
 
-        boolean wasUpdateCalled() {
-            return updatedOrderId != null;
-        }
-
-        Integer getUpdatedOrderId() {
-            return updatedOrderId;
-        }
-
-        String getUpdatedStatus() {
-            return updatedStatus;
+        int getConfirmCallCount() {
+            return confirmCallCount;
         }
     }
 }

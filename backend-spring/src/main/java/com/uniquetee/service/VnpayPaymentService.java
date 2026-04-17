@@ -146,14 +146,12 @@ public class VnpayPaymentService {
         Order order = optionalOrder.get();
         boolean paymentSuccess = isPaymentSuccess(params);
 
-        if (updateOrderStatus) {
+        if (paymentSuccess) {
+            orderService.confirmPaymentSuccess(order.getId());
+        } else if (updateOrderStatus) {
             String currentStatus = normalize(order.getStatus());
             if (!"cancelled".equals(currentStatus) && !"delivered".equals(currentStatus)) {
-                if (paymentSuccess) {
-                    orderService.updateOrderStatus(order.getId(), "processing");
-                } else {
-                    orderService.updateOrderStatus(order.getId(), "cancelled");
-                }
+                orderService.updateOrderStatus(order.getId(), "cancelled");
             }
         }
 
