@@ -106,6 +106,174 @@ public class EmailService {
         }
     }
 
+    public void sendOrderCancellationNotificationToAdmin(String adminEmail, Order order, String cancellationReason) {
+        // Use the cancellation email template (HTML + plain text) for admin notification as well
+        try {
+            sendOrderCancellationEmail(adminEmail, "Quản trị viên", order, cancellationReason);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi gửi email admin: " + e.getMessage());
+        }
+    }
+
+    public void sendOrderCancellationEmail(String email, String customerName, Order order, String cancellationReason) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            String recipientEmail = Objects.requireNonNull(email, "email");
+            String subject = Objects.requireNonNull(buildOrderCancellationSubject(order), "subject");
+            String plainText = Objects.requireNonNull(buildOrderCancellationBody(recipientEmail, customerName, order, cancellationReason), "plainText");
+            String htmlText = Objects.requireNonNull(buildOrderCancellationHtml(recipientEmail, customerName, order, cancellationReason), "htmlText");
+            helper.setFrom("caominhhieunq@gmail.com");
+            helper.setTo(recipientEmail);
+            helper.setSubject(subject);
+            helper.setText(plainText, htmlText);
+            mailSender.send(mimeMessage);
+        } catch (MailException | MessagingException e) {
+            throw new RuntimeException("Lỗi khi gửi email: " + e.getMessage());
+        }
+    }
+
+    private String buildOrderCancellationSubject(Order order) {
+        String orderCode = normalizeText(order == null ? null : order.getOrderCode());
+        return "UniqueTee - Đơn hàng đã bị hủy" + (orderCode == null ? "" : " #" + orderCode);
+    }
+
+    private String buildOrderCancellationBody(String email, String customerName, Order order, String cancellationReason) {
+        StringBuilder body = new StringBuilder();
+        String recipientName = normalizeRecipientName(customerName, order);
+
+        body.append("Xin chào ").append(recipientName).append(",\n\n");
+        body.append("Đơn hàng của bạn đã được hủy. Dưới đây là thông tin chi tiết về đơn hàng và lý do hủy.\n\n");
+
+        appendField(body, "Mã đơn hàng", order == null ? null : order.getOrderCode());
+        appendField(body, "Khách hàng", normalizeText(customerName != null ? customerName : order == null ? null : order.getCustomerName()));
+        appendField(body, "Số điện thoại", order == null ? null : order.getCustomerPhone());
+        appendField(body, "Email nhận thông báo", email);
+        appendField(body, "Địa chỉ giao hàng", formatAddress(order));
+        appendField(body, "Trạng thái đơn hàng", resolveOrderStatusLabel(order == null ? null : order.getStatus()));
+        if (order != null && order.getCancelledAt() != null) {
+            appendField(body, "Thời gian hủy", ORDER_DATE_FORMAT.format(order.getCancelledAt()));
+        }
+
+        if (hasText(cancellationReason)) {
+            appendField(body, "Lý do hủy", cancellationReason);
+        }
+
+        body.append("\nChi tiết đơn hàng:\n");
+        List<OrderItem> items = order == null ? List.of() : order.getItems();
+        if (items == null || items.isEmpty()) {
+            body.append("- Không có chi tiết sản phẩm\n");
+        } else {
+            int index = 1;
+            for (OrderItem item : items) {
+                body.append(formatOrderItem(index++, item));
+            }
+        }
+
+        body.append("\nTạm tính: ").append(formatMoney(order == null ? null : order.getSubtotal())).append('\n');
+        body.append("Phí vận chuyển: ").append(formatMoney(order == null ? null : order.getShippingFee())).append('\n');
+        body.append("Tổng cộng: ").append(formatMoney(order == null ? null : order.getTotal())).append("\n\n");
+        body.append("Nếu bạn cần hỗ trợ thêm, vui lòng phản hồi lại email này hoặc liên hệ bộ phận chăm sóc khách hàng.");
+        body.append("\n\nTrân trọng,\nUniqueTee Team");
+        return body.toString();
+    }
+
+    private String buildOrderCancellationHtml(String email, String customerName, Order order, String cancellationReason) {
+        String paymentMethod = normalizeText(order == null ? null : order.getPaymentMethod());
+        String recipientName = normalizeRecipientName(customerName, order);
+        String orderCode = normalizeText(order == null ? null : order.getOrderCode());
+        String totalAmount = formatMoney(order == null ? null : order.getTotal());
+        String headerTitle = "Đơn hàng đã bị hủy";
+        String headerDescription = "Yêu cầu hủy đơn của bạn đã được ghi nhận. Dưới đây là thông tin chi tiết đơn hàng.";
+
+        StringBuilder html = new StringBuilder();
+        html.append("<!doctype html><html><body style=\"margin:0;padding:0;background:#fff1f7;\">");
+        html.append("<div style=\"max-width:780px;margin:0 auto;padding:32px 18px 48px;font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;\">");
+        html.append("<div style=\"background:linear-gradient(135deg,#be185d 0%,#ec4899 55%,#fb7185 100%);border-radius:32px;overflow:hidden;box-shadow:0 22px 56px rgba(190,24,93,.24);border:1px solid rgba(244,114,182,.35);\">");
+        html.append("<div style=\"padding:34px 38px 26px;color:#fff;\">");
+        html.append("<div style=\"display:inline-block;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.16);font-size:12px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;\">UniqueTee</div>");
+        html.append("<div style=\"margin-top:18px;font-size:30px;line-height:1.18;font-weight:800;\">"+escapeHtml(headerTitle)+"</div>");
+        html.append("<div style=\"margin-top:12px;font-size:15px;line-height:1.8;max-width:560px;color:rgba(255,255,255,.94);\">"+escapeHtml(headerDescription)+"</div>");
+        html.append("<div style=\"margin-top:18px;\">");
+        html.append(buildHtmlBadge(resolvePaymentMethodLabel(paymentMethod), "rgba(255,255,255,.16)", "#ffffff"));
+        html.append(buildHtmlBadge(resolveOrderStatusLabel(order == null ? null : order.getStatus()), "rgba(255,255,255,.16)", "#ffffff"));
+        html.append("</div>");
+        html.append("<div style=\"margin-top:22px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);border-radius:22px;padding:18px 20px;\">");
+        html.append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border-collapse:collapse;\"><tr>");
+        html.append("<td style=\"width:50%;padding-right:14px;vertical-align:top;\">");
+        html.append("<div style=\"font-size:11px;letter-spacing:1.3px;text-transform:uppercase;font-weight:800;color:rgba(255,255,255,.86);\">Mã đơn hàng</div>");
+        html.append("<div style=\"margin-top:8px;font-size:18px;line-height:1.35;font-weight:800;color:#fff;word-break:break-word;\">"+escapeHtml(hasText(orderCode) ? "#"+orderCode : "Chưa có mã")+"</div>");
+        html.append("</td>");
+        html.append("<td style=\"width:50%;padding-left:14px;vertical-align:top;text-align:right;\">");
+        html.append("<div style=\"font-size:11px;letter-spacing:1.3px;text-transform:uppercase;font-weight:800;color:rgba(255,255,255,.86);\">Tổng cộng</div>");
+        html.append("<div style=\"margin-top:8px;font-size:24px;line-height:1.2;font-weight:900;color:#fff;\">"+escapeHtml(totalAmount)+"</div>");
+        html.append("</td>");
+        html.append("</tr></table>");
+        html.append("</div>");
+        html.append("</div>");
+
+        html.append("<div style=\"background:#fff;border:1px solid rgba(236,72,153,.16);border-top:none;border-radius:0 0 32px 32px;padding:34px 38px 40px;\">");
+        html.append("<p style=\"margin:0;font-size:16px;line-height:1.75;color:#1f2937;\">Xin chào <strong style=\"color:#be185d;\">"+escapeHtml(recipientName)+"</strong>.</p>");
+        html.append("<p style=\"margin:12px 0 0;font-size:14px;line-height:1.8;color:#6b7280;max-width:620px;\">"+escapeHtml(headerDescription)+"</p>");
+
+        html.append("<div style=\"margin-top:26px;border:1px solid #fbcfe8;border-radius:18px;overflow:hidden;background:#fff;\">");
+        html.append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border-collapse:collapse;background:#fff;\"><tbody>");
+        appendHtmlField(html, "Mã đơn hàng", order == null ? null : order.getOrderCode());
+        appendHtmlField(html, "Khách hàng", normalizeText(customerName != null ? customerName : order == null ? null : order.getCustomerName()));
+        appendHtmlField(html, "Số điện thoại", order == null ? null : order.getCustomerPhone());
+        appendHtmlField(html, "Email nhận thông báo", email);
+        appendHtmlField(html, "Địa chỉ giao hàng", formatAddress(order));
+        appendHtmlField(html, "Phương thức thanh toán", resolvePaymentMethodLabel(paymentMethod));
+        appendHtmlField(html, "Trạng thái đơn hàng", resolveOrderStatusLabel(order == null ? null : order.getStatus()));
+        if (order != null && order.getCancelledAt() != null) {
+            appendHtmlField(html, "Thời gian hủy", ORDER_DATE_FORMAT.format(order.getCancelledAt()));
+        }
+        if (hasText(cancellationReason)) {
+            appendHtmlField(html, "Lý do hủy", cancellationReason);
+        }
+        String note = order == null ? null : order.getNote();
+        if (hasText(note)) {
+            appendHtmlField(html, "Ghi chú", note);
+        }
+        html.append("</tbody></table></div>");
+
+        html.append("<div style=\"margin-top:28px;\">");
+        html.append("<div style=\"font-size:17px;font-weight:800;color:#be185d;margin-bottom:12px;letter-spacing:-.2px;\">Chi tiết đơn hàng</div>");
+        html.append("<div style=\"border:1px solid #fbcfe8;border-radius:18px;overflow:hidden;background:#fff;\">");
+        html.append("<div style=\"overflow-x:auto;\">");
+        html.append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border-collapse:collapse;min-width:540px;background:#fff;\">");
+        html.append("<thead><tr style=\"background:#fdf2f8;color:#be185d;font-size:12px;text-transform:uppercase;letter-spacing:.5px;\">");
+        html.append("<th style=\"padding:14px 16px;text-align:left;\">Sản phẩm</th>");
+        html.append("<th style=\"padding:14px 16px;text-align:center;width:72px;\">SL</th>");
+        html.append("<th style=\"padding:14px 16px;text-align:right;width:140px;\">Đơn giá</th>");
+        html.append("<th style=\"padding:14px 16px;text-align:right;width:150px;\">Thành tiền</th>");
+        html.append("</tr></thead><tbody>");
+
+        List<OrderItem> items2 = order == null ? List.of() : order.getItems();
+        if (items2 == null || items2.isEmpty()) {
+            html.append("<tr><td colspan=\"4\" style=\"padding:20px 16px;border-top:1px solid #fce7f3;color:#64748b;\">Không có chi tiết sản phẩm</td></tr>");
+        } else {
+            for (OrderItem item : items2) {
+                appendHtmlItemRow(html, item);
+            }
+        }
+        html.append("</tbody></table></div></div></div>");
+
+        html.append("<div style=\"margin-top:22px;background:#fff7fb;border:1px solid #fbcfe8;border-radius:22px;padding:18px 20px;\">");
+        html.append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border-collapse:collapse;\"><tbody>");
+        appendHtmlTotalRow(html, "Tạm tính", order == null ? null : order.getSubtotal(), false);
+        appendHtmlTotalRow(html, "Phí vận chuyển", order == null ? null : order.getShippingFee(), false);
+        appendHtmlTotalRow(html, "Tổng cộng", order == null ? null : order.getTotal(), true);
+        html.append("</tbody></table></div>");
+
+        html.append("<div style=\"margin-top:20px;padding-top:18px;border-top:1px solid #fbcfe8;font-size:13px;line-height:1.8;color:#7c3aed;\">");
+        html.append("Nếu bạn cần hỗ trợ, bạn có thể phản hồi trực tiếp email này.");
+        html.append("</div>");
+
+        html.append("</div></div></body></html>");
+        return html.toString();
+    }
+
     private String buildOrderConfirmationSubject(Order order) {
         String orderCode = normalizeText(order == null ? null : order.getOrderCode());
         String paymentMethod = normalizeText(order == null ? null : order.getPaymentMethod());

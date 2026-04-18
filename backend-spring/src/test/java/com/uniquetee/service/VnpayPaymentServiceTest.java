@@ -114,9 +114,9 @@ class VnpayPaymentServiceTest {
         }
 
         @Override
-        public Order confirmPaymentSuccess(Integer id) {
+        public Order markPaymentPendingAndNotify(Integer id) {
             this.confirmCallCount++;
-            order.ifPresent(currentOrder -> currentOrder.setStatus("processing"));
+            order.ifPresent(currentOrder -> currentOrder.setStatus("pending"));
             return order.orElse(null);
         }
 

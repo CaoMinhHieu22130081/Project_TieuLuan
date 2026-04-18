@@ -1,11 +1,13 @@
 package com.uniquetee.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,9 @@ public class OrderService {
 
     @Autowired
     private EmailService emailService;
+    
+    @Autowired
+    private AdminNotificationService adminNotificationService;
 
     public Optional<Order> getOrderById(Integer id) {
         return orderRepository.findById(Objects.requireNonNull(id, "id"));
@@ -127,6 +132,29 @@ public class OrderService {
     }
 
     @Transactional
+    public Order markPaymentPendingAndNotify(Integer id) {
+        Optional<Order> o = orderRepository.findById(Objects.requireNonNull(id, "id"));
+        if (o.isPresent()) {
+            Order order = o.get();
+            if (!isVnpayPayment(order)) {
+                return order;
+            }
+
+            String previousStatus = normalizeStatus(order.getStatus());
+            if ("processing".equals(previousStatus) || isCancelled(previousStatus) || "delivered".equals(previousStatus)) {
+                return order;
+            }
+
+            order.setStatus("pending");
+            Order updatedOrder = orderRepository.save(order);
+            syncProductSoldCounts(updatedOrder, previousStatus, normalizeStatus(updatedOrder.getStatus()));
+            notifyOrderConfirmationAfterCommit(updatedOrder);
+            return updatedOrder;
+        }
+        return null;
+    }
+
+    @Transactional
     public Order updateOrderStatus(Integer id, String status) {
         Optional<Order> o = orderRepository.findById(Objects.requireNonNull(id, "id"));
         if (o.isPresent()) {
@@ -136,6 +164,59 @@ public class OrderService {
             order.setStatus(nextStatus);
             Order updatedOrder = orderRepository.save(order);
             syncProductSoldCounts(updatedOrder, previousStatus, nextStatus);
+            return updatedOrder;
+        }
+        return null;
+    }
+
+    @Transactional
+    public Order cancelOrder(Integer id, List<String> reasons, String otherReason) {
+        Optional<Order> o = orderRepository.findById(Objects.requireNonNull(id, "id"));
+        if (o.isPresent()) {
+            Order order = o.get();
+            String previousStatus = normalizeStatus(order.getStatus());
+            if ("delivered".equals(previousStatus) || isCancelled(previousStatus)) {
+                return order;
+            }
+
+            String reasonText = "";
+            if (reasons != null && !reasons.isEmpty()) {
+                reasonText = reasons.stream()
+                        .filter(r -> r != null && !r.isBlank())
+                        .map(String::trim)
+                        .collect(Collectors.joining("; "));
+            }
+            if (otherReason != null && !otherReason.isBlank()) {
+                if (reasonText.isBlank()) reasonText = otherReason.trim();
+                else reasonText = reasonText + "; " + otherReason.trim();
+            }
+
+            order.setStatus("cancelled");
+            order.setCancellationReason(reasonText == null ? null : reasonText);
+            order.setCancelledAt(LocalDateTime.now());
+            Order updatedOrder = orderRepository.save(order);
+            syncProductSoldCounts(updatedOrder, previousStatus, normalizeStatus(updatedOrder.getStatus()));
+
+            try {
+                // notify customer
+                String customerEmail = order == null ? null : order.getCustomerEmail();
+                String customerName = order == null ? null : order.getCustomerName();
+                if (customerEmail != null && !customerEmail.isBlank()) {
+                    emailService.sendOrderCancellationEmail(customerEmail, customerName, updatedOrder, reasonText);
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to notify customer about cancellation for order {}: {}", order.getOrderCode(), ex.getMessage());
+            }
+
+            try {
+                // create server-side admin notification so it appears in admin bell
+                String orderLabel = updatedOrder.getOrderCode() == null ? String.valueOf(updatedOrder.getId()) : updatedOrder.getOrderCode();
+                String notifText = "Đã hủy đơn #" + orderLabel + (hasText(order.getCustomerName()) ? " bởi " + order.getCustomerName() : "");
+                adminNotificationService.createNotification("order", notifText, updatedOrder.getId());
+            } catch (Exception ex) {
+                log.warn("Failed to create admin notification for cancellation of order {}: {}", order.getOrderCode(), ex.getMessage());
+            }
+
             return updatedOrder;
         }
         return null;

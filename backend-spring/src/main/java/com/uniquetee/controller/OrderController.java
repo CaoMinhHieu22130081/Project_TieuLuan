@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.uniquetee.annotation.RequiredRole;
+import com.uniquetee.dto.OrderCancellationRequest;
 import com.uniquetee.entity.Order;
 import com.uniquetee.service.OrderService;
 
@@ -85,6 +86,30 @@ public class OrderController {
         }
 
         Order updated = orderService.updateOrderStatus(id, status);
+        if (updated != null) return ResponseEntity.ok(updated);
+        return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/{id}/cancel")
+    @RequiredRole({"admin", "staff", "customer"})
+    public ResponseEntity<Order> cancelOrder(@PathVariable Integer id, @RequestBody OrderCancellationRequest cancelRequest, HttpServletRequest request) {
+        Optional<Order> orderOpt = orderService.getOrderById(id);
+        if (orderOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Order order = orderOpt.get();
+        if (!canAccessOrder(order, request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        boolean hasReasons = cancelRequest.getReasons() != null && !cancelRequest.getReasons().isEmpty();
+        boolean hasOther = cancelRequest.getOtherReason() != null && !cancelRequest.getOtherReason().isBlank();
+        if (!hasReasons && !hasOther) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Order updated = orderService.cancelOrder(id, cancelRequest.getReasons(), cancelRequest.getOtherReason());
         if (updated != null) return ResponseEntity.ok(updated);
         return ResponseEntity.notFound().build();
     }

@@ -147,7 +147,7 @@ public class VnpayPaymentService {
         boolean paymentSuccess = isPaymentSuccess(params);
 
         if (paymentSuccess) {
-            orderService.confirmPaymentSuccess(order.getId());
+            orderService.markPaymentPendingAndNotify(order.getId());
         } else if (updateOrderStatus) {
             String currentStatus = normalize(order.getStatus());
             if (!"cancelled".equals(currentStatus) && !"delivered".equals(currentStatus)) {

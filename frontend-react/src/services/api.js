@@ -549,6 +549,19 @@ export const orderAPI = {
       throw error;
     }
   },
+  // Cancel order (User request)
+  cancelOrder: async (orderId, payload) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/orders/${orderId}/cancel`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      }, 'Failed to cancel order');
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      throw error;
+    }
+  },
 };
 
 // ============ PAYMENTS API ============
@@ -670,6 +683,17 @@ export const adminAPI = {
       }, 'Failed to fetch statistics');
     } catch (error) {
       console.error('Error fetching statistics:', error);
+      throw error;
+    }
+  },
+  // Get admin notifications (server-side)
+  getNotifications: async () => {
+    try {
+      return await requestJson(`${API_BASE_URL}/admin/notifications`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch admin notifications');
+    } catch (error) {
+      console.error('Error fetching admin notifications:', error);
       throw error;
     }
   },

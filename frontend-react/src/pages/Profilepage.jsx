@@ -229,6 +229,21 @@ export default function ProfilePage() {
 
   // State cho orders
   const [orders, setOrders] = useState([]);
+  // State cho modal hủy đơn
+  const [cancelModalOrder, setCancelModalOrder] = useState(null);
+  const cancellationOptions = [
+    "Tôi đã thay đổi kế hoạch và hiện không còn nhu cầu mua sản phẩm này.",
+    "Tôi tìm được sản phẩm tương tự với mức giá, chất lượng hoặc ưu đãi tốt hơn tại nhà cung cấp khác.",
+    "Thời gian giao hàng ước tính dài hơn so với nhu cầu nhận hàng của tôi.",
+    "Tôi cần thay đổi thông tin giao hàng hoặc điều chỉnh sản phẩm trong đơn (ví dụ: kích thước, màu sắc).",
+    "Đặt nhầm sản phẩm/chi tiết (sai sản phẩm, kích thước hoặc số lượng so với ý định).",
+    "Tôi nhận được thông tin về chương trình khuyến mãi hoặc ưu đãi hấp dẫn hơn (ở nơi khác hoặc trên nền tảng), do đó muốn hủy đơn để cân nhắc đặt lại sau.",
+    "Khác — (vui lòng mô tả chi tiết lý do để chúng tôi hỗ trợ tốt hơn)."
+  ];
+  const [selectedCancelReasons, setSelectedCancelReasons] = useState([]);
+  const [otherCancelReason, setOtherCancelReason] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState("");
 
   // Tải dữ liệu profile và orders khi component mount
   useEffect(() => {
@@ -544,6 +559,59 @@ export default function ProfilePage() {
   const closeReviewForm = () => {
     setReviewTarget(null);
     setReviewError("");
+  };
+
+  // Cancel order modal handlers
+  const openCancelModal = (order) => {
+    setCancelModalOrder(order);
+    setSelectedCancelReasons([]);
+    setOtherCancelReason("");
+    setCancelError("");
+  };
+
+  const closeCancelModal = () => {
+    setCancelModalOrder(null);
+    setCancelError("");
+  };
+
+  const toggleCancelReason = (reason) => {
+    setSelectedCancelReasons((prev) => {
+      if (prev.includes(reason)) return prev.filter((r) => r !== reason);
+      return [...prev, reason];
+    });
+    if (!(reason && reason.toLowerCase().startsWith("khác"))) {
+      setOtherCancelReason("");
+    }
+  };
+
+  const handleSubmitCancel = async () => {
+    if (!cancelModalOrder) return;
+    if ((selectedCancelReasons == null || selectedCancelReasons.length === 0) && (!otherCancelReason || !otherCancelReason.trim())) {
+      setCancelError('Vui lòng chọn ít nhất một lý do hoặc nhập lý do khác');
+      return;
+    }
+
+    setCancelLoading(true);
+    setCancelError("");
+    try {
+      const payload = {
+        reasons: selectedCancelReasons.filter((r) => !(r && r.toLowerCase().startsWith('khác'))),
+        otherReason: otherCancelReason?.trim() || "",
+      };
+
+      const updated = await orderAPI.cancelOrder(cancelModalOrder.id, payload);
+
+      setOrders((prev) => prev.map((o) => (o.id === cancelModalOrder.id ? { ...o, status: 'cancelled' } : o)));
+      setCancelModalOrder(null);
+      addToast('Đã gửi yêu cầu hủy đơn và hủy thành công', 'success', 3000);
+    } catch (err) {
+      console.error('Error cancelling order:', err);
+      const message = err.message || 'Hủy đơn thất bại';
+      setCancelError(message);
+      addToast(message, 'error', 4000);
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   const handleSubmitReview = async () => {
@@ -898,7 +966,7 @@ export default function ProfilePage() {
                               <button className="order-action-btn primary">Mua lại</button>
                             )}
                             {normalizedStatus === "processing" && (
-                              <button className="order-action-btn">Hủy đơn</button>
+                              <button className="order-action-btn" onClick={() => openCancelModal(order)}>Hủy đơn</button>
                             )}
                           </div>
                         </div>
@@ -1201,6 +1269,54 @@ export default function ProfilePage() {
                       </div>
                     );
                   })
+                )}
+
+                {/* Cancel order modal */}
+                {cancelModalOrder && (
+                  <div className="cancel-modal-overlay" role="dialog" aria-modal="true">
+                    <div className="cancel-modal">
+                      <div className="cancel-modal-header">
+                        <div>
+                          <h3 className="cancel-modal-title">Yêu cầu hủy đơn hàng</h3>
+                          <p className="cancel-modal-desc">Mã đơn hàng: <strong style={{ color: 'var(--accent)' }}>{cancelModalOrder.orderCode ? '#' + cancelModalOrder.orderCode : cancelModalOrder.id}</strong></p>
+                          <p className="cancel-modal-desc" style={{ marginTop: 8 }}>Vui lòng chọn ít nhất một lý do để hoàn tất yêu cầu hủy. Thông tin của bạn sẽ giúp chúng tôi xử lý nhanh và cải thiện chất lượng dịch vụ.</p>
+                        </div>
+                        <button className="cancel-modal-close" onClick={closeCancelModal} aria-label="Đóng">✕</button>
+                      </div>
+
+                      <div className="cancel-modal-body">
+                        <div className="cancel-reasons">
+                          {cancellationOptions.map((opt) => {
+                            const active = selectedCancelReasons.includes(opt);
+                            return (
+                              <label key={opt} className={`cancel-reason ${active ? 'active' : ''}`} onClick={() => toggleCancelReason(opt)}>
+                                <input type="checkbox" checked={active} readOnly />
+                                <span>{opt}{opt.toLowerCase().startsWith("khác") ? " (nhập lý do bên dưới)" : ""}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+
+                        {selectedCancelReasons.some(r => r && r.toLowerCase().startsWith("khác")) && (
+                          <div className="cancel-other">
+                            <textarea
+                              value={otherCancelReason}
+                              onChange={(e) => setOtherCancelReason(e.target.value)}
+                              placeholder="Mô tả chi tiết lý do hủy (ví dụ: muốn thay đổi địa chỉ giao, sai kích thước, v.v.)"
+                              rows={3}
+                            />
+                          </div>
+                        )}
+
+                        {cancelError && <div className="cancel-error">{cancelError}</div>}
+
+                        <div className="cancel-modal-actions">
+                          <button className="btn-secondary" onClick={closeCancelModal} disabled={cancelLoading}>Đóng</button>
+                          <button className="btn-primary" onClick={handleSubmitCancel} disabled={cancelLoading}>{cancelLoading ? "Đang gửi..." : "Gửi yêu cầu hủy đơn"}</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

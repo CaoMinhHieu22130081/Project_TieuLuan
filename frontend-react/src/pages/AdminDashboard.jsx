@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "./Adminheader";
 import { adminAPI, productAPI } from "../services/api";
-import { buildDashboardNotifications, recordAdminActivity } from "../utils/adminActivity";
+import { buildDashboardNotifications, recordAdminActivity, mergeNotifications } from "../utils/adminActivity";
 import "./css/Admin.css";
 
 function Sparkline({ data, color = "var(--accent)" }) {
@@ -229,19 +229,22 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({});
+  const [serverNotifications, setServerNotifications] = useState([]);
 
   // Fetch data từ MySQL
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsData, ordersData, statsData] = await Promise.all([
+        const [productsData, ordersData, statsData, notificationsData] = await Promise.all([
           productAPI.getAllProducts(),
           adminAPI.getAllOrders(),
           adminAPI.getDashboardStats(),
+          adminAPI.getNotifications(),
         ]);
         setProducts(productsData || []);
         setOrders(ordersData || []);
         setStats(statsData || {});
+        setServerNotifications(Array.isArray(notificationsData) ? notificationsData : []);
       } catch (err) {
         console.error("Lỗi tải dữ liệu dashboard:", err);
         setError("Không thể tải dữ liệu dashboard");
@@ -274,6 +277,7 @@ export default function AdminDashboard() {
     }));
 
   const dashboardNotifications = buildDashboardNotifications({ products, orders });
+  const combinedNotifications = mergeNotifications(dashboardNotifications, serverNotifications || []);
 
   // Get top 5 products by sold
   const topProducts = [...products]
@@ -337,7 +341,7 @@ export default function AdminDashboard() {
       title="Dashboard"
       subtitle={`${new Date().toLocaleDateString("vi-VN")} · ${stats.orders ?? orders.length} đơn hàng · ${stats.users ?? 0} người dùng`}
       actions={<button type="button" className="topbar-btn accent" onClick={handleExportReport}>Xuất Word</button>}
-      notifications={dashboardNotifications}
+      notifications={combinedNotifications}
     >
       {/* Stats */}
       <div className="stats-grid">
