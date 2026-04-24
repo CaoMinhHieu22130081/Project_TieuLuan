@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useWishlist } from "../context/WishlistContext";
 import { useToast } from "../context/ToastContext";
+import { useCart } from "../context/CartContext";
 import { productAPI, userAPI, orderAPI, reviewAPI } from "../services/api";
 import "./css/Profilepage.css";
 
@@ -179,6 +180,7 @@ export default function ProfilePage() {
   const { user, logout } = useAuth();
   const { wishlist, removeFromWishlist } = useWishlist();
   const { addToast } = useToast();
+  const { addToCart } = useCart();
   const currentUserId = user?.id || localStorage.getItem("userId");
   const isAdmin = user?.role === "admin" || user?.role === "staff";
   const [activeTab, setActiveTab] = useState("orders");
@@ -187,6 +189,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [reorderProcessing, setReorderProcessing] = useState(null);
   const [reviewTarget, setReviewTarget] = useState(null);
   const [reviewForm, setReviewForm] = useState({
     reviewerName: "",
@@ -532,6 +535,45 @@ export default function ProfilePage() {
       setAvatarMessage('error: ' + (err.message || 'Có lỗi xảy ra'));
       setAvatarLoading(false);
       setTimeout(() => setAvatarMessage(''), 3000);
+    }
+  };
+
+  const handleReorder = async (order) => {
+    if (!order) return;
+    try {
+      setReorderProcessing(order.id);
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        const productId = Number(item?.productId);
+        if (!Number.isFinite(productId)) continue;
+        let product = null;
+        try {
+          product = await productAPI.getProductById(productId);
+        } catch (e) {
+          product = null;
+        }
+
+        const productObj = product || {
+          id: productId,
+          name: item.productName || item.name || 'Sản phẩm',
+          sku: item.productSku || item.sku || '',
+          price: Number(item.unitPrice ?? item.price ?? (item.subtotal && item.qty ? item.subtotal / item.qty : 0)) || 0,
+          images: item.image ? [{ url: item.image }] : [],
+        };
+
+        const colorObj = item.color ? { name: item.color } : null;
+        const size = item.size || null;
+        const qty = Number.isFinite(Number(item.qty)) ? Number(item.qty) : 1;
+        addToCart(productObj, colorObj, size, qty);
+      }
+
+      addToast('Đã thêm sản phẩm vào giỏ hàng', 'success', 3000);
+      navigate('/cart');
+    } catch (err) {
+      console.error('Error in reorder:', err);
+      addToast(err.message || 'Mua lại thất bại', 'error', 4000);
+    } finally {
+      setReorderProcessing(null);
     }
   };
 
@@ -963,7 +1005,13 @@ export default function ProfilePage() {
                               {selectedOrderId === order.id ? "Ẩn chi tiết" : "Xem chi tiết"}
                             </button>
                             {normalizedStatus === "delivered" && (
-                              <button className="order-action-btn primary">Mua lại</button>
+                              <button
+                                className="order-action-btn primary"
+                                onClick={() => handleReorder(order)}
+                                disabled={reorderProcessing === order.id}
+                              >
+                                {reorderProcessing === order.id ? "Đang thêm..." : "Mua lại"}
+                              </button>
                             )}
                             {normalizedStatus === "processing" && (
                               <button className="order-action-btn" onClick={() => openCancelModal(order)}>Hủy đơn</button>

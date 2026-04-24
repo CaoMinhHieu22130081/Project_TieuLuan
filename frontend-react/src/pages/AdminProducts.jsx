@@ -292,7 +292,22 @@ export default function AdminProducts() {
   const openAdd = () => {
     setEditProduct(null);
     const defaultType = "Áo";
-    setForm(createFormState(defaultType, getDefaultCategoryId(defaultType)));
+
+    // Pre-fill 8 standard colors (name + hex) matching MySQL data
+    const defaultPalette = [
+      { name: 'Đen', hex: '#1a1a1a' },
+      { name: 'Xám', hex: '#808080' },
+      { name: 'Trắng', hex: '#ffffff' },
+      { name: 'Kem', hex: '#F5F5DC' },
+      { name: 'Be Kem', hex: '#C19A6B' },
+      { name: 'Xanh Navy', hex: '#003087' },
+      { name: 'Đỏ Đô', hex: '#8B0000' },
+      { name: 'Xám Đậm', hex: '#4A4A4A' },
+    ];
+
+    const initial = createFormState(defaultType, getDefaultCategoryId(defaultType));
+    initial.colors = defaultPalette.map((c) => createColorField(c.name, c.hex));
+    setForm(initial);
     setNotice(null);
     setShowModal(true);
   };
