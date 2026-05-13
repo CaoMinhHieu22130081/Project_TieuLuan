@@ -29,9 +29,14 @@ function SearchBar({
   const [focused, setFocused] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const onChangeRef = useRef(onChange);
+  const onSearchRef = useRef(onSearch);
 
   // Use API results nếu enableAutoSearch, không thì dùng suggestions
   const filtered = enableAutoSearch ? searchResults : (
@@ -49,6 +54,11 @@ function SearchBar({
   }, [autoFocus]);
 
   useEffect(() => {
+    onChangeRef.current = onChange;
+    onSearchRef.current = onSearch;
+  }, [onChange, onSearch]);
+
+  useEffect(() => {
     const handleOutside = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) {
         setOpen(false);
@@ -56,6 +66,47 @@ function SearchBar({
     };
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechSupported(false);
+      return undefined;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'vi-VN';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript || '')
+        .join(' ')
+        .trim();
+      if (!transcript) return;
+
+      if (onChangeRef.current) onChangeRef.current(transcript);
+      setOpen(true);
+
+      const isFinal = Array.from(event.results).some((result) => result.isFinal);
+      if (isFinal && onSearchRef.current) {
+        setOpen(false);
+        onSearchRef.current(transcript);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    return () => {
+      recognition.stop();
+      recognitionRef.current = null;
+    };
   }, []);
 
   // Auto search khi enableAutoSearch = true
@@ -113,11 +164,36 @@ function SearchBar({
     inputRef.current?.focus();
   };
 
+  const handleVoiceToggle = () => {
+    if (!speechSupported) return;
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+
+    if (listening) {
+      recognition.stop();
+      return;
+    }
+
+    try {
+      inputRef.current?.focus();
+      recognition.start();
+    } catch (error) {
+      console.warn('Voice search start failed:', error);
+    }
+  };
+
   const formatPrice = (p) => p.toLocaleString('vi-VN') + 'đ';
+
+  const hasClear = Boolean(value);
+  const voiceTitle = !speechSupported
+    ? 'Trình duyệt không hỗ trợ tìm kiếm bằng giọng nói'
+    : listening
+      ? 'Dừng ghi âm'
+      : 'Tìm kiếm bằng giọng nói';
 
   return (
     <div className={`searchbar-wrap ${focused ? 'focused' : ''}`} ref={wrapRef}>
-      <form className="searchbar-form" onSubmit={handleSubmit}>
+      <form className={`searchbar-form ${hasClear ? 'has-clear' : ''}`} onSubmit={handleSubmit}>
         <span className="searchbar-icon">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
             <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
@@ -137,6 +213,27 @@ function SearchBar({
           aria-label="Tìm kiếm sản phẩm"
           className="searchbar-input"
         />
+
+        <button
+          type="button"
+          className={`searchbar-voice ${listening ? 'listening' : ''}`}
+          onClick={handleVoiceToggle}
+          aria-label={voiceTitle}
+          aria-pressed={listening}
+          disabled={!speechSupported}
+          title={voiceTitle}
+        >
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm6-3a6 6 0 0 1-12 0"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <path d="M12 17v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <path d="M8 21h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
 
         {value && (
           <button

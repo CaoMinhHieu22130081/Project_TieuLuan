@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { categoryAPI, productAPI } from "../services/api";
+import { aiAPI, categoryAPI, productAPI } from "../services/api";
 import { getDisplayRating } from "../utils/productDisplay";
 import "./css/Homepage.css";
 
@@ -63,16 +63,64 @@ const getFeaturedProducts = (products) => {
     .slice(0, 8);
 };
 
-// Hàm tạo AI results từ dữ liệu
-const getAiResults = (products) => {
-  return products.slice(4, 7).map((p, i) => ({
-    id: p.id, name: p.name, price: p.price,
-    similarity: [97, 91, 86][i],
-    image: p.images && p.images.length > 0 ? p.images[0].url : (p.image || 'https://via.placeholder.com/300x400'),
-  }));
+const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+const AI_RESULT_LIMIT = 5;
+
+const TYPE_FILTER_OPTIONS = [
+  { value: "auto", label: "Tự động", icon: "✨" },
+  { value: "Áo", label: "Áo", icon: "👕" },
+  { value: "Quần", label: "Quần", icon: "👖" },
+];
+
+const formatSearchModel = (model) => {
+  if (!model) {
+    return "CLIP + FAISS";
+  }
+
+  if (model === "clip-faiss") {
+    return "CLIP + FAISS";
+  }
+
+  if (model === "clip-numpy") {
+    return "CLIP + numpy";
+  }
+
+  if (model === "histogram-fallback") {
+    return "Histogram fallback";
+  }
+
+  return String(model).replace(/-/g, " ").toUpperCase();
 };
 
-const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
+const formatCount = (value) => new Intl.NumberFormat("vi-VN").format(Number(value || 0));
+
+const normalizeSimilarity = (value) => {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+};
+
+const getSimilarityLabel = (value) => {
+  const score = normalizeSimilarity(value);
+  if (score >= 90) return "Khớp rất cao";
+  if (score >= 80) return "Khớp cao";
+  if (score >= 65) return "Tương đồng tốt";
+  if (score >= 50) return "Tham khảo";
+  return "Gợi ý";
+};
+
+const getSimilarityTone = (value) => {
+  const score = normalizeSimilarity(value);
+  if (score >= 90) return "tone-exact";
+  if (score >= 80) return "tone-strong";
+  if (score >= 65) return "tone-medium";
+  return "tone-soft";
+};
 
 function StarRating({ rating }) {
   return (
@@ -145,39 +193,254 @@ function ProductCard({ product }) {
   );
 }
 
-function AiSearchPanel({ aiResults }) {
+function AiSearchPanel() {
   const [dragOver,  setDragOver]  = useState(false);
   const [preview,   setPreview]   = useState(null);
+  const [fileName,  setFileName]  = useState("");
   const [searching, setSearching] = useState(false);
   const [results,   setResults]   = useState(null);
   const [progress,  setProgress]  = useState(0);
+  const [model,     setModel]     = useState("CLIP + FAISS");
+  const [catalogSize, setCatalogSize] = useState(0);
+  const [predictedType, setPredictedType] = useState("");
+  const [typeConfidence, setTypeConfidence] = useState(null);
+  const [filteredByType, setFilteredByType] = useState(false);
+  const [error,     setError]     = useState("");
+  const [typeFilter, setTypeFilter] = useState("auto");
   const inputRef = useRef(null);
+  const previewUrlRef = useRef(null);
+  const progressTimerRef = useRef(null);
+  const requestIdRef = useRef(0);
+  const currentFileRef = useRef(null);
 
-  const handleFile = (file) => {
-    if (!file || !file.type.startsWith("image/")) return;
-    setPreview(URL.createObjectURL(file));
-    setResults(null); setSearching(true); setProgress(0);
-    [{ pct: 30, delay: 400 }, { pct: 65, delay: 900 }, { pct: 90, delay: 1500 }, { pct: 100, delay: 2000 }]
-      .forEach(({ pct, delay }) => setTimeout(() => setProgress(pct), delay));
-    setTimeout(() => { setSearching(false); setResults(aiResults || []); }, 2400);
+  const stopProgressTimer = () => {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
   };
 
-  const onDrop = (e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); };
-  const reset  = () => { setPreview(null); setResults(null); setSearching(false); setProgress(0); };
+  const clearPreviewUrl = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+  };
+
+  const reset = () => {
+    stopProgressTimer();
+    clearPreviewUrl();
+    requestIdRef.current += 1;
+    currentFileRef.current = null;
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+
+    setDragOver(false);
+    setPreview(null);
+    setFileName("");
+    setResults(null);
+    setSearching(false);
+    setProgress(0);
+    setModel("CLIP + FAISS");
+    setCatalogSize(0);
+    setPredictedType("");
+    setTypeConfidence(null);
+    setFilteredByType(false);
+    setError("");
+  };
+
+  useEffect(() => {
+    return () => {
+      stopProgressTimer();
+      clearPreviewUrl();
+    };
+  }, []);
+
+  const beginProgress = () => {
+    stopProgressTimer();
+    setProgress(12);
+    progressTimerRef.current = setInterval(() => {
+      setProgress((current) => (current >= 90 ? 90 : current + 8));
+    }, 260);
+  };
+
+  const runSearch = useCallback(async (file) => {
+    if (!file) {
+      return;
+    }
+
+    stopProgressTimer();
+    const searchId = requestIdRef.current + 1;
+    requestIdRef.current = searchId;
+    const resolvedType = typeFilter === "auto" ? null : typeFilter;
+
+    setResults(null);
+    setError("");
+    setModel("CLIP + FAISS");
+    setSearching(true);
+    beginProgress();
+
+    try {
+      const response = await aiAPI.searchProductsByImage(file, AI_RESULT_LIMIT, resolvedType);
+      if (requestIdRef.current !== searchId) {
+        return;
+      }
+
+      const payload = Array.isArray(response) ? { results: response } : (response || {});
+      const normalizedResults = Array.isArray(payload.results) ? payload.results : [];
+
+      setResults(normalizedResults.slice(0, AI_RESULT_LIMIT));
+      setModel(formatSearchModel(payload.model));
+      setCatalogSize(typeof payload.catalogSize === "number" ? payload.catalogSize : 0);
+      setPredictedType(payload.predictedType || "");
+      setTypeConfidence(typeof payload.typeConfidence === "number" ? payload.typeConfidence : null);
+      setFilteredByType(payload.filteredByType === true);
+      setError("");
+    } catch (err) {
+      if (requestIdRef.current !== searchId) {
+        return;
+      }
+
+      setResults(null);
+      setCatalogSize(0);
+      setPredictedType("");
+      setTypeConfidence(null);
+      setFilteredByType(false);
+      setError(err.message || "Không thể thực hiện tìm kiếm bằng hình ảnh.");
+    } finally {
+      if (requestIdRef.current === searchId) {
+        stopProgressTimer();
+        setSearching(false);
+        setProgress(0);
+      }
+    }
+  }, [typeFilter]);
+
+  const handleFile = async (file) => {
+    if (!file) {
+      return;
+    }
+
+    if (!file.type || !file.type.startsWith("image/")) {
+      stopProgressTimer();
+      setResults(null);
+      setSearching(false);
+      setProgress(0);
+      setCatalogSize(0);
+      setError("Vui lòng chọn một tệp ảnh JPG, PNG hoặc WEBP.");
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      stopProgressTimer();
+      setResults(null);
+      setSearching(false);
+      setProgress(0);
+      setCatalogSize(0);
+      setError("Kích thước ảnh tối đa là 10MB.");
+      return;
+    }
+
+    stopProgressTimer();
+    clearPreviewUrl();
+
+    currentFileRef.current = file;
+
+    const previewUrl = URL.createObjectURL(file);
+    previewUrlRef.current = previewUrl;
+
+    setPreview(previewUrl);
+    setFileName(file.name || "image-upload.jpg");
+    setResults(null);
+    setError("");
+
+    await runSearch(file);
+  };
+
+  useEffect(() => {
+    if (currentFileRef.current) {
+      runSearch(currentFileRef.current);
+    }
+  }, [runSearch]);
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFile(e.dataTransfer.files[0]);
+  };
+
+  const hasResults = Array.isArray(results) && results.length > 0;
+  const showEmptyState = Boolean(preview) && !searching && !error && Array.isArray(results) && results.length === 0;
+  const showTypeMeta = Boolean(predictedType);
+  const typeLabel = predictedType === "Quần" ? "👖 Quần" : predictedType === "Áo" ? "👕 Áo" : predictedType;
+  const topResult = hasResults ? results[0] : null;
+  const topSimilarity = normalizeSimilarity(topResult?.similarity);
+  const secondaryResults = hasResults ? results.slice(1) : [];
+  const resultsLabel = (typeFilter !== "auto" || filteredByType)
+    ? "sản phẩm cùng loại"
+    : "sản phẩm tương tự";
+  const filterHint = typeFilter === "auto"
+    ? (filteredByType ? "Đã lọc theo loại" : "Phân tích toàn catalog")
+    : `Lọc: ${typeFilter}`;
+  const summaryCards = [
+    {
+      label: `Top ${AI_RESULT_LIMIT}`,
+      value: formatCount(results?.length || 0),
+      hint: "Gợi ý cùng loại",
+    },
+    {
+      label: "Độ khớp cao nhất",
+      value: `${topSimilarity}%`,
+      hint: topResult ? getSimilarityLabel(topSimilarity) : "Chưa có kết quả",
+    },
+    {
+      label: "Mô hình",
+      value: model,
+      hint: filterHint,
+    },
+    {
+      label: "Sản phẩm quét",
+      value: formatCount(catalogSize),
+      hint: "Từ cơ sở dữ liệu",
+    },
+  ];
 
   return (
     <section className="ai-section" id="ai-search">
       <div className="ai-section-inner">
         <div className="ai-header">
-          <span className="ai-chip">✦ Tính năng mới</span>
+          <span className="ai-chip">✦ AI Visual Search</span>
           <h2 className="section-title">Tìm kiếm bằng <span className="accent">Hình Ảnh</span></h2>
           <p className="section-sub">
-            Thấy bộ trang phục đẹp nhưng không biết tên? Tải ảnh lên — hệ thống sẽ tự động
-            tìm những sản phẩm áo, quần tương tự trong cửa hàng cho bạn.
+            Tải lên một bức ảnh trang phục, AI sẽ nhận diện loại (áo hoặc quần), phân tích đặc trưng
+            hình ảnh và chỉ gợi ý các sản phẩm cùng loại có mức độ tương đồng cao nhất.
           </p>
         </div>
         <div className="ai-content">
           <div className="upload-col">
+            <div className="ai-filter-row">
+              <span className="ai-filter-label">Lọc theo loại</span>
+              <div className="ai-filter-toggle" role="group" aria-label="Lọc theo loại sản phẩm">
+                {TYPE_FILTER_OPTIONS.map((option) => {
+                  const isActive = typeFilter === option.value;
+                  const isQuan = option.value === "Quần";
+                  const isAuto = option.value === "auto";
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`ai-filter-btn ${isActive ? "active" : ""} ${isQuan ? "is-quan" : ""} ${isAuto ? "is-auto" : ""}`}
+                      onClick={() => setTypeFilter(option.value)}
+                    >
+                      <span className="ai-filter-icon">{option.icon}</span>
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             {!preview ? (
               <div
                 className={`drop-zone ${dragOver ? "drag-active" : ""}`}
@@ -196,17 +459,26 @@ function AiSearchPanel({ aiResults }) {
                 <p className="drop-title">Kéo thả ảnh vào đây</p>
                 <p className="drop-sub">hoặc click để chọn ảnh từ máy tính</p>
                 <p className="drop-hint">Hỗ trợ JPG, PNG, WEBP · Tối đa 10MB</p>
-                <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }}
-                  onChange={(e) => handleFile(e.target.files[0])} />
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleFile(e.target.files[0])}
+                />
               </div>
             ) : (
-              <div className="preview-wrap" style={{ position: "relative" }}>
+              <div className="preview-wrap">
                 <img src={preview} alt="preview" className="preview-img" />
+                <div className="preview-meta">
+                  <span className="preview-label">Ảnh đã chọn</span>
+                  <span className="preview-file">{fileName || "image-upload.jpg"}</span>
+                </div>
                 <button className="btn-reset" onClick={reset}>✕ Đổi ảnh</button>
                 {searching && (
                   <div className="progress-wrap">
                     <div className="progress-label">
-                      <span>Đang phân tích trang phục…</span>
+                      <span>Đang phân tích ảnh…</span>
                       <span>{progress}%</span>
                     </div>
                     <div className="progress-bar">
@@ -219,13 +491,13 @@ function AiSearchPanel({ aiResults }) {
           </div>
 
           <div className="results-col">
-            {!preview && !searching && !results && (
+            {!preview && !searching && !error && !hasResults && (
               <div className="ai-idle">
                 <div className="ai-how-it-works">
                   {[
-                    { icon: "📤", title: "Tải ảnh lên",  desc: "Chọn hoặc kéo thả ảnh trang phục bạn thích (áo, quần, outfit...)" },
-                    { icon: "🔍", title: "AI phân tích", desc: "Hệ thống nhận diện màu sắc, kiểu dáng, họa tiết tự động" },
-                    { icon: "🛍️", title: "Xem kết quả", desc: "Nhận ngay danh sách áo & quần tương tự để chọn mua" },
+                    { icon: "📤", title: "Tải ảnh chuẩn",  desc: "Chọn hoặc kéo thả ảnh sản phẩm rõ nét, ưu tiên ảnh chính diện" },
+                    { icon: "🔍", title: "AI nhận diện loại", desc: "AI phân loại áo/quần trước khi so khớp với catalog" },
+                    { icon: "🛍️", title: "Top 5 gợi ý", desc: "Nhận 5 sản phẩm cùng loại có độ tương đồng cao nhất" },
                   ].map((step) => (
                     <div key={step.title} className="how-step">
                       <span className="how-icon">{step.icon}</span>
@@ -241,26 +513,113 @@ function AiSearchPanel({ aiResults }) {
             {searching && (
               <div className="ai-loading"><div className="spinner" /><p>Đang tìm sản phẩm phù hợp…</p></div>
             )}
-            {results && (
+            {error && (
+              <div className="ai-empty-card ai-error-card">
+                <span>⚠️</span>
+                <p>{error}</p>
+                <button type="button" className="btn-secondary" onClick={() => inputRef.current?.click()}>
+                  Thử ảnh khác
+                </button>
+              </div>
+            )}
+            {hasResults && !error && (
               <div className="ai-results">
-                <p className="results-label">✦ Tìm thấy {results.length} sản phẩm tương tự</p>
-                <div className="ai-result-list">
-                  {results.map((r) => (
-                    <Link key={r.id} to={`/products/${r.id}`} className="ai-result-card" style={{ textDecoration: "none" }}>
-                      <img src={r.image} alt={r.name} className="ai-result-img" />
-                      <div className="ai-result-info">
-                        <p className="ai-result-name">{r.name}</p>
-                        <p className="ai-result-price">{formatPrice(r.price)}</p>
-                        <div className="similarity-bar-wrap">
-                          <span className="sim-label">Độ phù hợp</span>
-                          <div className="sim-bar"><div className="sim-fill" style={{ width: `${r.similarity}%` }} /></div>
-                          <span className="sim-pct">{r.similarity}%</span>
-                        </div>
+                <div className="ai-results-header">
+                  <div>
+                    <p className="results-label">✦ Tìm thấy {results.length} {resultsLabel}</p>
+                    {showTypeMeta && (
+                      <div className="ai-type-row">
+                        <span className={`ai-type-pill ${predictedType === "Quần" ? "ai-type-pill-quan" : "ai-type-pill-ao"}`}>
+                          {typeLabel}
+                        </span>
+                        {typeof typeConfidence === "number" && (
+                          <span className="ai-confidence">{typeConfidence}% tin cậy</span>
+                        )}
+                        {filteredByType && (
+                          <span className="ai-filtered">Đã lọc theo loại</span>
+                        )}
                       </div>
-                      <span className="btn-view-sm">Xem</span>
-                    </Link>
+                    )}
+                  </div>
+                  <span className="ai-engine-pill">{model}</span>
+                </div>
+                <div className="ai-summary-grid">
+                  {summaryCards.map((item) => (
+                    <div key={item.label} className="ai-summary-card">
+                      <span className="ai-summary-label">{item.label}</span>
+                      <strong className="ai-summary-value">{item.value}</strong>
+                      <span className="ai-summary-hint">{item.hint}</span>
+                    </div>
                   ))}
                 </div>
+                {topResult && (
+                  <Link to={`/products/${topResult.id}`} className="ai-featured-result" style={{ textDecoration: "none" }}>
+                    <div className="ai-featured-media">
+                      <img
+                        src={topResult.image || "https://via.placeholder.com/480x640?text=UniqTee"}
+                        alt={topResult.name}
+                        className="ai-featured-img"
+                      />
+                      <span className={`ai-featured-badge ${getSimilarityTone(topSimilarity)}`}>
+                        {getSimilarityLabel(topSimilarity)}
+                      </span>
+                    </div>
+                    <div className="ai-featured-info">
+                      <div className="ai-featured-topline">
+                        <span className="ai-featured-kicker">Top match</span>
+                        <span className="ai-featured-score">{topSimilarity}%</span>
+                      </div>
+                      <p className="ai-featured-name">{topResult.name}</p>
+                      <div className="ai-featured-meta">
+                        <span>{formatPrice(topResult.price || 0)}</span>
+                        {topResult.type && <span>{topResult.type}</span>}
+                        {topResult.category && <span>{topResult.category}</span>}
+                      </div>
+                      <div className="similarity-bar-wrap ai-featured-similarity">
+                        <span className="sim-label">Độ phù hợp</span>
+                        <div className="sim-bar">
+                          <div className="sim-fill" style={{ width: `${topSimilarity}%` }} />
+                        </div>
+                        <span className="sim-pct">{topSimilarity}%</span>
+                      </div>
+                      <span className="btn-primary ai-featured-cta">Xem chi tiết</span>
+                    </div>
+                  </Link>
+                )}
+                {secondaryResults.length > 0 && (
+                  <div className="ai-result-list">
+                    {secondaryResults.map((r, index) => {
+                      const similarity = normalizeSimilarity(r.similarity);
+
+                      return (
+                        <Link key={r.id} to={`/products/${r.id}`} className="ai-result-card" style={{ textDecoration: "none" }}>
+                          <img src={r.image || "https://via.placeholder.com/120x160?text=UniqTee"} alt={r.name} className="ai-result-img" />
+                          <div className="ai-result-info">
+                            <div className="ai-result-topline">
+                              <span className="ai-result-rank">#{index + 2}</span>
+                              <span className={`ai-result-score ${getSimilarityTone(similarity)}`}>{similarity}%</span>
+                            </div>
+                            {r.type && <span className="ai-result-type">{r.type}</span>}
+                            <p className="ai-result-name">{r.name}</p>
+                            <p className="ai-result-price">{formatPrice(r.price || 0)}</p>
+                            <div className="similarity-bar-wrap">
+                              <span className="sim-label">Độ phù hợp</span>
+                              <div className="sim-bar"><div className="sim-fill" style={{ width: `${similarity}%` }} /></div>
+                              <span className="sim-pct">{similarity}%</span>
+                            </div>
+                          </div>
+                          <span className="btn-view-sm">Xem</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+            {showEmptyState && (
+              <div className="ai-empty-card">
+                <span>🔎</span>
+                <p>Không tìm thấy sản phẩm tương tự. Hãy thử ảnh rõ hơn, nền gọn hơn hoặc chụp toàn bộ trang phục ở chính diện.</p>
               </div>
             )}
           </div>
@@ -276,7 +635,6 @@ function HomePage() {
   const [heroVisible, setHeroVisible] = useState(false);
   const [products, setProducts] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
-  const [aiResults, setAiResults] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -311,7 +669,6 @@ function HomePage() {
 
         setProducts(rawProducts);
         setFeaturedProducts(getFeaturedProducts(rawProducts));
-        setAiResults(getAiResults(rawProducts));
         setCategories(buildCategoryCards(categorySource, rawProducts));
       } catch (err) {
         console.error("Lỗi tải sản phẩm:", err);
@@ -433,7 +790,7 @@ function HomePage() {
       </section>
 
       {/* ── AI Search ── */}
-      <AiSearchPanel aiResults={aiResults} />
+      <AiSearchPanel />
 
       {/* ── Footer ── */}
       <footer className="footer">

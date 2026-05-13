@@ -1,0 +1,11 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.9
+requests==2.32.3
+pillow==11.1.0
+numpy==2.2.1
+
+# Optional thesis stack. Install manually if you want full CLIP + FAISS support:
+# torch
+# transformers
+# faiss-cpu

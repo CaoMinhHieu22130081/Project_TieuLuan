@@ -396,13 +396,6 @@
 }
 .btn-continue:hover { border-color: var(--accent); color: var(--accent); }
 
-.summary-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 20px;
-}
-
 .summary-badge {
   display: flex;
   align-items: center;

@@ -117,6 +117,52 @@ const getOrderStatusMeta = (status) => {
 
 const formatPrice = (p) => Number(p || 0).toLocaleString("vi-VN") + "đ";
 
+const formatShortDate = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString("vi-VN");
+};
+
+const normalizeRecommendation = (entry, index = 0) => {
+  if (!entry) return null;
+  const product = entry.product || entry.productInfo || entry;
+  if (!product) return null;
+
+  return {
+    id: Number(product?.id ?? index),
+    product,
+    totalQty: Number(entry?.totalQty ?? entry?.purchasedCount ?? 0),
+    lastPurchasedAt: entry?.lastPurchasedAt || null,
+  };
+};
+
+const pickDefaultColor = (product) => {
+  if (!product) return null;
+  const color = Array.isArray(product.colors) ? product.colors[0] : null;
+  if (!color) return null;
+
+  if (typeof color === "string") {
+    return { name: color, hex: color };
+  }
+
+  return {
+    name: color.name || "Mặc định",
+    hex: color.hex || "#1a1a1a",
+  };
+};
+
+const pickDefaultSize = (product) => {
+  if (!product) return null;
+  const sizes = Array.isArray(product.sizes) ? product.sizes : [];
+  const available = sizes.find((size) => {
+    if (typeof size === "string") return true;
+    return size?.isAvailable !== false;
+  });
+
+  if (!available) return null;
+  return typeof available === "string" ? available : (available.size || available.name || null);
+};
+
 // Password Strength Checker Component
 function PasswordStrengthChecker({ password }) {
   const checks = [
@@ -232,6 +278,9 @@ export default function ProfilePage() {
 
   // State cho orders
   const [orders, setOrders] = useState([]);
+  const [purchaseRecommendations, setPurchaseRecommendations] = useState([]);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [recommendationError, setRecommendationError] = useState("");
   // State cho modal hủy đơn
   const [cancelModalOrder, setCancelModalOrder] = useState(null);
   const cancellationOptions = [
@@ -259,6 +308,7 @@ export default function ProfilePage() {
         
         // Nếu không có userId, chuyển hướng về login
         if (!userId) {
+          setRecommendationLoading(false);
           navigate('/login');
           return;
         }
@@ -348,6 +398,21 @@ export default function ProfilePage() {
           console.error('Error fetching orders:', err);
           // Orders fail không ảnh hưởng đến profile
         }
+
+        // Tải gợi ý mua lại
+        try {
+          setRecommendationLoading(true);
+          const recommendationsData = await orderAPI.getPurchaseRecommendations(userId, 8);
+          const recommendationList = Array.isArray(recommendationsData) ? recommendationsData : [];
+          setPurchaseRecommendations(recommendationList);
+          setRecommendationError("");
+        } catch (err) {
+          console.error('Error fetching purchase recommendations:', err);
+          setPurchaseRecommendations([]);
+          setRecommendationError(err.message || 'Không thể tải gợi ý mua lại');
+        } finally {
+          setRecommendationLoading(false);
+        }
         
         setError(null);
       } catch (err) {
@@ -365,6 +430,9 @@ export default function ProfilePage() {
   const filteredOrders = normalizedOrderFilter === "all"
     ? orders
     : orders.filter((o) => String(o.status || "").toLowerCase() === normalizedOrderFilter);
+  const recommendationList = (purchaseRecommendations || [])
+    .map((item, index) => normalizeRecommendation(item, index))
+    .filter(Boolean);
 
   // Xử lý logout
   const handleLogout = () => {
@@ -536,6 +604,14 @@ export default function ProfilePage() {
       setAvatarLoading(false);
       setTimeout(() => setAvatarMessage(''), 3000);
     }
+  };
+
+  const handleQuickReorder = (product) => {
+    if (!product) return;
+    const color = pickDefaultColor(product);
+    const size = pickDefaultSize(product);
+    addToCart(product, color, size, 1);
+    addToast(`Đã thêm ${product.name} vào giỏ hàng`, 'success', 2500);
   };
 
   const handleReorder = async (order) => {
@@ -942,6 +1018,59 @@ export default function ProfilePage() {
                       {label}
                     </button>
                   ))}
+                </div>
+
+                <div className="profile-reco-block">
+                  <div className="profile-reco-header">
+                    <div>
+                      <p className="profile-reco-title">Gợi ý mua lại</p>
+                      <p className="profile-reco-sub">Dựa trên lịch sử mua hàng của bạn</p>
+                    </div>
+                    <Link to="/products" className="profile-reco-link">Khám phá thêm →</Link>
+                  </div>
+
+                  {recommendationLoading ? (
+                    <div className="profile-reco-empty">Đang tải gợi ý mua lại…</div>
+                  ) : recommendationError ? (
+                    <div className="profile-reco-empty">{recommendationError}</div>
+                  ) : recommendationList.length === 0 ? (
+                    <div className="profile-reco-empty">Bạn chưa có sản phẩm nào đã mua để gợi ý.</div>
+                  ) : (
+                    <div className="profile-reco-grid">
+                      {recommendationList.map((rec) => {
+                        const product = rec.product;
+                        const thumb = getThumb(product) || "https://via.placeholder.com/300x400?text=UniqTee";
+                        const lastPurchased = rec.lastPurchasedAt ? formatShortDate(rec.lastPurchasedAt) : "";
+
+                        return (
+                          <div key={`reco-${rec.id}`} className="profile-reco-card">
+                            <Link to={`/products/${product.id}`} className="profile-reco-thumb">
+                              <img src={thumb} alt={product.name} />
+                            </Link>
+                            <div className="profile-reco-info">
+                              <Link to={`/products/${product.id}`} className="profile-reco-name">
+                                {product.name}
+                              </Link>
+                              <div className="profile-reco-meta">
+                                {lastPurchased && <span>Gần nhất: {lastPurchased}</span>}
+                                {rec.totalQty > 0 && <span>Đã mua: {rec.totalQty}</span>}
+                              </div>
+                              <div className="profile-reco-footer">
+                                <span className="profile-reco-price">{formatPrice(product.price)}</span>
+                                <button
+                                  className="profile-reco-btn"
+                                  type="button"
+                                  onClick={() => handleQuickReorder(product)}
+                                >
+                                  Mua lại
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {filteredOrders.length === 0 ? (

@@ -23,6 +23,9 @@ import AdminProducts from './pages/AdminProducts';
 import AdminOrders from './pages/AdminOrders';
 import AdminUsers from './pages/AdminUsers';
 import AdminReviews from './pages/AdminReviews';
+import AdminChat from './pages/AdminChat';
+import ChatWidget from './components/chat/ChatWidget';
+import { ChatProvider } from './context/ChatContext';
 
 function AppContent() {
   const location = useLocation();
@@ -49,7 +52,9 @@ function AppContent() {
           <Route path="/admin/orders"   element={<ProtectedRoute element={<AdminOrders />} requiredRoles={["admin", "staff"]} />} />
           <Route path="/admin/users"    element={<ProtectedRoute element={<AdminUsers />} requiredRoles={["admin"]} />} />
           <Route path="/admin/reviews"  element={<ProtectedRoute element={<AdminReviews />} requiredRoles={["admin"]} />} />
+          <Route path="/admin/chat"     element={<ProtectedRoute element={<AdminChat />} requiredRoles={["admin", "staff"]} />} />
         </Routes>
+        {!isAdmin && <ChatWidget />}
       </main>
     </>
   );
@@ -62,7 +67,9 @@ function App() {
         <WishlistProvider>
           <CartProvider>
             <ToastProvider>
-              <AppContent />
+              <ChatProvider>
+                <AppContent />
+              </ChatProvider>
             </ToastProvider>
           </CartProvider>
         </WishlistProvider>

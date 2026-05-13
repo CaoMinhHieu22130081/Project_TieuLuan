@@ -46,6 +46,28 @@
       "isBackground": true
     },
     {
+      "label": "🐍 Python - AI Module",
+      "type": "shell",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "cd /d d:\\Project_TieuLuan\\ai-module && uvicorn app:app --host 127.0.0.1 --port 8000 --reload"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false
+      },
+      "isBackground": true
+    },
+    {
       "label": "🔥 FULL STACK - Backend + Frontend",
       "type": "shell",
       "command": "echo",
@@ -54,7 +76,8 @@
       ],
       "dependsOn": [
         "🚀 Backend - Spring Boot (8080)",
-        "⚛️ Frontend - React Vite (5176)"
+        "⚛️ Frontend - React Vite (5176)",
+        "🐍 Python - AI Module"
       ],
       "problemMatcher": [],
       "group": {

@@ -156,7 +156,8 @@ const buildWordReportHtml = ({
   <meta charset="utf-8" />
   <title>Báo cáo quản trị UniqTee</title>
   <style>
-    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.5; }
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; color: #111827; line-height: 1.5; }
     h1 { margin: 0 0 6px; font-size: 26px; }
     h2 { margin: 24px 0 10px; font-size: 18px; }
     .meta { color: #6b7280; font-size: 12px; margin-bottom: 18px; }

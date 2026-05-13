@@ -32,6 +32,9 @@ logging.level.org.springframework.security.oauth2=DEBUG
 spring.application.name=UniqueTee Backend
 app.frontend-base-url=${APP_FRONTEND_BASE_URL:http://localhost:5176}
 
+# AI Visual Search Module
+ai.module.base-url=${AI_MODULE_BASE_URL:http://localhost:8000}
+
 # GHN Shipping Configuration
 ghn.api-base-url=${GHN_API_BASE_URL:https://online-gateway.ghn.vn/shiip/public-api/v2}
 ghn.token=${GHN_TOKEN:your-ghn-token}

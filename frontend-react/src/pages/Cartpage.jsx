@@ -266,11 +266,6 @@ export default function CartPage() {
 
             <Link to="/products" className="btn-continue">← Tiếp tục mua sắm</Link>
 
-            <div className="summary-badges">
-              <span className="summary-badge">🔒 Bảo mật</span>
-              <span className="summary-badge">↩️ Đổi trả 30 ngày</span>
-              <span className="summary-badge">🚚 Giao nhanh</span>
-            </div>
           </div>
         </div>
       </div>

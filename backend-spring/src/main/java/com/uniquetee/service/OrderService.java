@@ -3,10 +3,14 @@ package com.uniquetee.service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -17,8 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.uniquetee.dto.PurchasedProductRecommendation;
 import com.uniquetee.entity.Order;
 import com.uniquetee.entity.OrderItem;
+import com.uniquetee.entity.Product;
 import com.uniquetee.entity.User;
 import com.uniquetee.repository.OrderRepository;
 import com.uniquetee.repository.ProductRepository;
@@ -55,6 +61,93 @@ public class OrderService {
 
     public List<Order> getOrdersByUser(Integer userId) {
         return orderRepository.findByUserId(userId);
+    }
+
+    public List<PurchasedProductRecommendation> getPurchasedProductRecommendations(Integer userId, int limit) {
+        if (userId == null) {
+            return List.of();
+        }
+
+        int safeLimit = limit <= 0 ? 8 : Math.min(limit, 24);
+        List<Order> orders = orderRepository.findByUserId(userId);
+        if (orders == null || orders.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Integer, PurchaseStats> purchaseStats = new HashMap<>();
+        for (Order order : orders) {
+            if (order == null) {
+                continue;
+            }
+
+            String status = normalizeStatus(order.getStatus());
+            if (isCancelled(status)) {
+                continue;
+            }
+
+            LocalDateTime purchasedAt = order.getCreatedAt();
+            List<OrderItem> items = order.getItems();
+            if (items == null || items.isEmpty()) {
+                continue;
+            }
+
+            for (OrderItem item : items) {
+                if (item == null) {
+                    continue;
+                }
+
+                Integer productId = item.getProductId();
+                if (productId == null) {
+                    continue;
+                }
+
+                int qty = item.getQty() == null || item.getQty() <= 0 ? 1 : item.getQty();
+                PurchaseStats stats = purchaseStats.computeIfAbsent(productId, key -> new PurchaseStats());
+                stats.totalQty += qty;
+                if (purchasedAt != null && (stats.lastPurchasedAt == null || purchasedAt.isAfter(stats.lastPurchasedAt))) {
+                    stats.lastPurchasedAt = purchasedAt;
+                }
+            }
+        }
+
+        if (purchaseStats.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Integer, Product> productById = productRepository.findAllById(purchaseStats.keySet())
+                .stream()
+                .filter(product -> product != null && !Boolean.FALSE.equals(product.getIsActive()))
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        if (productById.isEmpty()) {
+            return List.of();
+        }
+
+        List<Map.Entry<Integer, PurchaseStats>> sorted = purchaseStats.entrySet().stream()
+                .filter(entry -> productById.containsKey(entry.getKey()))
+                .sorted(Comparator
+                        .comparing((Map.Entry<Integer, PurchaseStats> entry) -> entry.getValue().lastPurchasedAt,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing((Map.Entry<Integer, PurchaseStats> entry) -> entry.getValue().totalQty,
+                                Comparator.reverseOrder())
+                        .thenComparing(Map.Entry::getKey))
+                .toList();
+
+        List<PurchasedProductRecommendation> recommendations = new ArrayList<>();
+        for (Map.Entry<Integer, PurchaseStats> entry : sorted) {
+            Product product = productById.get(entry.getKey());
+            if (product == null) {
+                continue;
+            }
+
+            PurchaseStats stats = entry.getValue();
+            recommendations.add(new PurchasedProductRecommendation(product, stats.totalQty, stats.lastPurchasedAt));
+            if (recommendations.size() >= safeLimit) {
+                break;
+            }
+        }
+
+        return recommendations;
     }
 
     @Transactional
@@ -405,5 +498,10 @@ public class OrderService {
 
     private boolean isCancelled(String status) {
         return status != null && "cancelled".equalsIgnoreCase(status.trim());
+    }
+
+    private static class PurchaseStats {
+        private int totalQty;
+        private LocalDateTime lastPurchasedAt;
     }
 }

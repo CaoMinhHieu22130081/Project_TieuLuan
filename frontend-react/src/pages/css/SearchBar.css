@@ -27,12 +27,12 @@
 
 .searchbar-input {
   width: 100%;
-  padding: 13px 44px 13px 46px;
+  padding: 13px 86px 13px 46px;
   background: var(--surface, #1e1e23);
   border: 1px solid var(--border-2, rgba(255, 255, 255, 0.14));
   border-radius: 14px;
   color: var(--text-primary, #f0f0f2);
-  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-family: var(--font-body, 'Plus Jakarta Sans', sans-serif);
   font-size: 0.95rem;
   outline: none;
   transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
@@ -46,6 +46,49 @@
   border-color: rgba(255, 95, 163, 0.5);
   background: var(--surface-2, #26262d);
   box-shadow: 0 0 0 3px rgba(255, 95, 163, 0.08);
+}
+
+.searchbar-voice {
+  position: absolute;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-muted, #55555e);
+  background: rgba(255, 255, 255, 0.07);
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.2s;
+  padding: 0;
+}
+
+.searchbar-form.has-clear .searchbar-voice {
+  right: 44px;
+}
+
+.searchbar-voice:hover {
+  color: var(--text-primary, #f0f0f2);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.searchbar-voice.listening {
+  color: #fff;
+  background: var(--accent, #ff5fa3);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 255, 95, 163), 0.2);
+  animation: voicePulse 1.2s ease-in-out infinite;
+}
+
+.searchbar-voice:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@keyframes voicePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 
 .searchbar-clear {
@@ -131,7 +174,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-family: var(--font-body, 'Plus Jakarta Sans', sans-serif);
 }
 
 .suggestion-mark {
@@ -143,7 +186,7 @@
 
 .suggestion-price {
   font-size: 0.78rem;
-  font-family: var(--font-mono, 'Space Mono', monospace);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
   color: var(--accent, #ff5fa3);
   font-weight: 700;
 }
@@ -267,7 +310,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent, #ff5fa3);
-  font-family: var(--font-mono, 'Space Mono', monospace);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
 }
 
 .header-search-close {
@@ -303,7 +346,7 @@
   color: var(--text-muted, #55555e);
   cursor: pointer;
   transition: background 0.18s, color 0.18s, border-color 0.18s;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-family: var(--font-body, 'Plus Jakarta Sans', sans-serif);
 }
 
 .search-hint-tag:hover {

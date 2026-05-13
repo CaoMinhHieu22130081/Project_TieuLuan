@@ -188,7 +188,7 @@ public class EmailService {
 
         StringBuilder html = new StringBuilder();
         html.append("<!doctype html><html><body style=\"margin:0;padding:0;background:#fff1f7;\">");
-        html.append("<div style=\"max-width:780px;margin:0 auto;padding:32px 18px 48px;font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;\">");
+        html.append("<div style=\"max-width:780px;margin:0 auto;padding:32px 18px 48px;font-family:'Plus Jakarta Sans','Segoe UI',Arial,sans-serif;color:#1f2937;\">");
         html.append("<div style=\"background:linear-gradient(135deg,#be185d 0%,#ec4899 55%,#fb7185 100%);border-radius:32px;overflow:hidden;box-shadow:0 22px 56px rgba(190,24,93,.24);border:1px solid rgba(244,114,182,.35);\">");
         html.append("<div style=\"padding:34px 38px 26px;color:#fff;\">");
         html.append("<div style=\"display:inline-block;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.16);font-size:12px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;\">UniqueTee</div>");
@@ -354,7 +354,7 @@ public class EmailService {
 
         StringBuilder html = new StringBuilder();
         html.append("<!doctype html><html><body style=\"margin:0;padding:0;background:#fff1f7;\">");
-        html.append("<div style=\"max-width:780px;margin:0 auto;padding:32px 18px 48px;font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;\">");
+        html.append("<div style=\"max-width:780px;margin:0 auto;padding:32px 18px 48px;font-family:'Plus Jakarta Sans','Segoe UI',Arial,sans-serif;color:#1f2937;\">");
         html.append("<div style=\"background:linear-gradient(135deg,#be185d 0%,#ec4899 55%,#fb7185 100%);border-radius:32px;overflow:hidden;box-shadow:0 22px 56px rgba(190,24,93,.24);border:1px solid rgba(244,114,182,.35);\">");
         html.append("<div style=\"padding:34px 38px 26px;color:#fff;\">");
         html.append("<div style=\"display:inline-block;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.16);font-size:12px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;\">UniqueTee</div>");

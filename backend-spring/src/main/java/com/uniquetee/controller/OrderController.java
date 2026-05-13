@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.uniquetee.annotation.RequiredRole;
 import com.uniquetee.dto.OrderCancellationRequest;
+import com.uniquetee.dto.PurchasedProductRecommendation;
 import com.uniquetee.entity.Order;
 import com.uniquetee.service.OrderService;
 
@@ -39,6 +41,19 @@ public class OrderController {
         }
 
         return ResponseEntity.ok(orderService.getOrdersByUser(userId));
+    }
+
+    @GetMapping("/user/{userId}/recommendations")
+    @RequiredRole({"admin", "staff", "customer"})
+    public ResponseEntity<List<PurchasedProductRecommendation>> getPurchaseRecommendations(
+            @PathVariable Integer userId,
+            @RequestParam(defaultValue = "8") int limit,
+            HttpServletRequest request) {
+        if (!canAccessUser(userId, request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(orderService.getPurchasedProductRecommendations(userId, limit));
     }
 
     @GetMapping("/{id}")

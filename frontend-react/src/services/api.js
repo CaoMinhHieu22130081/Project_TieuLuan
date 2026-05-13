@@ -33,10 +33,13 @@ export const removeToken = () => {
 /**
  * Lấy headers với token nếu có
  */
-const getAuthHeaders = () => {
-  const headers = {
-    'Content-Type': 'application/json',
-  };
+const getAuthHeaders = (includeContentType = true) => {
+  const headers = {};
+
+  if (includeContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const token = getToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -168,6 +171,28 @@ export const productAPI = {
       return true;
     } catch (error) {
       console.error('Error deleting product:', error);
+      throw error;
+    }
+  },
+};
+
+export const aiAPI = {
+  searchProductsByImage: async (file, limit = 5, type = null) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('limit', String(limit));
+      if (type) {
+        formData.append('type', type);
+      }
+
+      return await requestJson(`${API_BASE_URL}/ai/image-search`, {
+        method: 'POST',
+        headers: getAuthHeaders(false),
+        body: formData,
+      }, 'Failed to search products by image');
+    } catch (error) {
+      console.error('Error searching products by image:', error);
       throw error;
     }
   },
@@ -492,6 +517,23 @@ export const orderAPI = {
       }, 'Failed to fetch orders');
     } catch (error) {
       console.error('Error fetching orders:', error);
+      throw error;
+    }
+  },
+
+  // Get purchase-based recommendations for user
+  getPurchaseRecommendations: async (userId, limit = 8) => {
+    try {
+      return await requestJson(
+        `${API_BASE_URL}/orders/user/${userId}/recommendations?limit=${encodeURIComponent(limit)}`,
+        {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        },
+        'Failed to fetch purchase recommendations'
+      );
+    } catch (error) {
+      console.error('Error fetching purchase recommendations:', error);
       throw error;
     }
   },
