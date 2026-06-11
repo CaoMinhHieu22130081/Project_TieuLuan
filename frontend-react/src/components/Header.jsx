@@ -356,7 +356,9 @@ export default function Header() {
             <a href="/#ai-search" className="nav-link ai-link">
               <span className="pulse-dot" /> Tìm bằng ảnh
             </a>
-            <a href="/#categories" className="nav-link">Danh mục</a>
+            <a href="/about" className="nav-link">Giới thiệu</a>
+            <a href="/faq" className="nav-link">Hỏi đáp</a>
+            <a href="/contact" className="nav-link">Liên hệ</a>
           </nav>
 
           <div className="nav-actions">

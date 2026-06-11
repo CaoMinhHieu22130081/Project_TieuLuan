@@ -3,6 +3,7 @@ package com.uniquetee.service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
@@ -43,13 +44,46 @@ public class AiImageSearchService {
         this.restTemplate = new RestTemplate(requestFactory);
     }
 
+    public Map<String, Object> getAiStatus() {
+        String baseUrl = aiModuleBaseUrl == null ? "http://localhost:8000" : aiModuleBaseUrl.trim();
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+
+        try {
+            // Check health first
+            ResponseEntity<Map> healthResponse = restTemplate.getForEntity(baseUrl + "/health", Map.class);
+            Map<String, Object> status = healthResponse.getBody();
+            if (status == null) {
+                status = new java.util.HashMap<>();
+            }
+
+            // Also check index status
+            try {
+                ResponseEntity<Map> indexResponse = restTemplate.getForEntity(baseUrl + "/index/status", Map.class);
+                Map<String, Object> indexStatus = indexResponse.getBody();
+                if (indexStatus != null) {
+                    status.put("index", indexStatus);
+                }
+            } catch (Exception e) {
+                status.put("indexError", e.getMessage());
+            }
+
+            return status;
+        } catch (RestClientException exception) {
+            throw new IllegalStateException(
+                    "Không thể kết nối module AI. Hãy kiểm tra service Python đang chạy.", exception);
+        }
+    }
+
     public ImageSearchResponse searchByImage(MultipartFile imageFile, int limit, String type) {
+
         if (imageFile == null || imageFile.isEmpty()) {
             throw new IllegalArgumentException("Vui lòng tải lên một hình ảnh sản phẩm hợp lệ");
         }
 
         String contentType = imageFile.getContentType();
-        if (StringUtils.hasText(contentType) && !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+        if (contentType != null && !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
             throw new IllegalArgumentException("Chỉ hỗ trợ tệp hình ảnh");
         }
 

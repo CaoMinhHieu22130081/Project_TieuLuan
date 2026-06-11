@@ -76,7 +76,7 @@ const TYPE_FILTER_OPTIONS = [
 
 const formatSearchModel = (model) => {
   if (!model) {
-    return "CLIP + FAISS";
+    return "Không xác định";
   }
 
   if (model === "clip-faiss") {
@@ -85,6 +85,34 @@ const formatSearchModel = (model) => {
 
   if (model === "clip-numpy") {
     return "CLIP + numpy";
+  }
+
+  if (model === "fashion-clip-faiss") {
+    return "FashionCLIP + FAISS";
+  }
+
+  if (model === "fashion-clip-numpy") {
+    return "FashionCLIP + numpy";
+  }
+
+  if (model.includes("clip") && model.endsWith("-faiss")) {
+    return "CLIP + FAISS";
+  }
+
+  if (model.includes("clip") && model.endsWith("-numpy")) {
+    return "CLIP + numpy";
+  }
+
+  if (model === "srpone-gr-lite-faiss") {
+    return "GR-Lite Fashion + FAISS";
+  }
+
+  if (model === "srpone-gr-lite-numpy") {
+    return "GR-Lite Fashion + numpy";
+  }
+
+  if (model.includes("marqo-fashion")) {
+    return model.endsWith("-faiss") ? "Marqo Fashion + FAISS" : "Marqo Fashion + numpy";
   }
 
   if (model === "histogram-fallback") {
@@ -200,11 +228,13 @@ function AiSearchPanel() {
   const [searching, setSearching] = useState(false);
   const [results,   setResults]   = useState(null);
   const [progress,  setProgress]  = useState(0);
-  const [model,     setModel]     = useState("CLIP + FAISS");
+  const [model,     setModel]     = useState("Đang kiểm tra AI...");
   const [catalogSize, setCatalogSize] = useState(0);
   const [predictedType, setPredictedType] = useState("");
   const [typeConfidence, setTypeConfidence] = useState(null);
   const [filteredByType, setFilteredByType] = useState(false);
+  const [noResultReason, setNoResultReason] = useState("");
+  const [minSimilarity, setMinSimilarity] = useState(null);
   const [error,     setError]     = useState("");
   const [typeFilter, setTypeFilter] = useState("auto");
   const inputRef = useRef(null);
@@ -242,15 +272,33 @@ function AiSearchPanel() {
     setResults(null);
     setSearching(false);
     setProgress(0);
-    setModel("CLIP + FAISS");
+    setModel("Sẵn sàng");
     setCatalogSize(0);
     setPredictedType("");
     setTypeConfidence(null);
     setFilteredByType(false);
+    setNoResultReason("");
+    setMinSimilarity(null);
     setError("");
   };
 
   useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const status = await aiAPI.getAiStatus();
+        if (status && status.model) {
+          setModel(formatSearchModel(status.model));
+        } else {
+          setModel("Sẵn sàng");
+        }
+      } catch (err) {
+        console.error("AI Status check failed:", err);
+        setModel("AI chưa sẵn sàng");
+      }
+    };
+
+    checkStatus();
+
     return () => {
       stopProgressTimer();
       clearPreviewUrl();
@@ -277,7 +325,9 @@ function AiSearchPanel() {
 
     setResults(null);
     setError("");
-    setModel("CLIP + FAISS");
+    setNoResultReason("");
+    setMinSimilarity(null);
+    setModel("Đang xử lý...");
     setSearching(true);
     beginProgress();
 
@@ -296,6 +346,8 @@ function AiSearchPanel() {
       setPredictedType(payload.predictedType || "");
       setTypeConfidence(typeof payload.typeConfidence === "number" ? payload.typeConfidence : null);
       setFilteredByType(payload.filteredByType === true);
+      setNoResultReason(payload.noResult === true ? (payload.noResultReason || "") : "");
+      setMinSimilarity(typeof payload.minSimilarity === "number" ? payload.minSimilarity : null);
       setError("");
     } catch (err) {
       if (requestIdRef.current !== searchId) {
@@ -307,6 +359,8 @@ function AiSearchPanel() {
       setPredictedType("");
       setTypeConfidence(null);
       setFilteredByType(false);
+      setNoResultReason("");
+      setMinSimilarity(null);
       setError(err.message || "Không thể thực hiện tìm kiếm bằng hình ảnh.");
     } finally {
       if (requestIdRef.current === searchId) {
@@ -328,6 +382,8 @@ function AiSearchPanel() {
       setSearching(false);
       setProgress(0);
       setCatalogSize(0);
+      setNoResultReason("");
+      setMinSimilarity(null);
       setError("Vui lòng chọn một tệp ảnh JPG, PNG hoặc WEBP.");
       return;
     }
@@ -338,6 +394,8 @@ function AiSearchPanel() {
       setSearching(false);
       setProgress(0);
       setCatalogSize(0);
+      setNoResultReason("");
+      setMinSimilarity(null);
       setError("Kích thước ảnh tối đa là 10MB.");
       return;
     }
@@ -353,6 +411,8 @@ function AiSearchPanel() {
     setPreview(previewUrl);
     setFileName(file.name || "image-upload.jpg");
     setResults(null);
+    setNoResultReason("");
+    setMinSimilarity(null);
     setError("");
 
     await runSearch(file);
@@ -372,6 +432,7 @@ function AiSearchPanel() {
 
   const hasResults = Array.isArray(results) && results.length > 0;
   const showEmptyState = Boolean(preview) && !searching && !error && Array.isArray(results) && results.length === 0;
+  const emptyStateMessage = noResultReason || "Không tìm thấy sản phẩm tương tự. Hãy thử ảnh rõ hơn, nền gọn hơn hoặc chụp toàn bộ trang phục ở chính diện.";
   const showTypeMeta = Boolean(predictedType);
   const typeLabel = predictedType === "Quần" ? "👖 Quần" : predictedType === "Áo" ? "👕 Áo" : predictedType;
   const topResult = hasResults ? results[0] : null;
@@ -619,7 +680,10 @@ function AiSearchPanel() {
             {showEmptyState && (
               <div className="ai-empty-card">
                 <span>🔎</span>
-                <p>Không tìm thấy sản phẩm tương tự. Hãy thử ảnh rõ hơn, nền gọn hơn hoặc chụp toàn bộ trang phục ở chính diện.</p>
+                <p>{emptyStateMessage}</p>
+                {typeof minSimilarity === "number" && (
+                  <small className="ai-empty-hint">Ngưỡng tối thiểu: {minSimilarity}%</small>
+                )}
               </div>
             )}
           </div>
@@ -814,19 +878,17 @@ function HomePage() {
             <div className="footer-links-group">
               <p className="footer-group-title">Hỗ trợ khách hàng</p>
               <ul>
-                <li><a href="#">Hướng dẫn mua hàng</a></li>
-                <li><a href="#">Chính sách đổi trả</a></li>
-                <li><a href="#">Chính sách vận chuyển</a></li>
-                <li><a href="#">Câu hỏi thường gặp</a></li>
+                <li><a href="/faq">Câu hỏi thường gặp</a></li>
+                <li><a href="/faq">Chính sách đổi trả</a></li>
+                <li><a href="/faq">Chính sách vận chuyển</a></li>
               </ul>
             </div>
             <div className="footer-links-group">
               <p className="footer-group-title">Về UniqTee</p>
               <ul>
-                <li><a href="#">Giới thiệu</a></li>
-                <li><a href="#">Bảng size</a></li>
-                <li><a href="#">Chương trình ưu đãi</a></li>
-                <li><a href="#">Liên hệ</a></li>
+                <li><a href="/about">Giới thiệu</a></li>
+                <li><a href="/faq">Bảng size</a></li>
+                <li><a href="/contact">Liên hệ</a></li>
               </ul>
             </div>
           </div>

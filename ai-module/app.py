@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import os
 import re
 import threading
@@ -25,30 +26,79 @@ except Exception:  # pragma: no cover - optional dependency
 
 try:
     import torch  # type: ignore
-    from transformers import CLIPModel, CLIPProcessor  # type: ignore
+    from transformers import AutoModel, AutoProcessor, CLIPModel, CLIPProcessor  # type: ignore
 except Exception:  # pragma: no cover - optional dependency
     torch = None
+    AutoModel = None
+    AutoProcessor = None
     CLIPModel = None
     CLIPProcessor = None
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
 CATALOG_URL = os.getenv("CATALOG_URL", "http://localhost:8080/api/products")
 ASSET_BASE_URL = os.getenv("ASSET_BASE_URL", "http://localhost:8080")
 HTTP_TIMEOUT_SECONDS = float(os.getenv("AI_HTTP_TIMEOUT_SECONDS", "12"))
+OPENAI_CLIP_MODEL = "openai/clip-vit-base-patch32"
+DEFAULT_FASHION_MODEL = "patrickjohncyh/fashion-clip"
+DEFAULT_CLIP_MODEL = DEFAULT_FASHION_MODEL
+VISION_MODEL_NAME = os.getenv("AI_VISION_MODEL", DEFAULT_FASHION_MODEL).strip() or DEFAULT_FASHION_MODEL
+VISION_MODEL_KIND = os.getenv("AI_VISION_MODEL_KIND", "auto").strip().lower() or "auto"
+VISION_MODEL_TRUST_REMOTE_CODE = _env_bool("AI_VISION_MODEL_TRUST_REMOTE_CODE", True)
+GR_LITE_IMAGE_SIZE = int(os.getenv("AI_GR_LITE_IMAGE_SIZE", "336"))
 DEFAULT_LIMIT = int(os.getenv("AI_SEARCH_DEFAULT_LIMIT", "5"))
 MAX_LIMIT = int(os.getenv("AI_SEARCH_MAX_LIMIT", "12"))
 TYPE_SCORE_THRESHOLD = float(os.getenv("AI_TYPE_SCORE_THRESHOLD", "0.2"))
-TYPE_MARGIN_THRESHOLD = float(os.getenv("AI_TYPE_MARGIN_THRESHOLD", "0.02"))
+TYPE_MARGIN_THRESHOLD = float(os.getenv("AI_TYPE_MARGIN_THRESHOLD", "0.04"))
+TYPE_CONFIDENCE_MARGIN_HIGH = float(os.getenv("AI_TYPE_CONFIDENCE_MARGIN_HIGH", "0.12"))
 TYPE_FALLBACK_MIN_MATCHES = int(os.getenv("AI_TYPE_FALLBACK_MIN_MATCHES", "3"))
 TYPE_FALLBACK_RATIO = float(os.getenv("AI_TYPE_FALLBACK_RATIO", "0.6"))
 TYPE_FILTER_MIN_CONFIDENCE = int(os.getenv("AI_TYPE_FILTER_MIN_CONFIDENCE", "75"))
-INDEX_TTL_SECONDS = float(os.getenv("AI_INDEX_TTL_SECONDS", "180"))
+INDEX_TTL_SECONDS = float(os.getenv("AI_INDEX_TTL_SECONDS", "600"))
 INDEX_MAX_IMAGES_PER_PRODUCT = int(os.getenv("AI_INDEX_MAX_IMAGES_PER_PRODUCT", "4"))
 INDEX_CANDIDATE_MULTIPLIER = int(os.getenv("AI_INDEX_CANDIDATE_MULTIPLIER", "6"))
 INDEX_CANDIDATE_MIN = int(os.getenv("AI_INDEX_CANDIDATE_MIN", "24"))
+TEXT_SIMILARITY_WEIGHT = float(os.getenv("AI_TEXT_SIMILARITY_WEIGHT", "0.15"))
+MIN_RESULT_SIMILARITY = int(os.getenv("AI_MIN_RESULT_SIMILARITY", "30"))
+NO_RESULT_REASON = os.getenv(
+    "AI_NO_RESULT_REASON",
+    "Không tìm thấy sản phẩm đủ tương đồng. Hãy thử ảnh rõ hơn, nền gọn hơn hoặc chụp chính diện sản phẩm.",
+)
+ENABLE_FOREGROUND_CROP = _env_bool("AI_ENABLE_FOREGROUND_CROP", True)
+FOREGROUND_CROP_MAX_SIDE = int(os.getenv("AI_FOREGROUND_CROP_MAX_SIDE", "384"))
+FOREGROUND_CROP_DIFF_THRESHOLD = float(os.getenv("AI_FOREGROUND_CROP_DIFF_THRESHOLD", "30"))
+FOREGROUND_CROP_SATURATION_THRESHOLD = float(os.getenv("AI_FOREGROUND_CROP_SATURATION_THRESHOLD", "45"))
+FOREGROUND_CROP_MIN_COVERAGE = float(os.getenv("AI_FOREGROUND_CROP_MIN_COVERAGE", "0.02"))
+FOREGROUND_CROP_MAX_COVERAGE = float(os.getenv("AI_FOREGROUND_CROP_MAX_COVERAGE", "0.92"))
+FOREGROUND_CROP_MARGIN_RATIO = float(os.getenv("AI_FOREGROUND_CROP_MARGIN_RATIO", "0.08"))
+ENABLE_SEGMENTATION = _env_bool("AI_ENABLE_SEGMENTATION", True)
+SEGMENTATION_MODE = os.getenv("AI_SEGMENTATION_MODE", "rembg").strip().lower() or "rembg"
+SEGMENTATION_MODEL = os.getenv("AI_SEGMENTATION_MODEL", "u2netp").strip() or "u2netp"
+SEGMENTATION_ALPHA_THRESHOLD = int(os.getenv("AI_SEGMENTATION_ALPHA_THRESHOLD", "16"))
+SEGMENTATION_MIN_COVERAGE = float(os.getenv("AI_SEGMENTATION_MIN_COVERAGE", "0.015"))
+SEGMENTATION_MAX_COVERAGE = float(os.getenv("AI_SEGMENTATION_MAX_COVERAGE", "0.96"))
+SEGMENTATION_MARGIN_RATIO = float(os.getenv("AI_SEGMENTATION_MARGIN_RATIO", "0.08"))
+INDEX_CACHE_VERSION = "v3-fashionclip-segmentation"
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+FAISS_INDEX_PATH = os.path.join(DATA_DIR, "faiss.index")
+NUMPY_INDEX_PATH = os.path.join(DATA_DIR, "matrix.npy")
+METADATA_PATH = os.path.join(DATA_DIR, "metadata.json")
 
 TYPE_PROMPTS = {
     "Áo": [
+        "a photo of a shirt",
+        "a photo of a t-shirt",
+        "a photo of a tee",
+        "a photo of a top",
+        "upper body clothing",
+        "upper body garment",
         "áo thun",
         "áo phông",
         "áo graphic",
@@ -63,6 +113,12 @@ TYPE_PROMPTS = {
         "unisex top",
     ],
     "Quần": [
+        "a photo of pants",
+        "a photo of trousers",
+        "a photo of jeans",
+        "a photo of shorts",
+        "lower body clothing",
+        "lower body garment",
         "quần jean",
         "quần tây",
         "quần jeans",
@@ -334,10 +390,224 @@ def _infer_type_from_results(results: List[Dict[str, Any]]) -> Optional[Dict[str
     }
 
 
+def _infer_type_from_ranked_entries(entries: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    counts: Dict[str, int] = {}
+    for entry in entries:
+        product = entry.get("product")
+        if not isinstance(product, dict):
+            continue
+        product_type = _extract_product_type(product)
+        if product_type:
+            counts[product_type] = counts.get(product_type, 0) + 1
+
+    if not counts:
+        return None
+
+    total = sum(counts.values())
+    best_type, best_count = max(counts.items(), key=lambda item: item[1])
+    if best_count < TYPE_FALLBACK_MIN_MATCHES:
+        return None
+
+    ratio = best_count / max(total, 1)
+    if ratio < TYPE_FALLBACK_RATIO:
+        return None
+
+    return {
+        "type": best_type,
+        "confidence": int(round(ratio * 100)),
+    }
+
+
 def _load_image_from_bytes(image_bytes: bytes) -> Image.Image:
     image = Image.open(io.BytesIO(image_bytes))
     image = ImageOps.exif_transpose(image)
     return image.convert("RGB")
+
+
+def _auto_crop_foreground(image: Image.Image) -> Image.Image:
+    if not ENABLE_FOREGROUND_CROP:
+        return ImageOps.exif_transpose(image).convert("RGB")
+
+    original = ImageOps.exif_transpose(image).convert("RGB")
+    width, height = original.size
+    if width < 80 or height < 80:
+        return original
+
+    sample = original.copy()
+    sample.thumbnail((FOREGROUND_CROP_MAX_SIDE, FOREGROUND_CROP_MAX_SIDE), RESAMPLE)
+    sample_width, sample_height = sample.size
+    if sample_width < 20 or sample_height < 20:
+        return original
+
+    array = np.asarray(sample, dtype=np.float32)
+    border_parts = [
+        array[0, :, :],
+        array[-1, :, :],
+        array[:, 0, :],
+        array[:, -1, :],
+    ]
+    border_pixels = np.concatenate(border_parts, axis=0)
+    background = np.median(border_pixels, axis=0)
+
+    color_distance = np.linalg.norm(array - background, axis=2)
+    saturation = array.max(axis=2) - array.min(axis=2)
+    mask = (
+        color_distance > FOREGROUND_CROP_DIFF_THRESHOLD
+    ) | (
+        (color_distance > FOREGROUND_CROP_DIFF_THRESHOLD * 0.65)
+        & (saturation > FOREGROUND_CROP_SATURATION_THRESHOLD)
+    )
+
+    coverage = float(mask.mean())
+    if coverage < FOREGROUND_CROP_MIN_COVERAGE or coverage > FOREGROUND_CROP_MAX_COVERAGE:
+        return original
+
+    y_indices, x_indices = np.where(mask)
+    if len(x_indices) == 0 or len(y_indices) == 0:
+        return original
+
+    left = int(x_indices.min())
+    right = int(x_indices.max()) + 1
+    top = int(y_indices.min())
+    bottom = int(y_indices.max()) + 1
+
+    box_width = right - left
+    box_height = bottom - top
+    if box_width < sample_width * 0.12 or box_height < sample_height * 0.12:
+        return original
+
+    margin = int(round(max(box_width, box_height) * FOREGROUND_CROP_MARGIN_RATIO))
+    left = max(0, left - margin)
+    top = max(0, top - margin)
+    right = min(sample_width, right + margin)
+    bottom = min(sample_height, bottom + margin)
+
+    if (
+        left <= sample_width * 0.03
+        and top <= sample_height * 0.03
+        and right >= sample_width * 0.97
+        and bottom >= sample_height * 0.97
+    ):
+        return original
+
+    scale_x = width / sample_width
+    scale_y = height / sample_height
+    crop_box = (
+        max(0, int(round(left * scale_x))),
+        max(0, int(round(top * scale_y))),
+        min(width, int(round(right * scale_x))),
+        min(height, int(round(bottom * scale_y))),
+    )
+    if crop_box[2] <= crop_box[0] or crop_box[3] <= crop_box[1]:
+        return original
+
+    return original.crop(crop_box)
+
+
+@lru_cache(maxsize=1)
+def _get_rembg_session() -> Any:
+    from rembg import new_session  # type: ignore
+
+    return new_session(SEGMENTATION_MODEL)
+
+
+def _segment_foreground(image: Image.Image) -> Optional[Image.Image]:
+    if not ENABLE_SEGMENTATION:
+        return None
+    if SEGMENTATION_MODE not in {"rembg", "auto"}:
+        return None
+
+    original = ImageOps.exif_transpose(image).convert("RGB")
+    width, height = original.size
+    if width < 80 or height < 80:
+        return None
+
+    try:
+        from rembg import remove  # type: ignore
+
+        buffer = io.BytesIO()
+        original.save(buffer, format="PNG")
+        output = remove(
+            buffer.getvalue(),
+            session=_get_rembg_session(),
+            post_process_mask=True,
+        )
+        segmented = Image.open(io.BytesIO(output)).convert("RGBA")
+    except Exception:
+        return None
+
+    alpha = np.asarray(segmented.getchannel("A"), dtype=np.uint8)
+    mask = alpha > SEGMENTATION_ALPHA_THRESHOLD
+    coverage = float(mask.mean())
+    if coverage < SEGMENTATION_MIN_COVERAGE or coverage > SEGMENTATION_MAX_COVERAGE:
+        return None
+
+    y_indices, x_indices = np.where(mask)
+    if len(x_indices) == 0 or len(y_indices) == 0:
+        return None
+
+    left = int(x_indices.min())
+    right = int(x_indices.max()) + 1
+    top = int(y_indices.min())
+    bottom = int(y_indices.max()) + 1
+
+    box_width = right - left
+    box_height = bottom - top
+    if box_width < width * 0.08 or box_height < height * 0.08:
+        return None
+
+    margin = int(round(max(box_width, box_height) * SEGMENTATION_MARGIN_RATIO))
+    crop_box = (
+        max(0, left - margin),
+        max(0, top - margin),
+        min(width, right + margin),
+        min(height, bottom + margin),
+    )
+    if crop_box[2] <= crop_box[0] or crop_box[3] <= crop_box[1]:
+        return None
+
+    foreground = segmented.crop(crop_box)
+    background = Image.new("RGBA", foreground.size, (255, 255, 255, 255))
+    background.alpha_composite(foreground)
+    return background.convert("RGB")
+
+
+def _preprocess_for_embedding(image: Image.Image) -> Image.Image:
+    segmented = _segment_foreground(image)
+    if segmented is not None:
+        return segmented
+    return _auto_crop_foreground(image)
+
+
+def _index_config_key() -> str:
+    return "|".join(
+        [
+            INDEX_CACHE_VERSION,
+            f"crop={int(ENABLE_FOREGROUND_CROP)}",
+            f"seg={int(ENABLE_SEGMENTATION)}",
+            f"seg_mode={SEGMENTATION_MODE}",
+            f"seg_model={SEGMENTATION_MODEL}",
+            f"seg_alpha={SEGMENTATION_ALPHA_THRESHOLD}",
+            f"seg_min_cov={SEGMENTATION_MIN_COVERAGE}",
+            f"seg_max_cov={SEGMENTATION_MAX_COVERAGE}",
+            f"seg_margin={SEGMENTATION_MARGIN_RATIO}",
+            f"max_side={FOREGROUND_CROP_MAX_SIDE}",
+            f"diff={FOREGROUND_CROP_DIFF_THRESHOLD}",
+            f"sat={FOREGROUND_CROP_SATURATION_THRESHOLD}",
+            f"min_cov={FOREGROUND_CROP_MIN_COVERAGE}",
+            f"max_cov={FOREGROUND_CROP_MAX_COVERAGE}",
+            f"margin={FOREGROUND_CROP_MARGIN_RATIO}",
+        ]
+    )
+
+
+def _no_result_fields(results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    no_result = len(results) == 0
+    return {
+        "noResult": no_result,
+        "minSimilarity": MIN_RESULT_SIMILARITY,
+        "noResultReason": NO_RESULT_REASON if no_result else None,
+    }
 
 
 def _download_bytes(raw_url: str) -> bytes:
@@ -356,7 +626,7 @@ def _cached_download_bytes(raw_url: str) -> bytes:
 
 
 @lru_cache(maxsize=2048)
-def _cached_image_vector(raw_url: str, engine_name: str) -> tuple:
+def _cached_image_vector(raw_url: str, engine_name: str, index_config_key: str) -> tuple:
     image_bytes = _cached_download_bytes(raw_url)
     image = _load_image_from_bytes(image_bytes)
     vector = engine.encode_image(image)
@@ -385,7 +655,31 @@ class VisualSearchEngine:
         self._processor = None
         self._model = None
         self._device = "cpu"
+        self._model_name = VISION_MODEL_NAME
+        self._model_family = self._resolve_model_family(VISION_MODEL_NAME)
         self._text_features: Optional[Dict[str, np.ndarray]] = None
+        self._text_cache: Dict[str, np.ndarray] = {}
+
+    def _resolve_model_family(self, model_name: str) -> str:
+        if VISION_MODEL_KIND in {"gr_lite", "marqo", "clip"}:
+            return VISION_MODEL_KIND
+
+        normalized = model_name.lower()
+        if "gr-lite" in normalized:
+            return "gr_lite"
+        if "marqo-fashion" in normalized:
+            return "marqo"
+        return "clip"
+
+    def _model_label(self) -> str:
+        if self._model_family == "clip" and self._model_name == OPENAI_CLIP_MODEL:
+            return "clip"
+        if self._model_family == "clip" and self._model_name == DEFAULT_FASHION_MODEL:
+            return "fashion-clip"
+        return re.sub(r"[^a-zA-Z0-9]+", "-", self._model_name).strip("-").lower()
+
+    def _supports_text_embeddings(self) -> bool:
+        return self._model_family in {"clip", "marqo"}
 
     def _ensure_clip(self) -> bool:
         if self._clip_attempted:
@@ -393,14 +687,40 @@ class VisualSearchEngine:
 
         self._clip_attempted = True
 
-        if torch is None or CLIPModel is None or CLIPProcessor is None:
-            self._clip_error = "CLIP libraries are not installed"
+        if torch is None:
+            self._clip_error = "PyTorch is not installed"
             return False
 
         try:
             self._device = "cuda" if torch.cuda.is_available() else "cpu"
-            self._processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-            self._model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(self._device)
+
+            if self._model_family == "gr_lite":
+                if AutoModel is None:
+                    self._clip_error = "Transformers AutoModel is not installed"
+                    return False
+                self._model = AutoModel.from_pretrained(
+                    self._model_name,
+                    trust_remote_code=VISION_MODEL_TRUST_REMOTE_CODE,
+                ).to(self._device)
+            elif self._model_family == "marqo":
+                if AutoModel is None or AutoProcessor is None:
+                    self._clip_error = "Transformers AutoModel/AutoProcessor is not installed"
+                    return False
+                self._processor = AutoProcessor.from_pretrained(
+                    self._model_name,
+                    trust_remote_code=VISION_MODEL_TRUST_REMOTE_CODE,
+                )
+                self._model = AutoModel.from_pretrained(
+                    self._model_name,
+                    trust_remote_code=VISION_MODEL_TRUST_REMOTE_CODE,
+                ).to(self._device)
+            else:
+                if CLIPModel is None or CLIPProcessor is None:
+                    self._clip_error = "CLIP libraries are not installed"
+                    return False
+                self._processor = CLIPProcessor.from_pretrained(self._model_name)
+                self._model = CLIPModel.from_pretrained(self._model_name).to(self._device)
+
             self._model.eval()
             self._clip_ready = True
             return True
@@ -411,7 +731,8 @@ class VisualSearchEngine:
 
     def engine_name(self) -> str:
         if self._ensure_clip():
-            return "clip-faiss" if faiss is not None else "clip-numpy"
+            backend = "faiss" if faiss is not None else "numpy"
+            return f"{self._model_label()}-{backend}"
         return "histogram-fallback"
 
     def encode_image(self, image: Image.Image) -> np.ndarray:
@@ -421,19 +742,69 @@ class VisualSearchEngine:
         return self._fallback_vector(image)
 
     def _encode_clip_image(self, image: Image.Image) -> np.ndarray:
+        image = _preprocess_for_embedding(image)
+        if self._model_family == "gr_lite":
+            return self._encode_gr_lite_image(image)
+        if self._model_family == "marqo":
+            return self._encode_marqo_image(image)
+        return self._encode_hf_clip_image(image)
+
+    def _tensor_to_vector(self, features: Any) -> np.ndarray:
+        if hasattr(features, "pooler_output"):
+            features = features.pooler_output
+        if isinstance(features, (tuple, list)):
+            features = features[0]
+        if hasattr(features, "dim") and features.dim() == 1:
+            features = features.unsqueeze(0)
+        features = torch.nn.functional.normalize(features, p=2, dim=-1)
+        return features[0].detach().cpu().numpy().astype(np.float32)
+
+    def _prepare_gr_lite_image(self, image: Image.Image) -> Any:
+        prepared = ImageOps.exif_transpose(image).convert("RGB").resize(
+            (GR_LITE_IMAGE_SIZE, GR_LITE_IMAGE_SIZE),
+            RESAMPLE,
+        )
+        array = np.asarray(prepared, dtype=np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        array = (array - mean) / std
+        array = np.transpose(array, (2, 0, 1)).copy()
+        return torch.from_numpy(array).unsqueeze(0).to(self._device)
+
+    def _encode_gr_lite_image(self, image: Image.Image) -> np.ndarray:
+        pixel_values = self._prepare_gr_lite_image(image)
+        with torch.no_grad():
+            outputs = self._model(pixel_values)
+        return self._tensor_to_vector(outputs)
+
+    def _encode_marqo_image(self, image: Image.Image) -> np.ndarray:
+        try:
+            inputs = self._processor(images=[image], return_tensors="pt")
+        except Exception:
+            inputs = self._processor(text=[""], images=[image], padding="max_length", return_tensors="pt")
+
+        pixel_values = inputs["pixel_values"].to(self._device)
+        with torch.no_grad():
+            try:
+                features = self._model.get_image_features(pixel_values, normalize=True)
+            except TypeError:
+                features = self._model.get_image_features(pixel_values)
+        return self._tensor_to_vector(features)
+
+    def _encode_hf_clip_image(self, image: Image.Image) -> np.ndarray:
         inputs = self._processor(images=image, return_tensors="pt")
         inputs = {key: value.to(self._device) for key, value in inputs.items()}
         with torch.no_grad():
             outputs = self._model.get_image_features(**inputs)
-            features = outputs.pooler_output if hasattr(outputs, "pooler_output") else outputs
-            features = torch.nn.functional.normalize(features, p=2, dim=-1)
-        return features[0].detach().cpu().numpy().astype(np.float32)
+        return self._tensor_to_vector(outputs)
 
     def _get_text_features(self) -> Optional[Dict[str, np.ndarray]]:
         if self._text_features is not None:
             return self._text_features
 
         if not self._ensure_clip():
+            return None
+        if not self._supports_text_embeddings():
             return None
 
         prompts: List[str] = []
@@ -448,14 +819,15 @@ class VisualSearchEngine:
         if not prompts:
             return None
 
-        inputs = self._processor(text=prompts, return_tensors="pt", padding=True)
-        inputs = {key: value.to(self._device) for key, value in inputs.items()}
-        with torch.no_grad():
-            outputs = self._model.get_text_features(**inputs)
-            features = outputs.pooler_output if hasattr(outputs, "pooler_output") else outputs
-            features = torch.nn.functional.normalize(features, p=2, dim=-1)
+        encoded_vectors = [
+            vector
+            for vector in (self.encode_text(prompt) for prompt in prompts)
+            if vector is not None
+        ]
+        if len(encoded_vectors) != len(prompts):
+            return None
+        vectors = np.stack(encoded_vectors).astype(np.float32)
 
-        vectors = features.detach().cpu().numpy().astype(np.float32)
         grouped: Dict[str, List[np.ndarray]] = {key: [] for key in TYPE_PROMPTS.keys()}
         for product_type, vector in zip(prompt_types, vectors):
             grouped.setdefault(product_type, []).append(vector)
@@ -466,6 +838,45 @@ class VisualSearchEngine:
             if type_vectors
         }
         return self._text_features
+
+    def encode_text(self, text: str) -> Optional[np.ndarray]:
+        if not text:
+            return None
+        if not self._ensure_clip():
+            return None
+        if not self._supports_text_embeddings():
+            return None
+
+        cached = self._text_cache.get(text)
+        if cached is not None:
+            return cached
+
+        try:
+            if self._model_family == "marqo":
+                vector = self._encode_marqo_text(text)
+            else:
+                vector = self._encode_hf_clip_text(text)
+            self._text_cache[text] = vector
+            return vector
+        except Exception:
+            return None
+
+    def _encode_marqo_text(self, text: str) -> np.ndarray:
+        inputs = self._processor(text=[text], return_tensors="pt", padding="max_length", truncation=True)
+        inputs = {key: value.to(self._device) for key, value in inputs.items()}
+        with torch.no_grad():
+            try:
+                features = self._model.get_text_features(inputs["input_ids"], normalize=True)
+            except TypeError:
+                features = self._model.get_text_features(**inputs)
+        return self._tensor_to_vector(features)
+
+    def _encode_hf_clip_text(self, text: str) -> np.ndarray:
+        inputs = self._processor(text=[text], return_tensors="pt", padding=True, truncation=True)
+        inputs = {key: value.to(self._device) for key, value in inputs.items()}
+        with torch.no_grad():
+            outputs = self._model.get_text_features(**inputs)
+        return self._tensor_to_vector(outputs)
 
     def _predict_type_from_clip(self, query_vector: np.ndarray) -> Optional[Dict[str, Any]]:
         text_features = self._get_text_features()
@@ -491,16 +902,20 @@ class VisualSearchEngine:
         if (best_score - second_score) < TYPE_MARGIN_THRESHOLD:
             return None
 
+        margin = max(0.0, best_score - second_score)
+        confidence = int(round(min(1.0, margin / max(TYPE_CONFIDENCE_MARGIN_HIGH, 1e-6)) * 100))
+
         return {
             "type": best_type,
-            "confidence": self.score_to_similarity(best_score),
+            "confidence": confidence,
         }
 
     def _fallback_vector(self, image: Image.Image) -> np.ndarray:
-        resized_rgb = ImageOps.exif_transpose(image).convert("RGB").resize((64, 64), RESAMPLE)
+        image = _preprocess_for_embedding(image)
+        resized_rgb = image.convert("RGB").resize((64, 64), RESAMPLE)
         rgb_array = np.asarray(resized_rgb, dtype=np.float32) / 255.0
 
-        resized_gray = ImageOps.exif_transpose(image).convert("L").resize((64, 64), RESAMPLE)
+        resized_gray = image.convert("L").resize((64, 64), RESAMPLE)
         gray_array = np.asarray(resized_gray, dtype=np.float32) / 255.0
 
         histogram_parts: List[np.ndarray] = []
@@ -543,9 +958,27 @@ class VisualSearchEngine:
         if self.engine_name() == "histogram-fallback":
             normalized = max(0.0, min(1.0, score))
         else:
-            normalized = max(0.0, min(1.0, (score + 1.0) / 2.0))
+            if self._model_family == "gr_lite":
+                default_low = 0.45
+                default_high = 0.85
+            else:
+                default_low = 0.55
+                default_high = 1.0
 
-        return int(round(normalized * 100))
+            low = float(os.getenv("AI_SCORE_LOW", str(default_low)))
+            high = float(os.getenv("AI_SCORE_HIGH", str(default_high)))
+            if high <= low:
+                low = default_low
+                high = default_high
+            normalized = (score - low) / (high - low)
+            normalized = max(0.0, min(1.0, normalized))
+
+        percentage = int(round(normalized * 100))
+        if self.engine_name() != "histogram-fallback":
+            exact_match_score = float(os.getenv("AI_EXACT_MATCH_SCORE", "0.9995"))
+            if percentage >= 100 and score < exact_match_score:
+                return 99
+        return percentage
 
     def search(self, query_image: Image.Image, catalog: List[Dict[str, Any]], limit: int) -> Dict[str, Any]:
         limit = max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
@@ -593,7 +1026,7 @@ class VisualSearchEngine:
 
             for image_url in image_urls:
                 try:
-                    vector = np.asarray(_cached_image_vector(image_url, engine_name), dtype=np.float32)
+                    vector = np.asarray(_cached_image_vector(image_url, engine_name, _index_config_key()), dtype=np.float32)
                 except Exception:
                     continue
 
@@ -620,12 +1053,13 @@ class VisualSearchEngine:
                 "typeConfidence": type_confidence,
                 "filteredByType": filtered_by_type,
                 "results": [],
+                **_no_result_fields([]),
             }
 
         matrix = np.stack(vectors).astype(np.float32)
         query_matrix = query_vector.reshape(1, -1).astype(np.float32)
 
-        if engine_name == "clip-faiss" and faiss is not None:
+        if engine_name.endswith("-faiss") and faiss is not None:
             faiss.normalize_L2(matrix)
             faiss.normalize_L2(query_matrix)
             index = faiss.IndexFlatIP(matrix.shape[1])
@@ -660,12 +1094,17 @@ class VisualSearchEngine:
             best_by_product.values(),
             key=lambda item: item["score"],
             reverse=True,
-        )[:limit]
+        )
 
         results: List[Dict[str, Any]] = []
         for entry in ordered_entries:
             product = entry["product"]
             score = float(entry["score"])
+            similarity = self.score_to_similarity(score)
+            if similarity >= 100 and results:
+                similarity = 99
+            if similarity < MIN_RESULT_SIMILARITY:
+                continue
 
             category = product.get("category")
             category_name = _extract_text_value(category)
@@ -676,11 +1115,13 @@ class VisualSearchEngine:
                 "price": _to_float(product.get("price")),
                 "originalPrice": _to_float(product.get("originalPrice") or product.get("original_price")),
                 "image": entry["image_url"],
-                "similarity": self.score_to_similarity(score),
+                "similarity": similarity,
                 "type": _extract_text_value(product.get("type")),
                 "category": category_name,
                 "tag": _extract_text_value(product.get("tag")),
             })
+            if len(results) >= limit:
+                break
 
         if not filtered_by_type and predicted_type is None:
             inferred = _infer_type_from_results(results)
@@ -695,6 +1136,7 @@ class VisualSearchEngine:
             "typeConfidence": type_confidence,
             "filteredByType": filtered_by_type,
             "results": results,
+            **_no_result_fields(results),
         }
 
 
@@ -719,9 +1161,91 @@ class CatalogIndex:
         self._catalog_size = 0
         self._built_at = 0.0
         self._last_error: Optional[str] = None
+        self._load_local_index()
+
+    def _load_local_index(self) -> bool:
+        if not os.path.exists(METADATA_PATH):
+            return False
+
+        try:
+            with open(METADATA_PATH, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+
+            if meta.get("engine_name") != engine.engine_name():
+                return False
+            if meta.get("index_config_key") != _index_config_key():
+                return False
+
+            self._entries = tuple(meta.get("entries", []))
+            self._catalog_size = meta.get("catalog_size", 0)
+            self._built_at = meta.get("built_at", 0.0)
+            self._engine_name = meta.get("engine_name", "")
+
+            type_index = {}
+            for k, v in meta.get("type_index", {}).items():
+                type_index[k] = tuple(v)
+            self._type_index = type_index
+
+            if os.path.exists(NUMPY_INDEX_PATH):
+                self._matrix = np.load(NUMPY_INDEX_PATH)
+
+            if self._matrix is not None and len(self._matrix) != len(self._entries):
+                self._last_error = "Local index matrix does not match metadata entries"
+                self._entries = tuple()
+                self._matrix = None
+                return False
+
+            if self._engine_name.endswith("-faiss") and faiss is not None:
+                if os.path.exists(FAISS_INDEX_PATH):
+                    self._faiss_index = faiss.read_index(FAISS_INDEX_PATH)
+                    if getattr(self._faiss_index, "ntotal", len(self._entries)) != len(self._entries):
+                        self._last_error = "Local FAISS index does not match metadata entries"
+                        self._entries = tuple()
+                        self._faiss_index = None
+                        self._matrix = None
+                        return False
+                else:
+                    if self._matrix is None:
+                        return False
+            else:
+                if self._matrix is None:
+                    return False
+
+            return True
+        except Exception as e:
+            self._last_error = f"Load local index error: {str(e)}"
+            return False
+
+    def _save_local_index(self) -> None:
+        try:
+            if not os.path.exists(DATA_DIR):
+                os.makedirs(DATA_DIR, exist_ok=True)
+
+            # Save metadata
+            meta = {
+                "engine_name": self._engine_name,
+                "index_config_key": _index_config_key(),
+                "catalog_size": self._catalog_size,
+                "built_at": self._built_at,
+                "entries": list(self._entries),
+                "type_index": {k: list(v) for k, v in self._type_index.items()}
+            }
+            with open(METADATA_PATH, "w", encoding="utf-8") as f:
+                json.dump(meta, f, ensure_ascii=False, indent=2)
+
+            # Save vector data
+            if self._matrix is not None:
+                np.save(NUMPY_INDEX_PATH, self._matrix)
+
+            if self._faiss_index is not None and faiss is not None:
+                faiss.write_index(self._faiss_index, FAISS_INDEX_PATH)
+        except Exception as e:
+            self._last_error = f"Save local index error: {str(e)}"
 
     def _is_fresh(self, engine_name: str) -> bool:
         if not self._entries or self._engine_name != engine_name:
+            return False
+        if self._matrix is None and self._faiss_index is None:
             return False
         if INDEX_TTL_SECONDS <= 0:
             return True
@@ -756,14 +1280,39 @@ class CatalogIndex:
             product_type = _extract_product_type(product)
             for image_url in image_urls:
                 try:
-                    vector = np.asarray(_cached_image_vector(image_url, engine_name), dtype=np.float32)
+                    vector = np.asarray(_cached_image_vector(image_url, engine_name, _index_config_key()), dtype=np.float32)
                 except Exception:
                     continue
+
+                # prepare a short text descriptor for the product to allow cross-modal re-ranking
+                text_parts: List[str] = []
+                name = _extract_text_value(product.get("name"))
+                if name:
+                    text_parts.append(name)
+                ptype = _extract_text_value(product.get("type"))
+                if ptype:
+                    text_parts.append(ptype)
+                tag = _extract_text_value(product.get("tag"))
+                if tag:
+                    text_parts.append(tag)
+                desc = _extract_text_value(product.get("description"))
+                if desc:
+                    text_parts.append(desc)
+
+                text_descriptor = " ".join(text_parts).strip() or str(product.get("id", ""))
+                text_vector = None
+                try:
+                    tv = engine.encode_text(text_descriptor)
+                    if tv is not None:
+                        text_vector = tuple(tv.tolist())
+                except Exception:
+                    text_vector = None
 
                 entries.append({
                     "product": product,
                     "image_url": image_url,
                     "type": product_type,
+                    "text_vector": text_vector,
                 })
                 vectors.append(vector)
 
@@ -772,7 +1321,7 @@ class CatalogIndex:
 
         if vectors:
             matrix = np.stack(vectors).astype(np.float32)
-            if engine_name == "clip-faiss" and faiss is not None:
+            if engine_name.endswith("-faiss") and faiss is not None:
                 faiss.normalize_L2(matrix)
                 faiss_index = faiss.IndexFlatIP(matrix.shape[1])
                 faiss_index.add(matrix)
@@ -791,6 +1340,7 @@ class CatalogIndex:
         self._catalog_size = len(catalog)
         self._built_at = time.monotonic()
         self._last_error = None
+        self._save_local_index()
 
     def get_snapshot(self, engine: VisualSearchEngine, force_refresh: bool = False) -> CatalogIndexSnapshot:
         engine_name = engine.engine_name()
@@ -802,6 +1352,11 @@ class CatalogIndex:
                 return self._snapshot()
 
             try:
+                # Try loading local if not forcing refresh
+                if not force_refresh and not self._entries:
+                    if self._load_local_index():
+                        return self._snapshot()
+
                 catalog = _fetch_catalog()
                 self._build_index(engine_name, catalog)
             except Exception as exception:
@@ -848,8 +1403,13 @@ class CatalogIndex:
 
         entries = snapshot.entries
         matrix = snapshot.matrix
+        has_faiss_index = (
+            snapshot.faiss_index is not None
+            and snapshot.engine_name.endswith("-faiss")
+            and faiss is not None
+        )
 
-        if not entries or matrix is None:
+        if not entries or (matrix is None and not has_faiss_index):
             return {
                 "model": engine_name,
                 "catalogSize": snapshot.catalog_size,
@@ -857,32 +1417,39 @@ class CatalogIndex:
                 "typeConfidence": type_confidence,
                 "filteredByType": filtered_by_type,
                 "results": [],
+                **_no_result_fields([]),
             }
 
         scores: np.ndarray
         indices: np.ndarray
+        auto_filter_type = (
+            predicted_type
+            if (
+                predicted_type
+                and type_confidence is not None
+                and type_confidence >= TYPE_FILTER_MIN_CONFIDENCE
+            )
+            else None
+        )
+        active_filter_type = requested_type or auto_filter_type
 
-        if requested_type:
-            type_indices = snapshot.type_index.get(requested_type)
+        if active_filter_type:
+            type_indices = snapshot.type_index.get(active_filter_type)
             if not type_indices:
-                return {
-                    "model": engine_name,
-                    "catalogSize": snapshot.catalog_size,
-                    "predictedType": predicted_type,
-                    "typeConfidence": type_confidence,
-                    "filteredByType": filtered_by_type,
-                    "results": [],
-                }
+                if requested_type:
+                    return {
+                        "model": engine_name,
+                        "catalogSize": snapshot.catalog_size,
+                        "predictedType": predicted_type,
+                        "typeConfidence": type_confidence,
+                        "filteredByType": filtered_by_type,
+                        "results": [],
+                        **_no_result_fields([]),
+                    }
 
-            type_array = np.asarray(type_indices, dtype=np.int64)
-            subset_matrix = matrix[type_array]
-            subset_scores = subset_matrix @ query_vector
-            order = np.argsort(subset_scores)[::-1]
-            scores = subset_scores[order]
-            indices = type_array[order]
-        elif predicted_type:
-            type_indices = snapshot.type_index.get(predicted_type)
-            if type_indices:
+                scores, indices = self._rank_all(snapshot, query_vector, limit)
+                filtered_by_type = False
+            elif matrix is not None:
                 filtered_by_type = True
                 type_array = np.asarray(type_indices, dtype=np.int64)
                 subset_matrix = matrix[type_array]
@@ -891,7 +1458,31 @@ class CatalogIndex:
                 scores = subset_scores[order]
                 indices = type_array[order]
             else:
-                scores, indices = self._rank_all(snapshot, query_vector, limit)
+                all_scores, all_indices = self._rank_all(snapshot, query_vector, len(entries))
+                allowed_indices = set(type_indices)
+                filtered_pairs = [
+                    (float(score), int(index))
+                    for score, index in zip(all_scores, all_indices)
+                    if int(index) in allowed_indices
+                ]
+
+                if filtered_pairs:
+                    filtered_by_type = True
+                    scores = np.asarray([score for score, _ in filtered_pairs], dtype=np.float32)
+                    indices = np.asarray([index for _, index in filtered_pairs], dtype=np.int64)
+                elif requested_type:
+                    return {
+                        "model": engine_name,
+                        "catalogSize": snapshot.catalog_size,
+                        "predictedType": predicted_type,
+                        "typeConfidence": type_confidence,
+                        "filteredByType": filtered_by_type,
+                        "results": [],
+                        **_no_result_fields([]),
+                    }
+                else:
+                    scores, indices = self._rank_all(snapshot, query_vector, limit)
+                    filtered_by_type = False
         else:
             scores, indices = self._rank_all(snapshot, query_vector, limit)
 
@@ -919,12 +1510,51 @@ class CatalogIndex:
             best_by_product.values(),
             key=lambda item: item["score"],
             reverse=True,
-        )[:limit]
+        )
+
+        if not requested_type and not filtered_by_type:
+            type_window_size = max(limit * 2, TYPE_FALLBACK_MIN_MATCHES)
+            inferred_type = _infer_type_from_ranked_entries(ordered_entries[:type_window_size])
+            if inferred_type:
+                inferred_confidence = int(inferred_type.get("confidence") or 0)
+                if inferred_confidence >= int(round(TYPE_FALLBACK_RATIO * 100)):
+                    inferred_name = inferred_type["type"]
+                    same_type_entries = [
+                        entry for entry in ordered_entries
+                        if _extract_product_type(entry.get("product")) == inferred_name
+                    ]
+                    if same_type_entries:
+                        ordered_entries = same_type_entries
+                        predicted_type = inferred_name
+                        type_confidence = inferred_confidence
+                        filtered_by_type = True
+
+        # Rerank with metadata (type mismatch correction)
+        if (
+            predicted_type
+            and not filtered_by_type
+            and type_confidence is not None
+            and type_confidence >= TYPE_FILTER_MIN_CONFIDENCE
+        ):
+            for entry in ordered_entries:
+                p = entry["product"]
+                ptype = _extract_product_type(p)
+                # If product type doesn't match predicted type, penalize slightly
+                if ptype and ptype != predicted_type:
+                    entry["score"] *= 0.50
+
+            # Sort again after penalty
+            ordered_entries.sort(key=lambda item: item["score"], reverse=True)
 
         results: List[Dict[str, Any]] = []
         for entry in ordered_entries:
             product = entry["product"]
             score = float(entry["score"])
+            similarity = engine.score_to_similarity(score)
+            if similarity >= 100 and results:
+                similarity = 99
+            if similarity < MIN_RESULT_SIMILARITY:
+                continue
 
             category = product.get("category")
             category_name = _extract_text_value(category)
@@ -935,11 +1565,13 @@ class CatalogIndex:
                 "price": _to_float(product.get("price")),
                 "originalPrice": _to_float(product.get("originalPrice") or product.get("original_price")),
                 "image": entry.get("image_url"),
-                "similarity": engine.score_to_similarity(score),
+                "similarity": similarity,
                 "type": _extract_text_value(product.get("type")) or entry.get("type"),
                 "category": category_name,
                 "tag": _extract_text_value(product.get("tag")),
             })
+            if len(results) >= limit:
+                break
 
         if not filtered_by_type and predicted_type is None:
             inferred = _infer_type_from_results(results)
@@ -954,15 +1586,21 @@ class CatalogIndex:
             "typeConfidence": type_confidence,
             "filteredByType": filtered_by_type,
             "results": results,
+            **_no_result_fields(results),
         }
 
     def _rank_all(self, snapshot: CatalogIndexSnapshot, query_vector: np.ndarray, limit: int) -> tuple:
         entries = snapshot.entries
         matrix = snapshot.matrix
-        if matrix is None or not entries:
+        has_faiss_index = (
+            snapshot.faiss_index is not None
+            and snapshot.engine_name.endswith("-faiss")
+            and faiss is not None
+        )
+        if not entries or (matrix is None and not has_faiss_index):
             return np.array([]), np.array([])
-
-        if snapshot.faiss_index is not None and snapshot.engine_name == "clip-faiss":
+        # If FAISS index available, retrieve top candidate_k then re-rank with optional text similarity
+        if has_faiss_index:
             candidate_k = min(
                 len(entries),
                 max(limit * INDEX_CANDIDATE_MULTIPLIER, INDEX_CANDIDATE_MIN),
@@ -970,11 +1608,60 @@ class CatalogIndex:
             query_matrix = query_vector.reshape(1, -1).astype(np.float32)
             faiss.normalize_L2(query_matrix)
             scores, indices = snapshot.faiss_index.search(query_matrix, candidate_k)
-            return scores[0], indices[0]
+            scores = scores[0].astype(np.float32)
+            indices = indices[0].astype(np.int64)
+            valid_mask = indices >= 0
+            scores = scores[valid_mask]
+            indices = indices[valid_mask]
+
+            # compute optional text similarity for candidates
+            text_scores = np.zeros_like(scores, dtype=np.float32)
+            for i, idx in enumerate(indices):
+                entry = entries[int(idx)]
+                tv = entry.get("text_vector")
+                if tv is not None:
+                    try:
+                        tv_arr = np.asarray(tv, dtype=np.float32)
+                        # cross-modal similarity: text_vector dot image_query_vector
+                        text_scores[i] = float(tv_arr @ query_vector)
+                    except Exception:
+                        text_scores[i] = 0.0
+
+            if np.any(text_scores):
+                combined = (1.0 - TEXT_SIMILARITY_WEIGHT) * scores + TEXT_SIMILARITY_WEIGHT * text_scores
+            else:
+                combined = scores
+
+            order = np.argsort(combined)[::-1]
+            return combined[order], indices[order]
+
+        # Fallback: compute scores across all entries and optionally combine with text vectors
+        if matrix is None:
+            return np.array([]), np.array([])
 
         scores = matrix @ query_vector
-        indices = np.argsort(scores)[::-1]
-        return scores, indices
+        scores = scores.reshape(-1).astype(np.float32)
+
+        # compute text scores if available
+        text_scores = np.zeros_like(scores, dtype=np.float32)
+        any_text = False
+        for i, entry in enumerate(entries):
+            tv = entry.get("text_vector")
+            if tv is not None:
+                any_text = True
+                try:
+                    tv_arr = np.asarray(tv, dtype=np.float32)
+                    text_scores[i] = float(tv_arr @ query_vector)
+                except Exception:
+                    text_scores[i] = 0.0
+
+        if any_text:
+            combined = (1.0 - TEXT_SIMILARITY_WEIGHT) * scores + TEXT_SIMILARITY_WEIGHT * text_scores
+        else:
+            combined = scores
+
+        indices = np.argsort(combined)[::-1]
+        return combined[indices], indices
 
     def status(self) -> Dict[str, Any]:
         if not self._entries:
@@ -985,9 +1672,18 @@ class CatalogIndex:
         return {
             "ready": bool(self._entries),
             "engine": self._engine_name or None,
+            "modelId": VISION_MODEL_NAME,
+            "modelFamily": engine._model_family,
             "catalogSize": self._catalog_size,
             "entryCount": len(self._entries),
+            "matrixReady": self._matrix is not None,
+            "faissReady": self._faiss_index is not None,
             "ageSeconds": age_seconds,
+            "minSimilarity": MIN_RESULT_SIMILARITY,
+            "foregroundCrop": ENABLE_FOREGROUND_CROP,
+            "segmentation": ENABLE_SEGMENTATION,
+            "segmentationMode": SEGMENTATION_MODE,
+            "segmentationModel": SEGMENTATION_MODEL,
             "lastError": self._last_error,
         }
 
@@ -1001,7 +1697,14 @@ def health() -> Dict[str, Any]:
     return {
         "status": "ok",
         "model": engine.engine_name(),
+        "modelId": VISION_MODEL_NAME,
+        "modelFamily": engine._model_family,
         "catalogUrl": CATALOG_URL,
+        "minSimilarity": MIN_RESULT_SIMILARITY,
+        "foregroundCrop": ENABLE_FOREGROUND_CROP,
+        "segmentation": ENABLE_SEGMENTATION,
+        "segmentationMode": SEGMENTATION_MODE,
+        "segmentationModel": SEGMENTATION_MODEL,
         "clipError": engine._clip_error,
     }
 
@@ -1034,7 +1737,14 @@ async def search_by_image(
         raise HTTPException(status_code=400, detail="Tệp ảnh trống")
 
     try:
+        # Step 6: Image pre-processing
         query_image = _load_image_from_bytes(image_bytes)
+        # Limit size
+        if query_image.width < 224 or query_image.height < 224:
+            raise HTTPException(status_code=400, detail="Ảnh quá mờ hoặc quá nhỏ, vui lòng chọn ảnh rõ hơn (tối thiểu 224x224)")
+        query_image.thumbnail((1024, 1024))
+    except HTTPException:
+        raise
     except Exception as exception:
         raise HTTPException(status_code=400, detail="Không thể đọc ảnh đã tải lên") from exception
 

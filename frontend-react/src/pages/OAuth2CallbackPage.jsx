@@ -16,7 +16,8 @@ export default function OAuth2CallbackPage() {
     const handleOAuth2Callback = async () => {
       try {
         // Call backend endpoint to generate JWT token from the active OAuth2 session
-        const response = await fetch("http://localhost:8080/api/users/oauth2/callback", {
+        const backendBase = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+        const response = await fetch(`${backendBase}/users/oauth2/callback`, {
           method: "POST",
           credentials: "include",
           headers: {

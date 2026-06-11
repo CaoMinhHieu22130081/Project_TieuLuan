@@ -174,7 +174,9 @@ public class OrderService {
                 productRepository.findById(pid).ifPresent(p -> item.setUnitPrice(p.getPrice()));
             }
             if (item.getUnitPrice() != null) {
-                BigDecimal line = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQty()));
+                int qty = item.getQty() == null || item.getQty() <= 0 ? 1 : item.getQty();
+                item.setQty(qty);
+                BigDecimal line = item.getUnitPrice().multiply(BigDecimal.valueOf(qty));
                 item.setSubtotal(line);
                 subtotal = subtotal.add(line);
             }

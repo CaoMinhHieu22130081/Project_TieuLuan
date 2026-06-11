@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,6 +32,16 @@ public class AiSearchController {
 
     @Autowired
     private AiImageSearchService aiImageSearchService;
+
+    @GetMapping("/status")
+    public ResponseEntity<?> getStatus() {
+        try {
+            return ResponseEntity.ok(aiImageSearchService.getAiStatus());
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("message", exception.getMessage()));
+        }
+    }
 
     @PostMapping(value = "/image-search", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> searchByImage(

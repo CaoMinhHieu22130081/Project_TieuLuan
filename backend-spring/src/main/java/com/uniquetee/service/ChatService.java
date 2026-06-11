@@ -74,6 +74,12 @@ public class ChatService {
                 .stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
+    public Integer getConversationUserId(Integer conversationId) {
+        ChatConversation conv = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        return conv.getUser() == null ? null : conv.getUser().getId();
+    }
+
     public List<ChatConversationDTO> getAllConversations() {
         return conversationRepository.findAllByOrderByUpdatedAtDesc()
                 .stream().map(this::convertToConversationDTO).collect(Collectors.toList());

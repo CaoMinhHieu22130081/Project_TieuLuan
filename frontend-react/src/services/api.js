@@ -1,6 +1,6 @@
 // API service for communicating with Spring Boot backend
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 // ============ AUTH UTILITIES ============
 
@@ -193,6 +193,17 @@ export const aiAPI = {
       }, 'Failed to search products by image');
     } catch (error) {
       console.error('Error searching products by image:', error);
+      throw error;
+    }
+  },
+  getAiStatus: async () => {
+    try {
+      return await requestJson(`${API_BASE_URL}/ai/status`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch AI status');
+    } catch (error) {
+      console.error('Error fetching AI status:', error);
       throw error;
     }
   },
@@ -835,6 +846,53 @@ export const reviewAPI = {
   },
 };
 
+export const contactAPI = {
+  sendMessage: async (messageData) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(messageData),
+      }, 'Failed to send message');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  },
+  getAdminMessages: async () => {
+    try {
+      return await requestJson(`${API_BASE_URL}/admin/contacts`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch admin messages');
+    } catch (error) {
+      console.error('Error fetching admin messages:', error);
+      throw error;
+    }
+  },
+  markAsRead: async (id) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/admin/contacts/${id}/read`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+      }, 'Failed to mark message as read');
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+      throw error;
+    }
+  },
+  deleteMessage: async (id) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/admin/contacts/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      }, 'Failed to delete message');
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      throw error;
+    }
+  },
+};
+
 export default {
   productAPI,
   categoryAPI,
@@ -842,4 +900,5 @@ export default {
   orderAPI,
   adminAPI,
   reviewAPI,
+  contactAPI,
 };

@@ -143,11 +143,11 @@ export default function Registerpage() {
   const prevStep = () => { setErrors({}); setServerError(""); setStep((s) => s - 1); };
 
   const handleOAuth2Login = (provider) => {
-    console.log(`[OAuth2 Register] User clicked ${provider} button`);
-    console.log(`[OAuth2 Register] Redirecting to: http://localhost:8080/api/login/oauth2/authorization/${provider}`);
+    const backendBase = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+    const redirectUrl = `${backendBase}/login/oauth2/authorization/${provider}`;
+    console.log(`[OAuth2 Register] Redirecting to: ${redirectUrl}`);
     try {
-      // Redirect to backend OAuth2 authorization endpoint
-      window.location.href = `http://localhost:8080/api/login/oauth2/authorization/${provider}`;
+      window.location.href = redirectUrl;
     } catch (error) {
       console.error(`[OAuth2 Register] Error redirecting:`, error);
     }

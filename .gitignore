@@ -1,0 +1,50 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Node dependencies
+node_modules/
+
+# Build outputs
+target/
+dist/
+build/
+*.class
+*.jar
+
+# IDE/editor config
+.idea/
+.vscode/
+*.iml
+
+# Logs & env
+*.log
+.run-logs/
+.env
+.env.local
+.env.*.local
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# AI index data (regenerated at runtime)
+ai-module/data/faiss.index
+ai-module/data/matrix.npy
+ai-module/data/vectors.npy
+ai-module/data/metadata.json
+
+# Generated evaluation artifacts
+ai-module/evaluation/catalog_queries/
+ai-module/evaluation/catalog_queries.json
+ai-module/evaluation/external_queries/
+ai-module/evaluation/external_queries.json
+ai-module/evaluation/manual_external/ao/*
+ai-module/evaluation/manual_external/quan/*
+
+# Temporary document extraction
+extracted_docx.txt

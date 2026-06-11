@@ -1,8 +1,8 @@
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
-const API_BASE_URL = 'http://localhost:8080/api/chat';
-const WS_URL = 'http://localhost:8080/api/ws';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api') + '/chat';
+const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080/api/ws';
 
 
 const getAuthHeaders = () => {

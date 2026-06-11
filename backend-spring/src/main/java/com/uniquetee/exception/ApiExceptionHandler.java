@@ -40,4 +40,21 @@ public class ApiExceptionHandler {
         body.put("message", message);
         return ResponseEntity.status(ex.getStatusCode()).body(body);
     }
+
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<Map<String, String>> handleSecurityException(SecurityException ex) {
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "Bạn không có quyền thực hiện thao tác này";
+        }
+
+        HttpStatus status = message.toLowerCase().contains("token required")
+                || message.toLowerCase().contains("unauthorized")
+                        ? HttpStatus.UNAUTHORIZED
+                        : HttpStatus.FORBIDDEN;
+
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("message", message);
+        return ResponseEntity.status(status).body(body);
+    }
 }

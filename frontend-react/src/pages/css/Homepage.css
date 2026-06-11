@@ -1171,6 +1171,12 @@ ul { list-style: none; }
   line-height: 1.7;
 }
 
+.ai-empty-hint {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .ai-error-card {
   border-color: rgba(248, 113, 113, 0.35);
   background: rgba(248, 113, 113, 0.06);

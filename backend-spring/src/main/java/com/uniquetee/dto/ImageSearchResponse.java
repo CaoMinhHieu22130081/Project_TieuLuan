@@ -10,6 +10,9 @@ public class ImageSearchResponse {
     private String predictedType;
     private Integer typeConfidence;
     private Boolean filteredByType;
+    private Boolean noResult;
+    private Integer minSimilarity;
+    private String noResultReason;
     private List<ImageSearchResult> results = new ArrayList<>();
 
     public ImageSearchResponse() {
@@ -28,6 +31,20 @@ public class ImageSearchResponse {
         this.predictedType = predictedType;
         this.typeConfidence = typeConfidence;
         this.filteredByType = filteredByType;
+        this.results = results;
+    }
+
+    public ImageSearchResponse(String model, Integer catalogSize, String predictedType, Integer typeConfidence,
+            Boolean filteredByType, Boolean noResult, Integer minSimilarity, String noResultReason,
+            List<ImageSearchResult> results) {
+        this.model = model;
+        this.catalogSize = catalogSize;
+        this.predictedType = predictedType;
+        this.typeConfidence = typeConfidence;
+        this.filteredByType = filteredByType;
+        this.noResult = noResult;
+        this.minSimilarity = minSimilarity;
+        this.noResultReason = noResultReason;
         this.results = results;
     }
 
@@ -69,6 +86,30 @@ public class ImageSearchResponse {
 
     public void setFilteredByType(Boolean filteredByType) {
         this.filteredByType = filteredByType;
+    }
+
+    public Boolean getNoResult() {
+        return noResult;
+    }
+
+    public void setNoResult(Boolean noResult) {
+        this.noResult = noResult;
+    }
+
+    public Integer getMinSimilarity() {
+        return minSimilarity;
+    }
+
+    public void setMinSimilarity(Integer minSimilarity) {
+        this.minSimilarity = minSimilarity;
+    }
+
+    public String getNoResultReason() {
+        return noResultReason;
+    }
+
+    public void setNoResultReason(String noResultReason) {
+        this.noResultReason = noResultReason;
     }
 
     public List<ImageSearchResult> getResults() {

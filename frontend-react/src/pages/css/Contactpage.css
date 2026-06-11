@@ -1,0 +1,408 @@
+/* ══════════════════════════════════════════════════════════════
+   Contactpage.css  —  Cyber / Focus Input
+   ══════════════════════════════════════════════════════════════ */
+
+.contact-cyber-wrapper {
+  background: #09090b;
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding: 80px 20px;
+  font-family: var(--font-body);
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  position: relative;
+  overflow: hidden;
+}
+
+.contact-grid-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: start;
+}
+
+/* ── LEFT PANEL ──────────────────────────────────────────────── */
+.contact-info-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.contact-header-cyber h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+
+.contact-header-cyber p {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.info-cyber-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inf-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 20px 24px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-left: 3px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  transition: all 0.3s;
+}
+.inf-card:hover {
+  background: rgba(var(--accent-rgb), 0.05);
+  border-left-color: var(--accent);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+  transform: translateX(5px);
+}
+
+.inf-icon {
+  font-size: 1.5rem;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; height: 40px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.inf-card:hover .inf-icon {
+  background: rgba(var(--accent-rgb), 0.2);
+  border-color: var(--accent);
+}
+
+.icon-pulse {
+  position: absolute;
+  top: -2px; right: -2px;
+  width: 8px; height: 8px;
+  background: #34d399;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #34d399;
+  animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+.inf-text h3 {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.inf-text p {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+.inf-text p.highlight {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+/* Radar Map */
+.cyber-map-placeholder {
+  height: 150px;
+  background: rgba(15,15,20,0.8);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.radar-scan {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 300px; height: 300px;
+  margin-left: -150px; margin-top: -150px;
+  background: conic-gradient(from 0deg, transparent 70%, rgba(var(--accent-rgb), 0.4) 100%);
+  border-radius: 50%;
+  animation: radar 4s linear infinite;
+}
+.radar-scan::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+}
+@keyframes radar {
+  100% { transform: rotate(360deg); }
+}
+
+.map-overlay-text {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: rgba(0,0,0,0.6);
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.map-overlay-text .dot {
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent);
+}
+
+/* ── RIGHT PANEL (FORM) ──────────────────────────────────────── */
+.contact-form-panel {
+  position: relative;
+}
+
+.cyber-form-card {
+  background: rgba(15,15,22,0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+  position: relative;
+  overflow: hidden;
+}
+.cyber-form-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 15px;
+}
+.form-header h3 {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.status-dot-blink {
+  width: 6px; height: 6px;
+  background: #34d399;
+  border-radius: 50%;
+  animation: blink 1s step-end infinite;
+}
+
+.cyber-error-alert {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #f87171;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+}
+
+/* Floating Input Groups */
+.cyber-input-group {
+  position: relative;
+  margin-bottom: 32px;
+}
+
+.cyber-input-group input,
+.cyber-input-group textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 16px;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.3s, background 0.3s;
+}
+
+.cyber-input-group textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.cyber-input-group label {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  transition: 0.2s ease all;
+}
+
+/* Floating logic */
+.cyber-input-group input:focus,
+.cyber-input-group textarea:focus,
+.cyber-input-group input:not(:placeholder-shown),
+.cyber-input-group textarea:not(:placeholder-shown) {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  background: rgba(var(--accent-rgb), 0.02);
+}
+
+.cyber-input-group input:focus ~ label,
+.cyber-input-group textarea:focus ~ label,
+.cyber-input-group input:not(:placeholder-shown) ~ label,
+.cyber-input-group textarea:not(:placeholder-shown) ~ label {
+  top: -10px;
+  left: 12px;
+  font-size: 0.65rem;
+  color: var(--accent);
+  background: #14141a; /* match rough bg color to hide border behind label */
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.input-glow {
+  position: absolute;
+  bottom: 0; left: 0; width: 0%; height: 2px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px var(--accent);
+}
+.cyber-input-group input:focus ~ .input-glow,
+.cyber-input-group textarea:focus ~ .input-glow {
+  width: 100%;
+}
+
+/* Submit Button */
+.cyber-btn-primary {
+  width: 100%;
+  padding: 18px;
+  background: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+.cyber-btn-primary:hover {
+  background: var(--accent);
+  box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.4);
+}
+
+.btn-scanner {
+  position: absolute;
+  top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  transform: skewX(-20deg);
+  transition: 0.5s;
+}
+.cyber-btn-primary:hover .btn-scanner {
+  left: 150%;
+  transition: 0.7s;
+}
+
+.cyber-btn-primary.scanning {
+  background: transparent;
+  border-color: rgba(255,255,255,0.2);
+  color: var(--text-muted);
+  cursor: wait;
+}
+.cyber-btn-primary.scanning .btn-scanner {
+  animation: scan-loop 1.5s linear infinite;
+  display: block;
+}
+@keyframes scan-loop {
+  0% { left: -100%; }
+  100% { left: 150%; }
+}
+
+/* Success State */
+.form-success-cyber {
+  text-align: center;
+  padding: 20px 0;
+  animation: fadeSlideUp 0.5s ease;
+}
+.fs-icon {
+  font-size: 3rem;
+  color: #34d399;
+  text-shadow: 0 0 20px rgba(52, 211, 153, 0.4);
+  margin-bottom: 20px;
+}
+.glitch-text-small {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: #fff;
+  margin-bottom: 12px;
+}
+.form-success-cyber p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 30px;
+}
+
+.cyber-btn-outline {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--text-secondary);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.cyber-btn-outline:hover {
+  border-color: #fff;
+  color: #fff;
+}
+.mt-20 { margin-top: 20px; }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .contact-grid-container {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+@media (max-width: 600px) {
+  .cyber-form-card { padding: 24px; }
+  .contact-header-cyber h1 { font-size: 2rem; }
+}

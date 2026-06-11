@@ -54,12 +54,11 @@ export default function Loginpage() {
   };
 
   const handleOAuth2Login = (provider) => {
-    console.log(`[OAuth2] User clicked ${provider} button`);
-    console.log(`[OAuth2] Redirecting to: http://localhost:8080/api/login/oauth2/authorization/${provider}`);
+    const backendBase = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+    const redirectUrl = `${backendBase}/login/oauth2/authorization/${provider}`;
+    console.log(`[OAuth2] Redirecting to: ${redirectUrl}`);
     try {
-      // Redirect to backend OAuth2 authorization endpoint
-      // Note: Backend has context-path=/api, so endpoint must include /api prefix
-      window.location.href = `http://localhost:8080/api/login/oauth2/authorization/${provider}`;
+      window.location.href = redirectUrl;
     } catch (error) {
       console.error(`[OAuth2] Error redirecting:`, error);
     }
