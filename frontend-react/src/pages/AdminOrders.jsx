@@ -1,4 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
+import {
+  Search,
+  Eye,
+  X,
+  Loader2,
+  Box,
+  ClipboardList,
+  ShoppingBag,
+  Bell,
+  Clock
+} from "lucide-react";
 import { adminAPI, orderAPI } from "../services/api";
 import { AdminLayout } from "./Adminheader";
 import { recordAdminActivity } from "../utils/adminActivity";
@@ -160,13 +171,13 @@ export default function AdminOrders() {
           })}
         </div>
         <div className="search-input-wrap" style={{ marginTop: 14 }}>
-          <span className="search-ico">🔍</span>
+          <span className="search-ico"><Search size={18} /></span>
           <input className="admin-search-input" placeholder="Tìm mã đơn, tên khách…"
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
       </div>
 
-      {loading && <div className="admin-card" style={{ textAlign: "center", padding: "20px" }}>⏳ Đang tải đơn hàng...</div>}
+      {loading && <div className="admin-card" style={{ textAlign: "center", padding: "20px" }}><Loader2 className="animate-spin" size={20} style={{ display: 'inline-block', marginRight: 8 }} /> Đang tải đơn hàng...</div>}
       {error && <div className="admin-card" style={{ textAlign: "center", padding: "20px", color: "red" }}>{error}</div>}
       {!loading && !error && (
         displayed.length > 0 ? (
@@ -203,14 +214,14 @@ export default function AdminOrders() {
                     </td>
                     <td>
                       <div className="action-btns">
-                        <button className="action-btn edit" onClick={() => setDetail(o)}>👁 Chi tiết</button>
+                        <button className="action-btn edit" onClick={() => setDetail(o)}><Eye size={14} style={{ marginRight: 4 }} /> Chi tiết</button>
                         {statusMeta.next && (
                           <button className="action-btn next" disabled={isUpdating} onClick={() => advanceStatus(o)}>
                             {isUpdating ? "Đang cập nhật..." : `→ ${STATUS_MAP[statusMeta.next].label}`}
                           </button>
                         )}
                         {o.status !== "cancelled" && o.status !== "delivered" && (
-                          <button className="action-btn del" disabled={isUpdating} onClick={() => cancelOrder(o)}>✕</button>
+                          <button className="action-btn del" disabled={isUpdating} onClick={() => cancelOrder(o)}><X size={14} /></button>
                         )}
                       </div>
                     </td>
@@ -238,12 +249,12 @@ export default function AdminOrders() {
                   {getOrderStatusMeta(detail.status).label}
                 </span>
               </div>
-              <button className="modal-close" onClick={() => setDetail(null)}>✕</button>
+              <button className="modal-close" onClick={() => setDetail(null)}><X size={20} /></button>
             </div>
             <div className="modal-body order-detail-body">
               {/* Thông tin khách */}
               <div className="detail-section">
-                <p className="detail-section-title">📋 Thông tin khách hàng</p>
+                <p className="detail-section-title"><ClipboardList size={16} style={{ marginRight: 8, display: 'inline' }} /> Thông tin khách hàng</p>
                 <div className="detail-info-grid">
                   <div><span className="di-label">Họ tên</span><span>{detail.customerName}</span></div>
                   <div><span className="di-label">SĐT</span><span>{detail.customerPhone}</span></div>
@@ -255,7 +266,7 @@ export default function AdminOrders() {
               </div>
               {/* Sản phẩm */}
               <div className="detail-section">
-                <p className="detail-section-title">🛍️ Sản phẩm đặt mua</p>
+                <p className="detail-section-title"><ShoppingBag size={16} style={{ marginRight: 8, display: 'inline' }} /> Sản phẩm đặt mua</p>
                 {detail.items && detail.items.length > 0 ? (
                   detail.items.map((item, i) => (
                     <div key={i} className="detail-item-row">

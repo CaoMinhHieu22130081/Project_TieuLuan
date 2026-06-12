@@ -3,8 +3,18 @@ import { chatService } from '../services/chatService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { AdminLayout } from './Adminheader';
-import './css/Admin.css'; // Reuse some styles
+import { MoreVertical, Trash2, CheckCircle2, Zap, Send, MessageSquareOff, Undo2 } from 'lucide-react';
+import './css/Admin.css';
 import './css/AdminChat.css';
+
+const CANNED_RESPONSES = [
+    "Chào bạn, UniqTee có thể giúp gì cho bạn ạ?",
+    "Đơn hàng của bạn đã được xác nhận và đang đóng gói nhé.",
+    "Dạ sản phẩm này hiện tại bên mình vẫn còn hàng, bạn đặt lẹ kẻo hết nha!",
+    "Cảm ơn bạn đã phản hồi, shop sẽ kiểm tra và báo lại ngay.",
+    "Bạn có thể nhắn tin mã đơn hàng để shop check lịch trình nhé.",
+    "Cảm ơn bạn đã ủng hộ UniqTee ❤️"
+];
 
 const AdminChat = () => {
     const { user } = useAuth();
@@ -14,12 +24,13 @@ const AdminChat = () => {
     const [messages, setMessages] = useState([]);
     const [inputText, setInputText] = useState('');
     const [isConnected, setIsConnected] = useState(false);
+    const [showCanned, setShowCanned] = useState(false);
+    const [activeMsgOptions, setActiveMsgOptions] = useState(null);
     
     const stompClientRef = useRef(null);
     const subscriptionRef = useRef(null);
     const messagesEndRef = useRef(null);
 
-    // Load all conversations
     const loadConversations = async () => {
         try {
             const data = await chatService.getAllConversations();
@@ -31,21 +42,18 @@ const AdminChat = () => {
 
     useEffect(() => {
         loadConversations();
-        const interval = setInterval(loadConversations, 10000); // Refresh list every 10s
+        const interval = setInterval(loadConversations, 10000); // 10s
         return () => clearInterval(interval);
     }, []);
 
-    // WebSocket Connection for Admin
     useEffect(() => {
         const client = chatService.createStompClient(
             () => {
                 setIsConnected(true);
-                // Subscribe to notifications for new messages in ANY conversation
                 client.subscribe('/topic/admin/notifications', (message) => {
                     const newMsg = JSON.parse(message.body);
-                    loadConversations(); // Refresh list
+                    loadConversations();
                     
-                    // Only show toast if not current conversation or chat not open on that message
                     if (!selectedConv || selectedConv.id !== newMsg.conversationId) {
                         addToast(`Tin nhắn mới từ ${newMsg.senderName}`, 'info');
                     }
@@ -61,19 +69,18 @@ const AdminChat = () => {
 
         client.activate();
         stompClientRef.current = client;
-
         return () => client.deactivate();
     }, [selectedConv, addToast]);
 
-    // Handle conversation selection
     const handleSelectConversation = async (conv) => {
         setSelectedConv(conv);
+        setActiveMsgOptions(null);
+        setShowCanned(false);
         try {
             const msgs = await chatService.getMessages(conv.id);
             setMessages(msgs);
             chatService.markAsRead(conv.id, user.role);
             
-            // Subscribe to specific conversation topic
             if (stompClientRef.current && stompClientRef.current.connected) {
                 if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
                 subscriptionRef.current = stompClientRef.current.subscribe(
@@ -92,8 +99,9 @@ const AdminChat = () => {
     };
 
     const handleSend = (e) => {
-        e.preventDefault();
+        e?.preventDefault();
         if (inputText.trim() && selectedConv && isConnected) {
+            const tempId = Date.now().toString();
             stompClientRef.current.publish({
                 destination: '/app/chat.sendMessage',
                 body: JSON.stringify({
@@ -105,14 +113,28 @@ const AdminChat = () => {
             
             // Optimistic update
             const optimisticMsg = {
+                id: tempId,
+                clientId: tempId,
                 senderId: user.id,
                 senderRole: user.role,
                 content: inputText.trim(),
-                sentAt: new Date().toISOString()
+                sentAt: new Date().toISOString(),
+                isDeleted: false
             };
             setMessages(prev => [...prev, optimisticMsg]);
             setInputText('');
+            setShowCanned(false);
         }
+    };
+
+    const handleDeleteMsg = (msgId) => {
+        setMessages(prev => prev.map(m => (m.id === msgId || m.clientId === msgId) ? { ...m, isDeleted: true, content: "Tin nhắn đã bị thu hồi" } : m));
+        setActiveMsgOptions(null);
+    };
+
+    const handleEndChat = () => {
+        addToast("Đã đánh dấu hoàn tất hội thoại", "success");
+        setSelectedConv(null);
     };
 
     useEffect(() => {
@@ -120,9 +142,9 @@ const AdminChat = () => {
     }, [messages]);
 
     return (
-        <AdminLayout title="Hỗ trợ khách hàng" subtitle="Hệ thống chat trực tuyến realtime">
+        <AdminLayout title="Hỗ trợ khách hàng" subtitle="Hệ thống chat trực tuyến realtime & AI Bots">
             <div className="admin-chat-container">
-                {/* Conversations List */}
+                {/* Sidebar */}
                 <div className="conversations-sidebar">
                     <div className="sidebar-header">
                         <h3>Hội thoại</h3>
@@ -141,9 +163,7 @@ const AdminChat = () => {
                                 <div className="conv-info">
                                     <div className="conv-top">
                                         <span className="conv-name">{conv.userName}</span>
-                                        {conv.unreadCount > 0 && (
-                                            <span className="unread-badge">{conv.unreadCount}</span>
-                                        )}
+                                        {conv.unreadCount > 0 && <span className="unread-badge">{conv.unreadCount}</span>}
                                     </div>
                                     <div className="last-msg">
                                         {conv.lastMessage || "Bắt đầu cuộc trò chuyện"}
@@ -154,56 +174,117 @@ const AdminChat = () => {
                     </div>
                 </div>
 
-                {/* Chat Main Area */}
+                {/* Main Area */}
                 <div className="chat-window">
                     {selectedConv ? (
                         <>
                             <div className="chat-window-header">
-                                <div className="user-avatar chat-window-avatar">
-                                    {selectedConv.userName.charAt(0).toUpperCase()}
+                                <div className="chat-window-header-left">
+                                    <div className="user-avatar chat-window-avatar">
+                                        {selectedConv.userName.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="chat-window-user-meta">
+                                        <div className="chat-window-user-name">{selectedConv.userName}</div>
+                                        <div className="chat-connection-pill online">
+                                            Trực tuyến
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="chat-window-user-meta">
-                                    <div className="chat-window-user-name">{selectedConv.userName}</div>
-                                    <div className="chat-window-user-status">Trực tuyến</div>
-                                </div>
-                                <div className={`chat-connection-pill ${isConnected ? 'online' : 'offline'}`}>
-                                    {isConnected ? 'Đã kết nối' : 'Mất kết nối'}
+                                <div className="chat-window-header-actions">
+                                    <button className="chat-resolve-btn" onClick={handleEndChat} title="Đánh dấu đã giải quyết">
+                                        <CheckCircle2 size={16} style={{marginRight: 6}} /> Đóng chat
+                                    </button>
                                 </div>
                             </div>
                             
-                            <div className="chat-messages-area">
-                                {messages.map((msg, index) => (
-                                    <div 
-                                        key={index}
-                                        className={`admin-msg-bubble msg-${msg.senderRole}`}
-                                    >
-                                        <div>{msg.content}</div>
-                                        <div className="msg-time">
-                                            {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <div className="chat-messages-area" onClick={() => setActiveMsgOptions(null)}>
+                                {messages.length === 0 && (
+                                    <div className="chat-history-empty">Chưa có tin nhắn nào. Bắt đầu hỗ trợ ngay!</div>
+                                )}
+                                {messages.map((msg, index) => {
+                                    const safeRole = (msg.senderRole || '').toLowerCase();
+                                    const isMe = safeRole === 'admin' || safeRole === 'staff' || msg.senderId === user.id;
+                                    const mId = msg.id || msg.clientId || index;
+                                    const showOptions = activeMsgOptions === mId;
+                                    const bubbleClass = isMe ? 'msg-admin' : 'msg-customer';
+
+                                    return (
+                                        <div key={mId} className={`admin-msg-row ${isMe ? 'msg-row-me' : 'msg-row-them'}`}>
+                                            <div className="admin-msg-bubble-wrapper">
+                                                <div className={`admin-msg-bubble ${bubbleClass} ${msg.isDeleted ? 'msg-deleted-admin' : ''}`}>
+                                                    {msg.isDeleted ? <span className="deleted-text-admin"><Undo2 size={12} style={{marginRight: 4}}/> Đã thu hồi</span> : msg.content}
+                                                    <div className="msg-time">
+                                                        {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </div>
+
+                                                {isMe && !msg.isDeleted && (
+                                                    <div className="admin-msg-actions">
+                                                        <button 
+                                                            className="admin-msg-more-btn" 
+                                                            onClick={(e) => { e.stopPropagation(); setActiveMsgOptions(showOptions ? null : mId); }}
+                                                        >
+                                                            <MoreVertical size={14} />
+                                                        </button>
+                                                        {showOptions && (
+                                                            <div className="admin-msg-options-menu">
+                                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteMsg(mId); }}>
+                                                                    <Trash2 size={12} /> Thu hồi
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            <form onSubmit={handleSend} className="admin-chat-input">
-                                <input 
-                                    type="text"
-                                    placeholder="Nhập câu trả lời..."
-                                    value={inputText}
-                                    onChange={(e) => setInputText(e.target.value)}
-                                />
-                                <button type="submit" disabled={!isConnected} className="admin-send-btn">
-                                    Gửi
-                                </button>
-                            </form>
+                            <div className="admin-chat-input-wrapper">
+                                {/* Canned Responses Toolbar */}
+                                {showCanned && (
+                                    <div className="canned-responses-popup">
+                                        <div className="canned-header">
+                                            <span>Tin nhắn mẫu (Quick Replies)</span>
+                                        </div>
+                                        <div className="canned-list">
+                                            {CANNED_RESPONSES.map((res, idx) => (
+                                                <button key={idx} className="canned-item" onClick={() => { setInputText(res); setShowCanned(false); }}>
+                                                    {res}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleSend} className="admin-chat-input-inner">
+                                    <button 
+                                        type="button" 
+                                        className={`quick-reply-toggle ${showCanned ? 'active' : ''}`}
+                                        onClick={() => setShowCanned(!showCanned)}
+                                        title="Tin nhắn mẫu"
+                                    >
+                                        <Zap size={18} />
+                                    </button>
+                                    <input 
+                                        type="text"
+                                        placeholder="Nhập câu trả lời cho khách hàng (Enter để gửi)..."
+                                        value={inputText}
+                                        onChange={(e) => setInputText(e.target.value)}
+                                    />
+                                    <button type="submit" disabled={!isConnected || !inputText.trim()} className="admin-send-btn">
+                                        <Send size={16} />
+                                    </button>
+                                </form>
+                            </div>
                         </>
                     ) : (
                         <div className="empty-chat-state">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                            </svg>
-                            <div>Chọn một cuộc hội thoại để bắt đầu hỗ trợ</div>
+                            <MessageSquareOff size={48} strokeWidth={1.5} style={{color: '#a496a8', marginBottom: 16}} />
+                            <div style={{fontSize: 16, fontWeight: 600, color: '#4f3a4f'}}>Chưa chọn cuộc trò chuyện</div>
+                            <div style={{color: '#8c7b8c', marginTop: 4, fontSize: 14}}>Chọn một khách hàng ở danh sách bên trái để hỗ trợ</div>
                         </div>
                     )}
                 </div>

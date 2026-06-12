@@ -1,4 +1,13 @@
 import { useEffect, useState } from "react";
+import {
+  Search,
+  Eye,
+  Trash2,
+  X,
+  Star,
+  ClipboardList,
+  MessageSquareText
+} from "lucide-react";
 import { AdminLayout } from "./Adminheader";
 import { reviewAPI } from "../services/api";
 import "./css/Admin.css";
@@ -136,7 +145,7 @@ export default function AdminReviews() {
         </div>
 
         <div className="search-input-wrap" style={{ marginTop: 14 }}>
-          <span className="search-ico">🔍</span>
+          <span className="search-ico"><Search size={18} /></span>
           <input
             className="admin-search-input"
             placeholder="Tìm theo sản phẩm, người đánh giá, nội dung…"
@@ -228,7 +237,7 @@ export default function AdminReviews() {
                             className="action-btn edit"
                             onClick={() => setDetail(review)}
                           >
-                            👁 Chi tiết
+                            <Eye size={14} style={{ marginRight: 4 }} /> Chi tiết
                           </button>
                           <button
                             type="button"
@@ -236,7 +245,7 @@ export default function AdminReviews() {
                             disabled={savingId === review.id}
                             onClick={() => handleDelete(review)}
                           >
-                            {savingId === review.id ? "Đang xóa..." : "🗑 Xóa"}
+                            {savingId === review.id ? "Đang xóa..." : <><Trash2 size={14} style={{ marginRight: 4 }} /> Xóa</>}
                           </button>
                         </div>
                       </td>
@@ -259,13 +268,11 @@ export default function AdminReviews() {
                   {renderStars(detail.rating)} <strong>{normalizeRating(detail.rating).toFixed(1)}</strong>
                 </span>
               </div>
-              <button className="modal-close" onClick={() => setDetail(null)}>
-                ✕
-              </button>
+              <button className="modal-close" onClick={() => setDetail(null)}><X size={20} /></button>
             </div>
             <div className="modal-body order-detail-body">
               <div className="detail-section">
-                <p className="detail-section-title">📋 Thông tin đánh giá</p>
+                <p className="detail-section-title"><ClipboardList size={16} style={{ marginRight: 8, display: 'inline' }} /> Thông tin đánh giá</p>
                 <div className="detail-info-grid">
                   <div>
                     <span className="di-label">Người đánh giá</span>
@@ -287,7 +294,7 @@ export default function AdminReviews() {
               </div>
 
               <div className="detail-section">
-                <p className="detail-section-title">📝 Nội dung</p>
+                <p className="detail-section-title"><MessageSquareText size={16} style={{ marginRight: 8, display: 'inline' }} /> Nội dung</p>
                 <p className="review-content-full">{detail.content || "Không có nội dung."}</p>
               </div>
             </div>

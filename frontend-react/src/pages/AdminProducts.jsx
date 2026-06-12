@@ -1,5 +1,19 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import {
+  Search,
+  Shirt,
+  Layers,
+  ShoppingBag,
+  Pencil,
+  Trash2,
+  Plus,
+  X,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  Package
+} from "lucide-react";
 import { categoryAPI, productAPI } from "../services/api";
 import { AdminLayout } from "./Adminheader";
 import { recordAdminActivity } from "../utils/adminActivity";
@@ -454,12 +468,12 @@ export default function AdminProducts() {
     <AdminLayout
       title="Quản lý sản phẩm"
       subtitle={`${products.length} sản phẩm · ${countAo} áo · ${countQuan} quần`}
-      actions={<button className="topbar-btn accent" onClick={openAdd}>+ Thêm sản phẩm</button>}
+      actions={<button className="topbar-btn accent" onClick={openAdd}><Plus size={18} /> Thêm sản phẩm</button>}
     >
       <div className="admin-card toolbar-card">
         <div className="toolbar-row">
           <div className="search-input-wrap">
-            <span className="search-ico">🔍</span>
+            <span className="search-ico"><Search size={18} strokeWidth={2} /></span>
             <input
               className="admin-search-input"
               placeholder="Tìm theo tên, SKU…"
@@ -480,7 +494,10 @@ export default function AdminProducts() {
                     setCatFilter("Tất cả");
                   }}
                 >
-                  {type === "Áo" ? "👕 " : type === "Quần" ? "👖 " : "🛍️ "}{type}
+                  <span style={{ marginRight: 6, display: 'inline-flex', alignItems: 'center' }}>
+                    {type === "Áo" ? <Shirt size={16} /> : type === "Quần" ? <Layers size={16} /> : <ShoppingBag size={16} />}
+                  </span>
+                  {type}
                   <span className="tab-count">{count}</span>
                 </button>
               );
@@ -585,7 +602,10 @@ export default function AdminProducts() {
                     </td>
                     <td>
                       <span className={`role-badge ${product.type === "Quần" ? "role-staff" : "role-customer"}`}>
-                        {product.type === "Áo" ? "👕 " : "👖 "}{product.type}
+                        <span style={{ marginRight: 6, display: 'inline-flex', alignItems: 'center' }}>
+                          {product.type === "Áo" ? <Shirt size={14} /> : <Layers size={14} />}
+                        </span>
+                        {product.type}
                       </span>
                     </td>
                     <td>
@@ -610,9 +630,13 @@ export default function AdminProducts() {
                     </td>
                     <td>
                       <div className="action-btns">
-                        <button className="action-btn edit" onClick={() => openEdit(product)}>✏️ Sửa</button>
+                        <button className="action-btn edit" onClick={() => openEdit(product)}>
+                          <Pencil size={14} style={{ marginRight: 4 }} /> Sửa
+                        </button>
                         {isAdmin && (
-                          <button className="action-btn del" onClick={() => setDeleteId(product.id)}>🗑</button>
+                          <button className="action-btn del" onClick={() => setDeleteId(product.id)}>
+                            <Trash2 size={14} />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -629,7 +653,7 @@ export default function AdminProducts() {
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">{editProduct ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm mới"}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowModal(false)}><X size={20} /></button>
             </div>
             <div className="modal-body">
               <div className="modal-grid">
@@ -648,8 +672,8 @@ export default function AdminProducts() {
                       };
                     })}
                   >
-                    <option value="Áo">👕 Áo</option>
-                    <option value="Quần">👖 Quần</option>
+                    <option value="Áo">Áo</option>
+                    <option value="Quần">Quần</option>
                   </select>
                 </div>
 
@@ -743,7 +767,7 @@ export default function AdminProducts() {
                           onClick={() => removeFormCollectionItem("images", index)}
                           disabled={form.images.length === 1}
                         >
-                          ✕
+                          <X size={14} />
                         </button>
                       </div>
                     ))}
@@ -752,7 +776,7 @@ export default function AdminProducts() {
                       className="media-add-btn"
                       onClick={() => addFormCollectionItem("images", createImageField())}
                     >
-                      + Thêm ảnh
+                      <Plus size={14} style={{ marginRight: 4 }} /> Thêm ảnh
                     </button>
                     {form.images.length === 0 && (
                       <p style={{ margin: "8px 0 0", color: "var(--text-muted)", fontSize: "0.8rem" }}>

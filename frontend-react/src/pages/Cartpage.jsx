@@ -1,5 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  ShoppingBag,
+  Trash2,
+  Minus,
+  Plus,
+  Check,
+  ChevronRight,
+  ChevronLeft,
+  PartyPopper
+} from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { FREE_SHIPPING_THRESHOLD, formatShippingThreshold } from "../utils/shipping";
 import "./css/Cartpage.css";
@@ -58,7 +68,7 @@ export default function CartPage() {
       <div className="cart-page">
         <div className="cart-inner">
           <div className="cart-empty">
-            <div className="cart-empty-icon">🛍️</div>
+             <div className="cart-empty-icon"><ShoppingBag size={64} style={{ opacity: 0.2 }} /></div>
             <h2>Giỏ hàng trống</h2>
             <p>Hãy khám phá các sản phẩm tuyệt vời của chúng tôi nhé!</p>
             <Link to="/products" className="btn-primary">Mua sắm ngay</Link>
@@ -176,21 +186,18 @@ export default function CartPage() {
                     </div>
 
                     <div className="cart-item-actions">
-                      <div className="qty-control-sm">
-                        <button className="qty-btn-sm" onClick={() => updateItemQty(item.cartItemId, -1)}>−</button>
-                        <span className="qty-num-sm">{item.qty}</span>
-                        <button className="qty-btn-sm" onClick={() => updateItemQty(item.cartItemId,  1)}>+</button>
-                      </div>
-                      <button
-                        className="cart-item-remove"
-                        onClick={() => removeItem(item.cartItemId)}
-                        aria-label="Xóa"
-                      >
-                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
-                            stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                        </svg>
-                      </button>
+                       <div className="qty-control-sm">
+                         <button className="qty-btn-sm" onClick={() => updateItemQty(item.cartItemId, -1)}><Minus size={12} /></button>
+                         <span className="qty-num-sm">{item.qty}</span>
+                         <button className="qty-btn-sm" onClick={() => updateItemQty(item.cartItemId,  1)}><Plus size={12} /></button>
+                       </div>
+                       <button
+                         className="cart-item-remove"
+                         onClick={() => removeItem(item.cartItemId)}
+                         aria-label="Xóa"
+                       >
+                         <Trash2 size={16} />
+                       </button>
                     </div>
                   </div>
                 </div>
@@ -206,9 +213,9 @@ export default function CartPage() {
                 onChange={(e) => setPromoCode(e.target.value)}
                 disabled={promoApplied}
               />
-              <button className="promo-btn" onClick={handlePromo} disabled={promoApplied}>
-                {promoApplied ? "✓ Đã áp dụng" : "Áp dụng"}
-              </button>
+               <button className="promo-btn" onClick={handlePromo} disabled={promoApplied}>
+                 {promoApplied ? <><Check size={16} style={{ marginRight: 6 }} /> Đã áp dụng</> : "Áp dụng"}
+               </button>
             </div>
           </div>
 
@@ -232,7 +239,7 @@ export default function CartPage() {
               <div className="summary-line shipping">
                 <span className="summary-line-label">Phí vận chuyển</span>
                 <span className="summary-line-value">
-                  {shipping === 0 ? "Miễn phí 🎉" : `GHN sẽ tính ở bước thanh toán`}
+                   {shipping === 0 ? "Miễn phí!" : `GHN sẽ tính ở bước thanh toán`}
                 </span>
               </div>
             </div>
@@ -248,23 +255,20 @@ export default function CartPage() {
               <span className="summary-total-value">{formatPrice(total)}</span>
             </div>
 
-            <button 
-              className="btn-checkout"
-              onClick={() => {
-                if (selectedItems.size === 0) {
-                  alert("Vui lòng chọn ít nhất 1 sản phẩm để thanh toán");
-                  return;
-                }
-                navigate("/checkout", { state: { selectedItems: Array.from(selectedItems) } });
-              }}
-            >
-              Thanh toán ngay
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
-                <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
+             <button 
+               className="btn-checkout"
+               onClick={() => {
+                 if (selectedItems.size === 0) {
+                   alert("Vui lòng chọn ít nhất 1 sản phẩm để thanh toán");
+                   return;
+                 }
+                 navigate("/checkout", { state: { selectedItems: Array.from(selectedItems) } });
+               }}
+             >
+               Thanh toán ngay <ChevronRight size={18} style={{ marginLeft: 8 }} />
+             </button>
 
-            <Link to="/products" className="btn-continue">← Tiếp tục mua sắm</Link>
+             <Link to="/products" className="btn-continue"><ChevronLeft size={16} style={{ marginRight: 8 }} /> Tiếp tục mua sắm</Link>
 
           </div>
         </div>

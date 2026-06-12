@@ -1,5 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
+import {
+  Sparkles,
+  Shirt,
+  Layers,
+  Camera,
+  Star,
+  Check,
+  X,
+  Upload,
+  Search,
+  ShoppingBag,
+  AlertTriangle,
+  ChevronRight,
+  TrendingUp,
+  User,
+  ArrowRight
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { aiAPI, categoryAPI, productAPI } from "../services/api";
 import { getDisplayRating } from "../utils/productDisplay";
@@ -69,9 +86,9 @@ const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 const AI_RESULT_LIMIT = 5;
 
 const TYPE_FILTER_OPTIONS = [
-  { value: "auto", label: "Tự động", icon: "✨" },
-  { value: "Áo", label: "Áo", icon: "👕" },
-  { value: "Quần", label: "Quần", icon: "👖" },
+  { value: "auto", label: "Tự động", icon: <Sparkles size={14} /> },
+  { value: "Áo", label: "Áo", icon: <Shirt size={14} /> },
+  { value: "Quần", label: "Quần", icon: <Layers size={14} /> },
 ];
 
 const formatSearchModel = (model) => {
@@ -135,9 +152,9 @@ const normalizeSimilarity = (value) => {
 
 const getSimilarityLabel = (value) => {
   const score = normalizeSimilarity(value);
-  if (score >= 90) return "Khớp rất cao";
+  if (score >= 90) return "Khớp tuyệt đối";
   if (score >= 80) return "Khớp cao";
-  if (score >= 65) return "Tương đồng tốt";
+  if (score >= 65) return "Tương đồng";
   if (score >= 50) return "Tham khảo";
   return "Gợi ý";
 };
@@ -154,7 +171,13 @@ function StarRating({ rating }) {
   return (
     <div className="star-row">
       {[1, 2, 3, 4, 5].map((s) => (
-        <span key={s} className={s <= Math.round(rating) ? "star filled" : "star"}>★</span>
+        <Star
+          key={s}
+          size={14}
+          fill={s <= Math.round(rating) ? "var(--star-color, #ffb300)" : "none"}
+          stroke={s <= Math.round(rating) ? "var(--star-color, #ffb300)" : "#444"}
+          style={{ marginRight: 2 }}
+        />
       ))}
       <span className="rating-num">{rating}</span>
     </div>
@@ -196,11 +219,11 @@ function ProductCard({ product }) {
 
         {/* Chip Áo / Quần */}
         <span className={`product-type-chip ${product.type === "Quần" ? "type-quan" : "type-ao"}`}>
-          {product.type === "Áo" ? "👕" : "👖"} {product.type}
+          {product.type === "Áo" ? <Shirt size={12} style={{ marginRight: 4 }} /> : <Layers size={12} style={{ marginRight: 4 }} />} {product.type}
         </span>
 
         <button className={`btn-cart-overlay ${addedToCart ? "added" : ""}`} onClick={handleCart}>
-          {addedToCart ? "✓ Đã thêm" : "+ Thêm vào giỏ"}
+          {addedToCart ? <><Check size={14} style={{ marginRight: 4 }} /> Đã thêm</> : <><ShoppingBag size={14} style={{ marginRight: 4 }} /> Thêm vào giỏ</>}
         </button>
       </div>
       <div className="product-info">
@@ -434,7 +457,7 @@ function AiSearchPanel() {
   const showEmptyState = Boolean(preview) && !searching && !error && Array.isArray(results) && results.length === 0;
   const emptyStateMessage = noResultReason || "Không tìm thấy sản phẩm tương tự. Hãy thử ảnh rõ hơn, nền gọn hơn hoặc chụp toàn bộ trang phục ở chính diện.";
   const showTypeMeta = Boolean(predictedType);
-  const typeLabel = predictedType === "Quần" ? "👖 Quần" : predictedType === "Áo" ? "👕 Áo" : predictedType;
+  const typeLabel = predictedType === "Quần" ? <><Layers size={14} style={{ marginRight: 4 }} /> Quần</> : predictedType === "Áo" ? <><Shirt size={14} style={{ marginRight: 4 }} /> Áo</> : predictedType;
   const topResult = hasResults ? results[0] : null;
   const topSimilarity = normalizeSimilarity(topResult?.similarity);
   const secondaryResults = hasResults ? results.slice(1) : [];
@@ -471,7 +494,7 @@ function AiSearchPanel() {
     <section className="ai-section" id="ai-search">
       <div className="ai-section-inner">
         <div className="ai-header">
-          <span className="ai-chip">✦ AI Visual Search</span>
+          <span className="ai-chip"><Sparkles size={14} style={{ marginRight: 6 }} /> AI Visual Search</span>
           <h2 className="section-title">Tìm kiếm bằng <span className="accent">Hình Ảnh</span></h2>
           <p className="section-sub">
             Tải lên một bức ảnh trang phục, AI sẽ nhận diện loại (áo hoặc quần), phân tích đặc trưng
@@ -511,11 +534,7 @@ function AiSearchPanel() {
                 onClick={() => inputRef.current?.click()}
               >
                 <div className="drop-icon">
-                  <svg width="52" height="52" fill="none" viewBox="0 0 52 52">
-                    <rect width="52" height="52" rx="14" fill="rgba(var(--accent-rgb),0.1)" />
-                    <path d="M26 16v16M19 23l7-7 7 7" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M14 38h24" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
+                  <Upload size={52} strokeWidth={1.2} style={{ color: "var(--accent)", opacity: 0.8 }} />
                 </div>
                 <p className="drop-title">Kéo thả ảnh vào đây</p>
                 <p className="drop-sub">hoặc click để chọn ảnh từ máy tính</p>
@@ -535,7 +554,7 @@ function AiSearchPanel() {
                   <span className="preview-label">Ảnh đã chọn</span>
                   <span className="preview-file">{fileName || "image-upload.jpg"}</span>
                 </div>
-                <button className="btn-reset" onClick={reset}>✕ Đổi ảnh</button>
+                <button className="btn-reset" onClick={reset}><X size={14} style={{ marginRight: 4 }} /> Đổi ảnh</button>
                 {searching && (
                   <div className="progress-wrap">
                     <div className="progress-label">
@@ -556,9 +575,9 @@ function AiSearchPanel() {
               <div className="ai-idle">
                 <div className="ai-how-it-works">
                   {[
-                    { icon: "📤", title: "Tải ảnh chuẩn",  desc: "Chọn hoặc kéo thả ảnh sản phẩm rõ nét, ưu tiên ảnh chính diện" },
-                    { icon: "🔍", title: "AI nhận diện loại", desc: "AI phân loại áo/quần trước khi so khớp với catalog" },
-                    { icon: "🛍️", title: "Top 5 gợi ý", desc: "Nhận 5 sản phẩm cùng loại có độ tương đồng cao nhất" },
+                    { icon: <Upload size={24} />, title: "Tải ảnh chuẩn",  desc: "Chọn hoặc kéo thả ảnh sản phẩm rõ nét, ưu tiên ảnh chính diện" },
+                    { icon: <Search size={24} />, title: "AI nhận diện loại", desc: "AI phân loại áo/quần trước khi so khớp với catalog" },
+                    { icon: <ShoppingBag size={24} />, title: "Top 5 gợi ý", desc: "Nhận 5 sản phẩm cùng loại có độ tương đồng cao nhất" },
                   ].map((step) => (
                     <div key={step.title} className="how-step">
                       <span className="how-icon">{step.icon}</span>
@@ -576,7 +595,7 @@ function AiSearchPanel() {
             )}
             {error && (
               <div className="ai-empty-card ai-error-card">
-                <span>⚠️</span>
+                <AlertTriangle size={32} style={{ color: "#ffb300", marginBottom: 16 }} />
                 <p>{error}</p>
                 <button type="button" className="btn-secondary" onClick={() => inputRef.current?.click()}>
                   Thử ảnh khác
@@ -587,7 +606,7 @@ function AiSearchPanel() {
               <div className="ai-results">
                 <div className="ai-results-header">
                   <div>
-                    <p className="results-label">✦ Tìm thấy {results.length} {resultsLabel}</p>
+                    <p className="results-label"><Sparkles size={16} style={{ marginRight: 8, display: 'inline' }} /> Tìm thấy {results.length} {resultsLabel}</p>
                     {showTypeMeta && (
                       <div className="ai-type-row">
                         <span className={`ai-type-pill ${predictedType === "Quần" ? "ai-type-pill-quan" : "ai-type-pill-ao"}`}>
@@ -679,7 +698,7 @@ function AiSearchPanel() {
             )}
             {showEmptyState && (
               <div className="ai-empty-card">
-                <span>🔎</span>
+                <Search size={32} style={{ opacity: 0.3, marginBottom: 16 }} />
                 <p>{emptyStateMessage}</p>
                 {typeof minSimilarity === "number" && (
                   <small className="ai-empty-hint">Ngưỡng tối thiểu: {minSimilarity}%</small>
@@ -764,7 +783,7 @@ function HomePage() {
             <div className="hero-cta">
               <Link to="/products" className="btn-primary">Mua ngay</Link>
               <a href="#ai-search" className="btn-secondary">
-                <span className="btn-ai-icon">📷</span> Tìm bằng ảnh
+                <Camera size={18} style={{ marginRight: 8 }} /> Tìm bằng ảnh
               </a>
             </div>
             <div className="hero-stats">
@@ -783,7 +802,7 @@ function HomePage() {
                 alt="Hero fashion" className="hero-img"
               />
               <div className="hero-img-badge">
-                <span className="badge-icon">📷</span>
+                <Camera size={20} color="var(--accent)" />
                 <div>
                   <p className="badge-title">Tìm kiếm bằng ảnh</p>
                   <p className="badge-sub">Tải ảnh · Nhận gợi ý ngay</p>

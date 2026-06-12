@@ -1,0 +1,634 @@
+/* ══════════════════════════════════════════════════════════════
+   AdminDashboard.css  —  Premium Dashboard Styles
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Loading / Error ─────────────────────────────────────────── */
+.adb-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 320px;
+  color: var(--text-muted);
+}
+
+.adb-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: adb-spin 0.8s linear infinite;
+}
+
+@keyframes adb-spin { to { transform: rotate(360deg); } }
+
+.adb-error {
+  padding: 40px;
+  text-align: center;
+  color: #f87171;
+}
+
+/* ── Welcome Banner ──────────────────────────────────────────── */
+.adb-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  background: linear-gradient(135deg, rgba(255,95,163,.08) 0%, rgba(96,165,250,.06) 50%, rgba(167,139,250,.06) 100%);
+  border: 1px solid rgba(255,95,163,.15);
+  border-radius: var(--radius-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.adb-welcome::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 80% at 100% 50%, rgba(255,95,163,.06), transparent);
+  pointer-events: none;
+}
+
+.adb-welcome-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  margin-bottom: 4px;
+}
+
+.adb-welcome-sub {
+  font-size: .82rem;
+  color: var(--text-muted);
+}
+
+.adb-welcome-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: rgba(52,211,153,.1);
+  border: 1px solid rgba(52,211,153,.2);
+  color: #34d399;
+  font-size: .78rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.adb-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34d399;
+  animation: adb-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes adb-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .5; transform: scale(.75); }
+}
+
+/* ── KPI Grid ────────────────────────────────────────────────── */
+.adb-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.adb-kpi {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 22px 16px;
+  border-top: 2px solid var(--kpi-accent, var(--accent));
+  transition: transform .22s ease, box-shadow .22s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.adb-kpi::before {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 120px; height: 120px;
+  background: radial-gradient(circle at 100% 0%, rgba(var(--accent-rgb),.06), transparent 70%);
+  pointer-events: none;
+}
+
+.adb-kpi::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--kpi-accent, var(--accent)), transparent);
+  border-radius: 0 0 4px 4px;
+}
+
+.adb-kpi:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 40px rgba(0,0,0,.45);
+}
+
+.adb-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.adb-kpi-label {
+  font-size: .72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 8px;
+}
+
+.adb-kpi-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.55rem;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -.03em;
+}
+
+.adb-kpi-sub {
+  font-size: .72rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-family: var(--font-mono);
+}
+
+.adb-kpi-icon {
+  position: absolute;
+  bottom: 20px;
+  right: 22px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb),.1);
+  color: var(--kpi-accent, var(--accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(var(--accent-rgb),.12);
+  overflow: hidden;
+  z-index: 2;
+}
+
+.adb-kpi-spark {
+  margin-top: 16px;
+  opacity: .85;
+}
+
+/* ── Mid Grid (Revenue + Donut) ──────────────────────────────── */
+.adb-mid-grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 20px;
+}
+
+/* Revenue card */
+.adb-revenue-total {
+  text-align: right;
+}
+
+.adb-revenue-num {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--accent);
+  letter-spacing: -.02em;
+}
+
+.adb-revenue-lbl {
+  font-size: .7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* Animated bar chart */
+.adb-chart-wrap {
+  display: flex;
+  height: 180px;
+  gap: 6px;
+  padding-top: 24px;
+}
+
+.adb-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: 22px;
+  width: 38px;
+  flex-shrink: 0;
+}
+
+.adb-y-label {
+  font-size: .6rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-align: right;
+  line-height: 1;
+}
+
+.adb-bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.adb-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.adb-bar-container {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.adb-bar-peak-label {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: .58rem;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  white-space: nowrap;
+  background: var(--surface);
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--accent-rgb),.2);
+  z-index: 2;
+}
+
+.adb-bar-fill {
+  width: 100%;
+  min-height: 4px;
+  border-radius: 5px 5px 0 0;
+  transition: height .7s cubic-bezier(.34,1.2,.64,1);
+  position: relative;
+}
+
+.adb-bar-fill.peak::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.12), transparent 50%);
+  pointer-events: none;
+}
+
+.adb-x-label {
+  font-size: .6rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Donut card */
+.adb-donut-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.adb-donut-chart {
+  position: relative;
+  width: 160px;
+  height: 160px;
+}
+
+.adb-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.adb-donut-num {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.adb-donut-lbl {
+  font-size: .7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.adb-donut-legend {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adb-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .8rem;
+}
+
+.adb-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.adb-legend-label {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.adb-legend-val {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: .78rem;
+}
+
+.adb-legend-pct {
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  color: var(--text-muted);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Bottom Grid (Products + Orders) ─────────────────────────── */
+.adb-bot-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+}
+
+/* Top products */
+.adb-top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.adb-top-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.adb-top-row:last-child { border-bottom: none; }
+
+.adb-top-rank {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text-muted);
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.adb-top-row:first-child .adb-top-rank {
+  color: var(--accent);
+}
+
+.adb-top-img {
+  width: 44px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border-2);
+  flex-shrink: 0;
+}
+
+.adb-top-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.adb-top-name {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 8px;
+}
+
+.adb-top-bar-wrap {
+  height: 5px;
+  background: var(--surface-2, #26262d);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.adb-top-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), rgba(255,95,163,.35));
+  border-radius: 3px;
+  transition: width .8s ease;
+}
+
+.adb-top-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.adb-top-sold {
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  color: var(--text-muted);
+}
+
+.adb-top-rev {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: .82rem;
+}
+
+/* Recent orders */
+.adb-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adb-order-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color .2s, background .2s;
+}
+
+.adb-order-row:hover {
+  border-color: rgba(var(--accent-rgb),.25);
+  background: rgba(var(--accent-rgb),.03);
+}
+
+.adb-order-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  border: 1.5px solid rgba(var(--accent-rgb),.25);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: .85rem;
+  flex-shrink: 0;
+}
+
+.adb-order-info { flex: 1; }
+
+.adb-order-name {
+  font-size: .83rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.adb-order-id {
+  font-size: .7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.adb-order-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.adb-order-total {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: .85rem;
+  font-family: var(--font-display);
+}
+
+/* ── Category Grid ───────────────────────────────────────────── */
+.adb-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.adb-cat-ico {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.adb-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adb-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adb-cat-name {
+  font-size: .82rem;
+  color: var(--text-secondary);
+  min-width: 80px;
+  max-width: 110px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adb-cat-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-2, #26262d);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.adb-cat-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .8s cubic-bezier(.34,1,.64,1);
+}
+
+.adb-cat-count {
+  font-family: var(--font-mono);
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 24px;
+  text-align: right;
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 1300px) {
+  .adb-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 1100px) {
+  .adb-mid-grid  { grid-template-columns: 1fr; }
+  .adb-bot-grid  { grid-template-columns: 1fr; }
+  .adb-cat-grid  { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 700px) {
+  .adb-kpi-grid  { grid-template-columns: 1fr; }
+  .adb-cat-grid  { grid-template-columns: 1fr; }
+  .adb-welcome   { flex-direction: column; align-items: flex-start; gap: 14px; padding: 18px 20px; }
+}

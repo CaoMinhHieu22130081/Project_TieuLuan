@@ -12,6 +12,7 @@ export const ChatProvider = ({ children }) => {
     const [messages, setMessages] = useState([]);
     const [isConnected, setIsConnected] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [isTyping, setIsTyping] = useState(false);
     const { addToast } = useToast();
     const stompClientRef = useRef(null);
     const subscriptionRef = useRef(null);
@@ -129,6 +130,10 @@ export const ChatProvider = ({ children }) => {
         }
     };
 
+    const deleteMessage = (msgId) => {
+        setMessages(prev => prev.map(m => (m.id === msgId || m.clientId === msgId) ? { ...m, isDeleted: true, content: "Tin nhắn đã bị thu hồi" } : m));
+    };
+
     return (
         <ChatContext.Provider value={{
             isOpen,
@@ -138,9 +143,12 @@ export const ChatProvider = ({ children }) => {
             setMessages,
             isConnected,
             sendMessage,
+            deleteMessage,
             toggleChat,
             unreadCount,
-            setUnreadCount
+            setUnreadCount,
+            isTyping,
+            setIsTyping
         }}>
             {children}
         </ChatContext.Provider>

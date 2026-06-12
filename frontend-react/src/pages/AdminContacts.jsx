@@ -1,4 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Mail,
+  Bell,
+  CheckCircle2,
+  Calendar,
+  Search,
+  Inbox,
+  Eye,
+  Trash2,
+  X,
+  AlertTriangle
+} from 'lucide-react';
 import { contactAPI } from '../services/api';
 import { AdminLayout } from './Adminheader';
 import { useAuth } from '../context/AuthContext';
@@ -120,7 +132,7 @@ const AdminContacts = () => {
     return (
       <AdminLayout title="Quản lý Liên hệ" subtitle="Lỗi">
         <div className="contacts-error">
-          <span className="contacts-error-icon">⚠️</span>
+          <AlertTriangle size={48} strokeWidth={1.5} style={{ opacity: 0.5, marginBottom: 16 }} />
           <p>{error}</p>
           <button className="contacts-retry-btn" onClick={fetchMessages}>Thử lại</button>
         </div>
@@ -136,28 +148,36 @@ const AdminContacts = () => {
       {/* Stats row */}
       <div className="contacts-stats-row">
         <div className="contacts-stat-card">
-          <div className="csc-icon" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>✉️</div>
+          <div className="csc-icon" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
+            <Mail size={20} />
+          </div>
           <div className="csc-info">
             <div className="csc-value">{messages.length}</div>
             <div className="csc-label">Tổng tin nhắn</div>
           </div>
         </div>
         <div className="contacts-stat-card">
-          <div className="csc-icon" style={{ background: 'rgba(236,72,153,0.12)', color: '#ec4899' }}>🔔</div>
+          <div className="csc-icon" style={{ background: 'rgba(236,72,153,0.12)', color: '#ec4899' }}>
+            <Bell size={20} />
+          </div>
           <div className="csc-info">
             <div className="csc-value" style={{ color: '#ec4899' }}>{unreadCount}</div>
             <div className="csc-label">Chưa đọc</div>
           </div>
         </div>
         <div className="contacts-stat-card">
-          <div className="csc-icon" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}>✅</div>
+          <div className="csc-icon" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}>
+            <CheckCircle2 size={20} />
+          </div>
           <div className="csc-info">
             <div className="csc-value" style={{ color: '#34d399' }}>{readCount}</div>
             <div className="csc-label">Đã đọc</div>
           </div>
         </div>
         <div className="contacts-stat-card">
-          <div className="csc-icon" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>📅</div>
+          <div className="csc-icon" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+            <Calendar size={20} />
+          </div>
           <div className="csc-info">
             <div className="csc-value">
               {messages.filter(m => {
@@ -174,7 +194,7 @@ const AdminContacts = () => {
       {/* Toolbar */}
       <div className="contacts-toolbar admin-card">
         <div className="contacts-search-wrap">
-          <span className="contacts-search-ico">🔍</span>
+          <span className="contacts-search-ico"><Search size={18} /></span>
           <input
             className="contacts-search-input"
             type="text"
@@ -183,7 +203,7 @@ const AdminContacts = () => {
             onChange={e => setSearch(e.target.value)}
           />
           {search && (
-            <button className="contacts-search-clear" onClick={() => setSearch('')}>✕</button>
+            <button className="contacts-search-clear" onClick={() => setSearch('')}><X size={16} /></button>
           )}
         </div>
         <div className="contacts-filter-tabs">
@@ -210,7 +230,7 @@ const AdminContacts = () => {
         <div className="contacts-list admin-card">
           {filtered.length === 0 ? (
             <div className="contacts-empty">
-              <div className="contacts-empty-icon">📭</div>
+              <div className="contacts-empty-icon"><Inbox size={48} strokeWidth={1} style={{ opacity: 0.3 }} /></div>
               <p className="contacts-empty-title">Không có tin nhắn nào</p>
               <p className="contacts-empty-sub">
                 {search ? 'Không tìm thấy kết quả phù hợp' : 'Chưa có tin nhắn liên hệ'}
@@ -247,7 +267,7 @@ const AdminContacts = () => {
                         onClick={(e) => handleMarkAsRead(m.id, e)}
                         title="Đánh dấu đã đọc"
                       >
-                        <span>👁</span>
+                        <Eye size={16} />
                       </button>
                     )}
                     {isAdmin && (
@@ -256,7 +276,7 @@ const AdminContacts = () => {
                         onClick={(e) => handleDelete(m.id, e)}
                         title="Xóa"
                       >
-                        <span>🗑</span>
+                        <Trash2 size={16} />
                       </button>
                     )}
                   </div>
@@ -282,22 +302,26 @@ const AdminContacts = () => {
                   {selected.email}
                 </a>
                 <div className="contacts-detail-time">
-                  📅 {formatDateFull(selected.createdAt)}
+                  <Calendar size={14} style={{ marginRight: 6 }} /> {formatDateFull(selected.createdAt)}
                 </div>
               </div>
-              <button className="contacts-detail-close" onClick={() => setSelected(null)}>✕</button>
+              <button className="contacts-detail-close" onClick={() => setSelected(null)}><X size={20} /></button>
             </div>
 
             <div className="contacts-detail-status-row">
               <span className={`contacts-status-badge ${selected.isRead ? 'read' : 'unread'}`}>
-                {selected.isRead ? '✅ Đã đọc' : '🔔 Chưa đọc'}
+                {selected.isRead ? (
+                  <><CheckCircle2 size={14} style={{ marginRight: 6 }} /> Đã đọc</>
+                ) : (
+                  <><Bell size={14} style={{ marginRight: 6 }} /> Chưa đọc</>
+                )}
               </span>
               {!selected.isRead && (
                 <button
                   className="contacts-detail-action-btn read"
                   onClick={() => handleMarkAsRead(selected.id)}
                 >
-                  👁 Đánh dấu đã đọc
+                  <Eye size={14} style={{ marginRight: 6 }} /> Đánh dấu đã đọc
                 </button>
               )}
               {isAdmin && (
@@ -305,7 +329,7 @@ const AdminContacts = () => {
                   className="contacts-detail-action-btn delete"
                   onClick={(e) => handleDelete(selected.id, e)}
                 >
-                  🗑 Xóa tin nhắn
+                  <Trash2 size={14} style={{ marginRight: 6 }} /> Xóa tin nhắn
                 </button>
               )}
             </div>
@@ -322,7 +346,7 @@ const AdminContacts = () => {
                 href={`mailto:${selected.email}?subject=Re: Liên hệ từ UniqTee`}
                 className="contacts-reply-btn"
               >
-                ✉️ Trả lời qua Email
+                <Mail size={16} style={{ marginRight: 8 }} /> Trả lời qua Email
               </a>
             </div>
           </div>

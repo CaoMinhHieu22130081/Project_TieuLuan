@@ -1,4 +1,16 @@
 import { useEffect, useState } from "react";
+import {
+  Search,
+  Eye,
+  Key,
+  Lock,
+  Unlock,
+  Trash2,
+  X,
+  UserCheck,
+  UserX,
+  Users
+} from "lucide-react";
 import { AdminLayout } from "./Adminheader";
 import { useAuth } from "../context/AuthContext";
 import { adminAPI } from "../services/api";
@@ -231,7 +243,7 @@ export default function AdminUsers() {
         </div>
 
         <div className="search-input-wrap" style={{ marginTop: 14 }}>
-          <span className="search-ico">🔍</span>
+          <span className="search-ico"><Search size={18} /></span>
           <input
             className="admin-search-input"
             placeholder="Tìm tên, email…"
@@ -370,14 +382,14 @@ export default function AdminUsers() {
                             onClick={() => handleViewDetail(user)}
                             disabled={isSaving}
                           >
-                            👁
+                            <Eye size={14} />
                           </button>
                           <button
                             className="action-btn edit"
                             onClick={() => setEditRole({ userId: user.id, role: user.role })}
                             disabled={isSaving}
                           >
-                            🔑
+                            <Key size={14} />
                           </button>
                           {user.role !== "admin" && (
                             <button
@@ -385,7 +397,7 @@ export default function AdminUsers() {
                               onClick={() => handleToggleStatus(user)}
                               disabled={isSaving}
                             >
-                              {status === "active" ? "🔒" : "🔓"}
+                              {status === "active" ? <Lock size={14} /> : <Unlock size={14} />}
                             </button>
                           )}
                           <button
@@ -394,7 +406,7 @@ export default function AdminUsers() {
                             disabled={isSaving || isCurrentUser}
                             title={isCurrentUser ? "Không thể xóa tài khoản đang đăng nhập" : "Xóa tài khoản"}
                           >
-                            🗑
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
@@ -413,7 +425,7 @@ export default function AdminUsers() {
             <div className="modal-header">
               <h2 className="modal-title">Chi tiết tài khoản</h2>
               <button className="modal-close" onClick={() => setDetail(null)}>
-                ✕
+                <X size={20} />
               </button>
             </div>
             <div className="modal-body">
@@ -494,7 +506,7 @@ export default function AdminUsers() {
             <div className="modal-header">
               <h2 className="modal-title">Đổi vai trò</h2>
               <button className="modal-close" onClick={() => setEditRole(null)}>
-                ✕
+                <X size={20} />
               </button>
             </div>
             <div className="modal-body">

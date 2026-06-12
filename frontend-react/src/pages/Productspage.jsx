@@ -1,5 +1,27 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import {
+  Star,
+  X,
+  Minus,
+  Plus,
+  Loader2,
+  Check,
+  Search,
+  Heart,
+  ShoppingBag,
+  Shirt,
+  Layers,
+  Filter,
+  LayoutGrid,
+  List,
+  AlertTriangle,
+  SearchX,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles
+} from "lucide-react";
 import { categoryAPI, productAPI } from "../services/api";
 import { useWishlist } from "../context/WishlistContext";
 import { useCart } from "../context/CartContext";
@@ -142,7 +164,13 @@ function StarRating({ rating }) {
   return (
     <div className="star-row">
       {[1, 2, 3, 4, 5].map((s) => (
-        <span key={s} className={s <= Math.round(rating) ? "star filled" : "star"}>★</span>
+        <Star
+          key={s}
+          size={14}
+          fill={s <= Math.round(rating) ? "#ffb300" : "none"}
+          stroke={s <= Math.round(rating) ? "#ffb300" : "#444"}
+          style={{ marginRight: 2 }}
+        />
       ))}
       <span className="rating-num">{rating}</span>
     </div>
@@ -225,15 +253,15 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
             style={{
               background: "none",
               border: "none",
-              fontSize: "1.5rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               cursor: "pointer",
               color: "#888",
               transition: "color 0.2s",
             }}
-            onMouseEnter={(e) => e.target.style.color = "#fff"}
-            onMouseLeave={(e) => e.target.style.color = "#888"}
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
 
@@ -309,62 +337,68 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
           </label>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button
-              onClick={() => setQty(Math.max(1, qty - 1))}
-              style={{
-                width: 32,
-                height: 32,
-                border: "1px solid #333",
-                borderRadius: 6,
-                background: "#2a2a2a",
-                color: "#fff",
-                cursor: "pointer",
-                fontSize: "1rem",
-              }}
-            >
-              −
-            </button>
+               onClick={() => setQty(Math.max(1, qty - 1))}
+               style={{
+                 width: 32,
+                 height: 32,
+                 border: "1px solid #333",
+                 borderRadius: 6,
+                 background: "#2a2a2a",
+                 color: "#fff",
+                 cursor: "pointer",
+                 display: "flex",
+                 alignItems: "center",
+                 justifyContent: "center"
+               }}
+             >
+               <Minus size={14} />
+             </button>
             <span style={{ minWidth: 40, textAlign: "center", fontWeight: 600, color: "#fff" }}>{qty}</span>
             <button
-              onClick={() => setQty(qty + 1)}
-              style={{
-                width: 32,
-                height: 32,
-                border: "1px solid #333",
-                borderRadius: 6,
-                background: "#2a2a2a",
-                color: "#fff",
-                cursor: "pointer",
-                fontSize: "1rem",
-              }}
-            >
-              +
-            </button>
+               onClick={() => setQty(qty + 1)}
+               style={{
+                 width: 32,
+                 height: 32,
+                 border: "1px solid #333",
+                 borderRadius: 6,
+                 background: "#2a2a2a",
+                 color: "#fff",
+                 cursor: "pointer",
+                 display: "flex",
+                 alignItems: "center",
+                 justifyContent: "center"
+               }}
+             >
+               <Plus size={14} />
+             </button>
           </div>
         </div>
 
         {/* Buttons */}
         <div style={{ display: "flex", gap: 12 }}>
-          <button
-            onClick={handleAdd}
-            disabled={isAdding}
-            style={{
-              flex: 1,
-              padding: "12px 24px",
-              background: isAdding ? "#a78bfa" : "var(--accent)",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              fontWeight: 700,
-              cursor: isAdding ? "not-allowed" : "pointer",
-              fontSize: "0.95rem",
-              transition: "all 0.2s",
-              opacity: isAdding ? 0.7 : 1,
-            }}
-            onMouseEnter={(e) => !isAdding && (e.target.style.opacity = "0.9")}
-            onMouseLeave={(e) => !isAdding && (e.target.style.opacity = "1")}
-          >
-            {isAdding ? "⏳ Đang thêm..." : "✓ Thêm vào giỏ"}
-          </button>
+           <button
+             onClick={handleAdd}
+             disabled={isAdding}
+             style={{
+               flex: 1,
+               padding: "12px 24px",
+               background: isAdding ? "#a78bfa" : "var(--accent)",
+               color: "#fff",
+               border: "none",
+               borderRadius: 6,
+               fontWeight: 700,
+               cursor: isAdding ? "not-allowed" : "pointer",
+               fontSize: "0.95rem",
+               transition: "all 0.2s",
+               opacity: isAdding ? 0.7 : 1,
+               display: "flex",
+               alignItems: "center",
+               justifyContent: "center",
+               gap: 8
+             }}
+           >
+             {isAdding ? <><Loader2 size={16} className="animate-spin" /> Đang thêm...</> : <><Check size={16} /> Thêm vào giỏ</>}
+           </button>
           <button
             onClick={onClose}
             disabled={isAdding}
@@ -448,7 +482,7 @@ function ProductCard({ product }) {
 
         {/* Type chip */}
         <span className={`product-type-chip ${product.type === "Quần" ? "type-quan" : "type-ao"}`}>
-          {product.type}
+          {product.type === "Áo" ? <Shirt size={12} style={{ marginRight: 4 }} /> : <Layers size={12} style={{ marginRight: 4 }} />} {product.type}
         </span>
 
         <button
@@ -456,9 +490,7 @@ function ProductCard({ product }) {
           onClick={stopAndRun(() => toggleWishlist(product))}
           aria-label="Yêu thích"
         >
-          <svg width="16" height="16" fill={loved ? "currentColor" : "none"} viewBox="0 0 24 24">
-            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="2"/>
-          </svg>
+          <Heart size={16} fill={loved ? "currentColor" : "none"} />
         </button>
 
         <button
@@ -466,7 +498,7 @@ function ProductCard({ product }) {
           onClick={stopAndRun(() => setShowModal(true))}
           title="Chọn màu, size và thêm vào giỏ hàng"
         >
-          + Thêm vào giỏ
+          <ShoppingBag size={14} style={{ marginRight: 6 }} /> Thêm vào giỏ
         </button>
       </div>
 
@@ -828,7 +860,7 @@ export default function ProductsPage() {
                 onClick={() => setSearchQuery("")}
                 style={{ width: "100%", marginBottom: "16px", padding: "8px 0" }}
               >
-                ✕ Xóa tìm kiếm: "{searchQuery}"
+                <X size={14} style={{ marginRight: 6 }} /> Xóa tìm kiếm: "{searchQuery}"
               </button>
             </div>
           )}
@@ -856,7 +888,7 @@ export default function ProductsPage() {
                 }
                 return (
                   <label key={cat} className={`filter-option ${category === cat ? "checked" : ""}`} onClick={() => setCategory(cat)}>
-                    <div className="filter-checkbox">{category === cat && <span className="filter-check-mark">✓</span>}</div>
+                    <div className="filter-checkbox">{category === cat && <Check size={10} strokeWidth={3} />}</div>
                     <span className="filter-option-name">{cat}</span>
                     <span className="filter-option-count">{count}</span>
                   </label>
@@ -875,7 +907,7 @@ export default function ProductsPage() {
                   onClick={() => setSizes([])}
                   title="Xóa filter kích thước"
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               )}
             </div>
@@ -907,7 +939,7 @@ export default function ProductsPage() {
                   onClick={() => setColors([])}
                   title="Xóa filter màu sắc"
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               )}
             </div>
@@ -972,7 +1004,7 @@ export default function ProductsPage() {
                   className={`type-quick-tab ${typeFilter === t ? "active" : ""}`}
                   onClick={() => handleTypeChange(t)}
                 >
-                  {t === "Áo" ? "👕" : t === "Quần" ? "👖" : "🛍️"} {t}
+                  {t === "Áo" ? <Shirt size={14} style={{ marginRight: 6 }} /> : t === "Quần" ? <Layers size={14} style={{ marginRight: 6 }} /> : <ShoppingBag size={14} style={{ marginRight: 6 }} />} {t}
                   <span className="type-quick-count">{cnt}</span>
                 </button>
               );
@@ -986,31 +1018,31 @@ export default function ProductsPage() {
                 {typeFilter !== "Tất cả" && (
                   <span className="filter-badge">
                     {typeFilter}
-                    <button onClick={() => setTypeFilter("Tất cả")} className="badge-close">✕</button>
+                    <button onClick={() => setTypeFilter("Tất cả")} className="badge-close"><X size={10} /></button>
                   </span>
                 )}
                 {category !== "Tất cả" && (
                   <span className="filter-badge">
                     {category}
-                    <button onClick={() => setCategory("Tất cả")} className="badge-close">✕</button>
+                    <button onClick={() => setCategory("Tất cả")} className="badge-close"><X size={10} /></button>
                   </span>
                 )}
                 {sizes.map(s => (
                   <span key={s} className="filter-badge">
                     Size: {s}
-                    <button onClick={() => setSizes(sizes.filter(x => x !== s))} className="badge-close">✕</button>
+                    <button onClick={() => setSizes(sizes.filter(x => x !== s))} className="badge-close"><X size={10} /></button>
                   </span>
                 ))}
                 {colors.map(c => (
                   <span key={c} className="filter-badge" style={{ borderColor: c }}>
                     <span className="color-dot" style={{ background: c }}></span>
-                    <button onClick={() => setColors(colors.filter(x => x !== c))} className="badge-close">✕</button>
+                    <button onClick={() => setColors(colors.filter(x => x !== c))} className="badge-close"><X size={10} /></button>
                   </span>
                 ))}
                 {(priceMin > 0 || priceMax < 1000000) && (
                   <span className="filter-badge">
                     Giá: {fmt(priceMin)} - {fmt(priceMax)}
-                    <button onClick={() => { setPriceMin(0); setPriceMax(1000000); setMinDisplay(""); setMaxDisplay(""); }} className="badge-close">✕</button>
+                    <button onClick={() => { setPriceMin(0); setPriceMax(1000000); setMinDisplay(""); setMaxDisplay(""); }} className="badge-close"><X size={10} /></button>
                   </span>
                 )}
               </div>
@@ -1026,9 +1058,7 @@ export default function ProductsPage() {
           <div className="products-toolbar">
             <div className="toolbar-right">
               <button className="mobile-filter-btn" onClick={() => setMobileOpen(true)}>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                  <path d="M3 6h18M7 12h10M11 18h2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
+                <Filter size={14} style={{ marginRight: 6 }} />
                 Bộ lọc
               </button>
               <select className="sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
@@ -1041,15 +1071,10 @@ export default function ProductsPage() {
               </select>
               <div className="view-toggle">
                 <button className={`view-btn ${viewMode === "grid" ? "active" : ""}`} onClick={() => setViewMode("grid")}>
-                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                    <rect x="0" y="0" width="6" height="6" rx="1"/><rect x="10" y="0" width="6" height="6" rx="1"/>
-                    <rect x="0" y="10" width="6" height="6" rx="1"/><rect x="10" y="10" width="6" height="6" rx="1"/>
-                  </svg>
+                  <LayoutGrid size={14} />
                 </button>
                 <button className={`view-btn ${viewMode === "list" ? "active" : ""}`} onClick={() => setViewMode("list")}>
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
+                  <List size={14} />
                 </button>
               </div>
             </div>
@@ -1057,12 +1082,12 @@ export default function ProductsPage() {
 
           {loading ? (
             <div className="products-empty">
-              <p style={{ fontSize: "2rem", marginBottom: 16 }}>⏳</p>
+              <Loader2 className="animate-spin" size={48} style={{ color: "var(--accent)", marginBottom: 16, display: 'inline-block' }} />
               <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>Đang tải sản phẩm...</p>
             </div>
           ) : error ? (
             <div className="products-empty">
-              <p style={{ fontSize: "2rem", marginBottom: 16 }}>❌</p>
+              <AlertTriangle size={48} style={{ color: "#ef4444", marginBottom: 16, display: 'inline-block' }} />
               <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>{error}</p>
               <button
                 style={{ marginTop: 16, padding: "9px 20px", background: "var(--accent)", color: "#fff", borderRadius: 10, fontWeight: 700, fontSize: "0.875rem", cursor: "pointer", border: "none" }}
@@ -1073,34 +1098,34 @@ export default function ProductsPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="products-empty">
-              <p style={{ fontSize: "2.5rem", marginBottom: 16 }}>🔍</p>
+              <SearchX size={64} style={{ opacity: 0.2, marginBottom: 16, display: 'inline-block' }} />
               <h3 style={{ fontSize: "1.25rem", marginBottom: 8, color: "var(--text-primary)" }}>Không tìm thấy sản phẩm</h3>
               <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginBottom: 20 }}>
                 Hãy thử xóa một số bộ lọc để xem thêm sản phẩm
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
                 {(sizes.length > 0 || colors.length > 0 || priceMin > 0 || priceMax < 1000000) && (
-                  <button
-                    style={{ padding: "10px 20px", background: "var(--accent)", color: "#fff", borderRadius: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer", border: "none" }}
-                    onClick={() => { setSizes([]); setColors([]); setPriceMin(0); setPriceMax(1000000); setMinDisplay(""); setMaxDisplay(""); }}
-                  >
-                    🔄 Xóa tất cả lọc
-                  </button>
+                    <button
+                      style={{ padding: "10px 20px", background: "var(--accent)", color: "#fff", borderRadius: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer", border: "none", display: 'flex', alignItems: 'center', gap: 8 }}
+                      onClick={() => { setSizes([]); setColors([]); setPriceMin(0); setPriceMax(1000000); setMinDisplay(""); setMaxDisplay(""); }}
+                    >
+                      <RotateCcw size={16} /> Xóa tất cả lọc
+                    </button>
                 )}
                 {category !== "Tất cả" && (
                   <button
-                    style={{ padding: "10px 20px", background: "var(--border-light)", color: "var(--text-primary)", borderRadius: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer", border: "none" }}
+                    style={{ padding: "10px 20px", background: "var(--border-light)", color: "var(--text-primary)", borderRadius: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer", border: "none", display: 'flex', alignItems: 'center', gap: 8 }}
                     onClick={() => setCategory("Tất cả")}
                   >
-                    ← Xóa lọc danh mục
+                    <ChevronLeft size={16} /> Xóa lọc danh mục
                   </button>
                 )}
                 {typeFilter !== "Tất cả" && (
                   <button
-                    style={{ padding: "10px 20px", background: "var(--border-light)", color: "var(--text-primary)", borderRadius: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer", border: "none" }}
+                    style={{ padding: "10px 20px", background: "var(--border-light)", color: "var(--text-primary)", borderRadius: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer", border: "none", display: 'flex', alignItems: 'center', gap: 8 }}
                     onClick={() => { setTypeFilter("Tất cả"); setCategory("Tất cả"); setSizes([]); }}
                   >
-                    ← Xem tất cả loại
+                    <ChevronLeft size={16} /> Xem tất cả loại
                   </button>
                 )}
               </div>
@@ -1120,7 +1145,7 @@ export default function ProductsPage() {
                     );
                   })}
                   {page < Math.ceil(filtered.length / 9) && (
-                    <button className="page-btn" onClick={() => setPage((p) => Math.min(p + 1, Math.ceil(filtered.length / 9)))}>→</button>
+                    <button className="page-btn" onClick={() => setPage((p) => Math.min(p + 1, Math.ceil(filtered.length / 9)))}><ChevronRight size={14} /></button>
                   )}
                 </div>
               )}

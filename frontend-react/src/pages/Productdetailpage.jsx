@@ -1,5 +1,25 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import {
+  Star,
+  Loader2,
+  SearchX,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Ruler,
+  Minus,
+  Plus,
+  ShoppingBag,
+  Heart,
+  Truck,
+  RotateCcw,
+  Lock,
+  CheckCircle2,
+  FileText,
+  Clock
+} from "lucide-react";
 import { productAPI, reviewAPI } from "../services/api";
 import { formatShippingThreshold } from "../utils/shipping";
 import { useWishlist } from "../context/WishlistContext";
@@ -13,10 +33,17 @@ const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 /* ─── Star helper ─────────────────────────────────────── */
 function Stars({ rating, size = "sm" }) {
   const safeRating = Number.isFinite(Number(rating)) ? Number(rating) : 0;
+  const dimension = size === "lg" ? 18 : 14;
   return (
     <div className={`star-row-${size}`}>
       {[1, 2, 3, 4, 5].map((s) => (
-        <span key={s} className={`star-${size} ${s <= Math.round(safeRating) ? "filled" : ""}`}>★</span>
+        <Star
+          key={s}
+          size={dimension}
+          fill={s <= Math.round(safeRating) ? "#ffb300" : "none"}
+          stroke={s <= Math.round(safeRating) ? "#ffb300" : "#444"}
+          style={{ marginRight: 2 }}
+        />
       ))}
     </div>
   );
@@ -133,7 +160,7 @@ export default function ProductDetailPage() {
     return (
       <div className="detail-page">
         <div className="detail-inner" style={{ textAlign: "center", paddingTop: 80 }}>
-          <p style={{ fontSize: "2rem", marginBottom: 16 }}>⏳</p>
+          <Loader2 className="animate-spin" size={48} style={{ color: "var(--accent)", marginBottom: 16, display: 'inline-block' }} />
           <h2 style={{ fontFamily: "var(--font-display)", marginBottom: 12 }}>Đang tải sản phẩm...</h2>
         </div>
       </div>
@@ -144,12 +171,14 @@ export default function ProductDetailPage() {
     return (
       <div className="detail-page">
         <div className="detail-inner" style={{ textAlign: "center", paddingTop: 80 }}>
-          <p style={{ fontSize: "3rem", marginBottom: 16 }}>😕</p>
+          <SearchX size={64} style={{ opacity: 0.3, marginBottom: 16, display: 'inline-block' }} />
           <h2 style={{ fontFamily: "var(--font-display)", marginBottom: 12 }}>Không tìm thấy sản phẩm</h2>
           <p style={{ color: "var(--text-secondary)", marginBottom: 28 }}>
             {error || "Sản phẩm bạn tìm không tồn tại hoặc đã bị xóa."}
           </p>
-          <Link to="/products" className="btn-primary">← Xem tất cả sản phẩm</Link>
+          <Link to="/products" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <ChevronLeft size={18} /> Xem tất cả sản phẩm
+          </Link>
         </div>
       </div>
     );
@@ -258,11 +287,11 @@ export default function ProductDetailPage() {
                   <button
                     className="gallery-arrow prev"
                     onClick={() => setActiveImg((i) => (i - 1 + product.images.length) % product.images.length)}
-                  >‹</button>
+                  ><ChevronLeft size={24} /></button>
                   <button
                     className="gallery-arrow next"
                     onClick={() => setActiveImg((i) => (i + 1) % product.images.length)}
-                  >›</button>
+                  ><ChevronRight size={24} /></button>
                 </>
               )}
             </div>
@@ -281,7 +310,7 @@ export default function ProductDetailPage() {
             <div className="product-tag-row">
               {product.tag && (
                 <span className={`tag-chip ${product.tag === "Sale" ? "sale" : product.tag === "Mới" ? "new" : "hot"}`}>
-                  ✦ {product.tag}
+                  <Sparkles size={12} style={{ marginRight: 4 }} /> {product.tag}
                 </span>
               )}
               {discount && <span className="tag-chip sale">-{discount}%</span>}
@@ -381,7 +410,7 @@ export default function ProductDetailPage() {
                 Sản phẩm hiện đã hết size.
               </p>
             )}
-            <span className="size-guide-link">📏 Hướng dẫn chọn size</span>
+            <span className="size-guide-link"><Ruler size={14} style={{ marginRight: 6 }} /> Hướng dẫn chọn size</span>
 
             <div className="detail-divider" />
 
@@ -389,9 +418,9 @@ export default function ProductDetailPage() {
             <div className="quantity-row">
               <p className="selector-label" style={{ margin: 0 }}>Số lượng</p>
               <div className="qty-control">
-                <button className="qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
+                <button className="qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}><Minus size={14} /></button>
                 <span className="qty-num">{qty}</span>
-                <button className="qty-btn" onClick={() => setQty((q) => q + 1)}>+</button>
+                <button className="qty-btn" onClick={() => setQty((q) => q + 1)}><Plus size={14} /></button>
               </div>
               <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
                 Đã mua {soldCount.toLocaleString("vi-VN")} sản phẩm
@@ -405,14 +434,10 @@ export default function ProductDetailPage() {
                 onClick={handleAddCart}
               >
                 {added ? (
-                  "✓ Đã thêm vào giỏ!"
+                  <><Check size={18} style={{ marginRight: 8 }} /> Đã thêm vào giỏ!</>
                 ) : (
                   <>
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
-                      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" strokeWidth="2"/>
-                      <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" strokeWidth="2"/>
-                      <path d="M16 10a4 4 0 01-8 0" stroke="currentColor" strokeWidth="2"/>
-                    </svg>
+                    <ShoppingBag size={18} style={{ marginRight: 8 }} />
                     Thêm vào giỏ hàng
                   </>
                 )}
@@ -422,18 +447,16 @@ export default function ProductDetailPage() {
                 onClick={() => product && toggleWishlist(product)}
                 aria-label="Yêu thích"
               >
-                <svg width="20" height="20" fill={product && isInWishlist(product.id) ? "currentColor" : "none"} viewBox="0 0 24 24">
-                  <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="2"/>
-                </svg>
+                <Heart size={20} fill={product && isInWishlist(product.id) ? "currentColor" : "none"} />
               </button>
             </div>
 
             {/* Shipping */}
             <div className="shipping-info">
-              <div className="shipping-item"><span className="shipping-icon">🚚</span> Miễn phí giao hàng đơn từ {formatShippingThreshold()}</div>
-              <div className="shipping-item"><span className="shipping-icon">↩️</span> Đổi trả miễn phí trong 30 ngày</div>
-              <div className="shipping-item"><span className="shipping-icon">🔒</span> Thanh toán bảo mật qua VNPAY / Momo</div>
-              <div className="shipping-item"><span className="shipping-icon">✅</span> Cam kết hàng chính hãng 100%</div>
+              <div className="shipping-item"><Truck size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> Miễn phí giao hàng đơn từ {formatShippingThreshold()}</div>
+              <div className="shipping-item"><RotateCcw size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> Đổi trả miễn phí trong 30 ngày</div>
+              <div className="shipping-item"><Lock size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> Thanh toán bảo mật qua VNPAY / Momo</div>
+              <div className="shipping-item"><CheckCircle2 size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> Cam kết hàng chính hãng 100%</div>
             </div>
           </div>
         </div>
@@ -482,8 +505,8 @@ export default function ProductDetailPage() {
                   <div className="review-bars">
                     {ratingDist.map((r) => (
                       <div key={r.stars} className="review-bar-row">
-                        <span style={{ color: "#fbbf24", minWidth: 14 }}>★</span>
-                        <span style={{ minWidth: 8, color: "var(--text-muted)" }}>{r.stars}</span>
+                         <Star size={12} fill="#fbbf24" stroke="#fbbf24" style={{ marginRight: 4 }} />
+                         <span style={{ minWidth: 8, color: "var(--text-muted)" }}>{r.stars}</span>
                         <div className="review-bar-track">
                           <div className="review-bar-fill" style={{ width: r.pct + "%" }} />
                         </div>
@@ -496,7 +519,7 @@ export default function ProductDetailPage() {
                 <div className="review-list">
                   {reviews.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}>
-                      <p style={{ fontSize: "3rem", marginBottom: 12 }}>📝</p>
+                      <FileText size={48} style={{ opacity: 0.2, marginBottom: 12, display: 'inline-block' }} />
                       <p>Chưa có bình luận nào</p>
                       <p style={{ fontSize: "0.9rem", marginTop: 8 }}>Hãy là người đầu tiên bình luận về sản phẩm này!</p>
                     </div>
@@ -588,12 +611,13 @@ export default function ProductDetailPage() {
                     </table>
                   )}
                 </div>
-                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 16 }}>
-                  {product.type === "Quần"
-                    ? "💡 Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Chiều dài bước (inseam) là khoảng cách từ crotch đến mắt cá chân."
-                    : "💡 Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Với dáng oversized, nên chọn nhỏ hơn 1 size."
-                  }
-                </p>
+                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 16 }}>
+                    <Sparkles size={12} style={{ marginRight: 6, display: 'inline' }} />
+                    {product.type === "Quần"
+                      ? "Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Chiều dài bước (inseam) là khoảng cách từ crotch đến mắt cá chân."
+                      : "Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Với dáng oversized, nên chọn nhỏ hơn 1 size."
+                    }
+                  </p>
               </div>
             )}
           </div>
@@ -603,8 +627,8 @@ export default function ProductDetailPage() {
         {related && related.length > 0 && (
           <div className="related-section">
             <div className="related-header">
-              <h2 className="related-title">Có thể bạn cũng thích <span className="accent">✦</span></h2>
-              <Link to="/products" className="related-see-all">Xem tất cả →</Link>
+              <h2 className="related-title">Có thể bạn cũng thích <Sparkles size={18} style={{ color: "var(--accent)" }} /></h2>
+              <Link to="/products" className="related-see-all">Xem tất cả <ChevronRight size={14} /></Link>
             </div>
             <div className="related-grid">
               {related.map((p) => <RelatedCard key={p.id} product={p} />)}

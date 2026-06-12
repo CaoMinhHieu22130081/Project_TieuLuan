@@ -1,13 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
+import { MessageSquare, Paperclip, MoreVertical, Trash2, Send, X, CheckCheck, Undo2 } from 'lucide-react';
 import './ChatWidget.css';
+
+const QUICK_REPLIES = [
+    { label: "📦 Kiểm tra đơn hàng", answer: "Để kiểm tra đơn hàng, bạn vui lòng cung cấp mã vận đơn hoặc số điện thoại định dang (ví dụ: 0912xxxxx) vào khung chat nhé!" },
+    { label: "💳 Phí vận chuyển", answer: "Tất cả đồ UniqTee đều có phí vận chuyển đồng giá 25k toàn quốc. Đặc biệt freeship cho đơn từ 500k ạ!" },
+    { label: "🔄 Đổi trả hàng", answer: "Bạn có thể đổi trả miễn phí trong vòng 7 ngày nếu do lỗi sản xuất. Yêu cầu sản phẩm còn nguyên tag và chưa qua sử dụng." },
+    { label: "🙋 Gặp nhân viên", answer: "Đang kết nối với nhân viên hỗ trợ... Bạn vui lòng chờ trong giây lát nhé!" }
+];
 
 const ChatWidget = () => {
     const { isAuthenticated, user } = useAuth();
-    const { isOpen, toggleChat, messages, sendMessage, unreadCount, isConnected } = useChat();
+    const { isOpen, toggleChat, messages, setMessages, sendMessage, deleteMessage, unreadCount, isConnected, isTyping, setIsTyping } = useChat();
     const [inputText, setInputText] = useState('');
     const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [activeMsgOptions, setActiveMsgOptions] = useState(null);
     const messagesEndRef = useRef(null);
     const dragStateRef = useRef({
         dragging: false,
@@ -53,7 +62,7 @@ const ChatWidget = () => {
         if (isOpen) {
             scrollToBottom();
         }
-    }, [messages, isOpen]);
+    }, [messages, isOpen, isTyping]);
 
     if (isStaffOrAdmin) {
         return null;
@@ -62,16 +71,50 @@ const ChatWidget = () => {
     const handleSend = (e) => {
         e.preventDefault();
         if (inputText.trim()) {
+            // Optimistic update for sender's message (assign temporary clientId)
+            const clientId = Date.now().toString();
+            setMessages(prev => [...prev, {
+                id: clientId,
+                clientId: clientId,
+                senderRole: 'customer',
+                content: inputText.trim(),
+                sentAt: new Date().toISOString(),
+                isDeleted: false
+            }]);
             sendMessage(inputText.trim());
             setInputText('');
+            setActiveMsgOptions(null);
         }
+    };
+
+    const handleQuickReply = (qr) => {
+        const clientId = Date.now().toString();
+        // User sends the quick reply text
+        setMessages(prev => [...prev, {
+            id: clientId,
+            clientId: clientId,
+            senderRole: 'customer',
+            content: qr.label,
+            sentAt: new Date().toISOString()
+        }]);
+        
+        setIsTyping(true);
+        // Bot responds after a delay
+        setTimeout(() => {
+            setIsTyping(false);
+            setMessages(prev => [...prev, {
+                id: Date.now().toString() + "_bot",
+                senderRole: 'admin',
+                senderName: 'UniqTee Bot',
+                content: qr.answer,
+                sentAt: new Date().toISOString()
+            }]);
+        }, 1500);
     };
 
     const handlePointerMove = (e) => {
         const state = dragStateRef.current;
-        if (!state.dragging) {
-            return;
-        }
+        if (!state.dragging) return;
 
         const nextX = e.clientX - state.offsetX;
         const nextY = e.clientY - state.offsetY;
@@ -103,9 +146,7 @@ const ChatWidget = () => {
     };
 
     const handleButtonPointerDown = (e) => {
-        if (e.button !== 0) {
-            return;
-        }
+        if (e.button !== 0) return;
 
         dragStateRef.current = {
             dragging: true,
@@ -120,21 +161,19 @@ const ChatWidget = () => {
     };
 
     const handleButtonClick = () => {
-        if (dragStateRef.current.suppressClick) {
-            return;
-        }
+        if (dragStateRef.current.suppressClick) return;
         toggleChat();
+    };
+
+    const handleDeleteMsg = (msgId) => {
+        deleteMessage(msgId);
+        setActiveMsgOptions(null);
     };
 
     return (
         <div
             className="chat-widget-container"
-            style={{
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                right: 'auto',
-                bottom: 'auto',
-            }}
+            style={{ left: `${position.x}px`, top: `${position.y}px`, right: 'auto', bottom: 'auto' }}
         >
             {isOpen && authenticated && (
                 <div className="chat-box">
@@ -145,52 +184,103 @@ const ChatWidget = () => {
                                 {isConnected && <div className="status-dot"></div>}
                             </div>
                             <div>
-                                <div className="chat-title">Hỗ trợ UniqueTee</div>
+                                <div className="chat-title">Hỗ trợ UniqTee</div>
                                 <div className="chat-subtitle">
                                     {isConnected ? 'Sẵn sàng hỗ trợ' : 'Đang kết nối...'}
                                 </div>
                             </div>
                         </div>
-                        <button 
-                            onClick={toggleChat}
-                            className="chat-close-btn"
-                            aria-label="Đóng chat"
-                        >
-                            ✕
-                        </button>
+                        <button onClick={toggleChat} className="chat-close-btn" aria-label="Đóng chat">✕</button>
                     </div>
 
-                    <div className="chat-messages">
+                    <div className="chat-messages" onClick={() => setActiveMsgOptions(null)}>
+                        {/* Empty/Bot State */}
                         {messages.length === 0 && (
-                            <div className="chat-empty-state">
-                                Chào {user?.name || 'bạn'}! Bạn cần hỗ trợ gì không?
+                            <div className="chat-bot-welcome">
+                                <div className="bot-welcome-avatar">UT</div>
+                                <div className="bot-welcome-bubble">
+                                    Chào {user?.name || 'bạn'}! 👋 Mình là trợ lý ảo của UniqTee. Shop có thể giúp gì cho bạn hôm nay?
+                                </div>
+                                <div className="quick-replies-container">
+                                    {QUICK_REPLIES.map((qr, index) => (
+                                        <button key={index} className="quick-reply-btn" onClick={() => handleQuickReply(qr)}>
+                                            {qr.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
-                        {messages.map((msg, index) => (
-                            <div 
-                                key={msg.id || index} 
-                                className={`message-bubble message-${msg.senderRole}`}
-                            >
-                                {msg.content}
-                                <span className="message-time">
-                                    {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
+
+                        {messages.map((msg, index) => {
+                            const isMe = msg.senderRole === 'customer';
+                            const mId = msg.id || msg.clientId || index;
+                            const showOptions = activeMsgOptions === mId;
+
+                            return (
+                                <div key={mId} className={`message-row ${isMe ? 'row-me' : 'row-them'}`}>
+                                    {!isMe && (
+                                        <div className="msg-avatar-small">
+                                            {msg.senderName ? msg.senderName.charAt(0).toUpperCase() : 'U'}
+                                        </div>
+                                    )}
+                                    <div className="message-bubble-wrapper">
+                                        <div className={`message-bubble message-${msg.senderRole} ${msg.isDeleted ? 'msg-deleted' : ''}`}>
+                                            {msg.isDeleted ? <span className="deleted-text"><Undo2 size={12} style={{marginRight: 4}}/> Tin nhắn đã thu hồi</span> : msg.content}
+                                            <span className="message-time">
+                                                {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+
+                                        {isMe && !msg.isDeleted && (
+                                            <div className="msg-actions-wrap">
+                                                <button 
+                                                    className="msg-more-btn" 
+                                                    onClick={(e) => { e.stopPropagation(); setActiveMsgOptions(showOptions ? null : mId); }}
+                                                >
+                                                    <MoreVertical size={14} />
+                                                </button>
+                                                {showOptions && (
+                                                    <div className="msg-options-menu">
+                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteMsg(mId); }}>
+                                                            <Trash2 size={12} /> Thu hồi
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {isMe && index === messages.length - 1 && !msg.isDeleted && (
+                                        <div className="msg-status-icon"><CheckCheck size={12} /></div>
+                                    )}
+                                </div>
+                            );
+                        })}
+
+                        {isTyping && (
+                            <div className="message-row row-them">
+                                <div className="msg-avatar-small">U</div>
+                                <div className="message-bubble message-admin typing-bubble">
+                                    <span className="dot"></span>
+                                    <span className="dot"></span>
+                                    <span className="dot"></span>
+                                </div>
                             </div>
-                        ))}
+                        )}
                         <div ref={messagesEndRef} />
                     </div>
 
                     <form className="chat-input-area" onSubmit={handleSend}>
+                        <button type="button" className="attach-button" title="Đính kèm (Demo)">
+                            <Paperclip size={18} />
+                        </button>
                         <input 
                             type="text" 
                             placeholder="Nhập tin nhắn..." 
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                         />
-                        <button type="submit" className="send-button" disabled={!isConnected}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-                            </svg>
+                        <button type="submit" className="send-button" disabled={!isConnected || !inputText.trim()}>
+                            <Send size={18} />
                         </button>
                     </form>
                 </div>
@@ -200,22 +290,12 @@ const ChatWidget = () => {
                 <div className="chat-login-modal">
                     <div className="chat-login-content">
                         <div className="login-icon">✿</div>
-                        <h3 className="login-title">Hỗ trợ UniqueTee</h3>
+                        <h3 className="login-title">Hỗ trợ UniqTee</h3>
                         <p className="login-desc">Hãy đăng nhập để nhắn tin với hỗ trợ viên của chúng tôi</p>
-                        <button
-                            type="button"
-                            className="chat-login-btn"
-                            onClick={() => {
-                                window.location.href = '/login';
-                            }}
-                        >
+                        <button type="button" className="chat-login-btn" onClick={() => window.location.href = '/login'}>
                             Đăng nhập ngay
                         </button>
-                        <button
-                            type="button"
-                            className="chat-cancel-btn"
-                            onClick={() => toggleChat()}
-                        >
+                        <button type="button" className="chat-cancel-btn" onClick={() => toggleChat()}>
                             Đóng
                         </button>
                     </div>
@@ -230,11 +310,9 @@ const ChatWidget = () => {
                 title="Kéo để di chuyển"
             >
                 {isOpen ? (
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <X size={24} />
                 ) : (
-                    <span className="chat-flower-icon" aria-hidden="true">✿</span>
+                    <MessageSquare size={24} />
                 )}
                 {!isOpen && unreadCount > 0 && <div className="chat-badge">{unreadCount}</div>}
             </button>

@@ -2,6 +2,19 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  MessageSquareDiff,
+  Users,
+  Star,
+  Headset,
+  LogOut,
+  Store,
+  Bell,
+  Menu
+} from "lucide-react";
+import {
   ADMIN_ACTIVITY_EVENT,
   formatRelativeTime,
   filterNotificationsWithinHours,
@@ -19,82 +32,43 @@ const NAV_LINKS = [
     to: "/admin",
     label: "Dashboard",
     roles: ["admin"],
-    icon: (
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-        <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
-        <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
-        <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
-        <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
-      </svg>
-    ),
+    icon: <LayoutDashboard size={18} strokeWidth={2} />,
   },
   {
     to: "/admin/products",
     label: "Sản phẩm",
     roles: ["admin", "staff"],
-    icon: (
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-        <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="1.8"/>
-        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke="currentColor" strokeWidth="1.8"/>
-        <line x1="12" y1="12" x2="12" y2="16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-        <line x1="10" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-      </svg>
-    ),
+    icon: <Package size={18} strokeWidth={2} />,
   },
   {
     to: "/admin/orders",
     label: "Đơn hàng",
     roles: ["admin", "staff"],
-    icon: (
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" strokeWidth="1.8"/>
-        <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.8"/>
-        <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-      </svg>
-    ),
+    icon: <ShoppingCart size={18} strokeWidth={2} />,
   },
   {
     to: "/admin/chat",
     label: "Hỗ trợ chat",
     roles: ["admin", "staff"],
-    icon: (
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
+    icon: <MessageSquareDiff size={18} strokeWidth={2} />,
   },
   {
     to: "/admin/users",
     label: "Người dùng",
     roles: ["admin"],
-    icon: (
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.8"/>
-        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
-        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-      </svg>
-    ),
+    icon: <Users size={18} strokeWidth={2} />,
   },
   {
     to: "/admin/reviews",
     label: "Đánh giá",
     roles: ["admin"],
-    icon: (
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-        <path d="M12 3l2.92 5.92L21 9.84l-4.5 4.39 1.06 6.22L12 17.37l-5.56 3.08 1.06-6.22L3 9.84l6.08-.92L12 3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
-      </svg>
-    ),
+    icon: <Star size={18} strokeWidth={2} />,
   },
   {
     to: "/admin/contacts",
     label: "Liên hệ",
     roles: ["admin", "staff"],
-    icon: (
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="1.8"/>
-        <path d="M22 6l-10 7L2 6" stroke="currentColor" strokeWidth="1.8"/>
-      </svg>
-    ),
+    icon: <Headset size={18} strokeWidth={2} />,
   },
 ];
 
@@ -170,16 +144,11 @@ export function AdminSidebar({ mobileOpen, onClose }) {
         {/* Footer */}
         <div className="admin-sidebar-footer">
           <Link to="/" className="ah-store-link">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="1.8"/>
-              <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.8"/>
-            </svg>
+            <Store size={14} strokeWidth={2} style={{ marginRight: 6 }} />
             Xem trang cửa hàng
           </Link>
           <button className="ah-logout-btn" onClick={handleLogout}>
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <LogOut size={14} strokeWidth={2} style={{ marginRight: 6 }} />
             Đăng xuất
           </button>
         </div>
@@ -238,15 +207,11 @@ export function AdminHeader({ title, subtitle, actions, onMenuOpen, notification
       {/* Left: hamburger + breadcrumb */}
       <div className="ah-topbar-left">
         <button className="ah-hamburger" onClick={onMenuOpen} aria-label="Menu">
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-            <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
+          <Menu size={20} strokeWidth={2} />
         </button>
         <div className="ah-breadcrumb">
           <Link to={homePath} className="ah-breadcrumb-home">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2"/>
-            </svg>
+            <Store size={14} strokeWidth={2} />
           </Link>
           {title && (
             <>
@@ -274,9 +239,7 @@ export function AdminHeader({ title, subtitle, actions, onMenuOpen, notification
             onClick={handleNotifToggle}
             aria-label="Thông báo"
           >
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-            </svg>
+            <Bell size={18} strokeWidth={2} />
             {unreadCount > 0 && (
               <span className="ah-notif-badge">{unreadCount}</span>
             )}
