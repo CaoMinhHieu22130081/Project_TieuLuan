@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const savedToken = localStorage.getItem('authToken');
     const savedUser = localStorage.getItem('userData');
-    
+
     if (savedToken && savedUser) {
       try {
         setToken(savedToken);
@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
     setToken(token);
     setUser(userData);
     localStorage.setItem('authToken', token);
-    
+
     // Save only essential user data (exclude avatar) to avoid quota exceeded
     const essentialUserData = {
       id: userData.id,
@@ -67,14 +67,14 @@ export const AuthProvider = ({ children }) => {
   const isAuthenticated = () => !!token && !!user;
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      loading, 
-      login, 
-      logout, 
-      hasRole, 
-      isAuthenticated 
+    <AuthContext.Provider value={{
+      user,
+      token,
+      loading,
+      login,
+      logout,
+      hasRole,
+      isAuthenticated
     }}>
       {children}
     </AuthContext.Provider>

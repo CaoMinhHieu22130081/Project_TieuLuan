@@ -40,27 +40,27 @@ function AppContent() {
       {!isAdmin && <Header />}
       <main style={{ paddingTop: isAdmin ? 0 : 68 }}>
         <Routes>
-          <Route path="/"               element={<HomePage />} />
-          <Route path="/products"       element={<ProductsPage />} />
-          <Route path="/products/:id"   element={<ProductDetailPage />} />
-          <Route path="/login"          element={<LoginPage />} />
-          <Route path="/register"       element={<RegisterPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/products/:id" element={<ProductDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/oauth2-callback" element={<OAuth2CallbackPage />} />
-          <Route path="/cart"           element={<CartPage />} />
-          <Route path="/checkout"       element={<CheckoutPage />} />
-          <Route path="/profile"        element={<ProtectedRoute element={<ProfilePage />} />} />
-          <Route path="/admin"          element={<ProtectedRoute element={<AdminDashboard />} requiredRoles={["admin"]} />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
+          <Route path="/admin" element={<ProtectedRoute element={<AdminDashboard />} requiredRoles={["admin"]} />} />
           <Route path="/admin/products" element={<ProtectedRoute element={<AdminProducts />} requiredRoles={["admin", "staff"]} />} />
-          <Route path="/admin/orders"   element={<ProtectedRoute element={<AdminOrders />} requiredRoles={["admin", "staff"]} />} />
-          <Route path="/admin/users"    element={<ProtectedRoute element={<AdminUsers />} requiredRoles={["admin"]} />} />
-          <Route path="/admin/reviews"  element={<ProtectedRoute element={<AdminReviews />} requiredRoles={["admin"]} />} />
-          <Route path="/admin/chat"     element={<ProtectedRoute element={<AdminChat />} requiredRoles={["admin", "staff"]} />} />
+          <Route path="/admin/orders" element={<ProtectedRoute element={<AdminOrders />} requiredRoles={["admin", "staff"]} />} />
+          <Route path="/admin/users" element={<ProtectedRoute element={<AdminUsers />} requiredRoles={["admin"]} />} />
+          <Route path="/admin/reviews" element={<ProtectedRoute element={<AdminReviews />} requiredRoles={["admin"]} />} />
+          <Route path="/admin/chat" element={<ProtectedRoute element={<AdminChat />} requiredRoles={["admin", "staff"]} />} />
           <Route path="/admin/contacts" element={<ProtectedRoute element={<AdminContacts />} requiredRoles={["admin", "staff"]} />} />
-          <Route path="/about"          element={<AboutPage />} />
-          <Route path="/faq"            element={<FAQPage />} />
-          <Route path="/contact"        element={<ContactPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/contact" element={<ContactPage />} />
         </Routes>
         {!isAdmin && <ChatWidget />}
       </main>

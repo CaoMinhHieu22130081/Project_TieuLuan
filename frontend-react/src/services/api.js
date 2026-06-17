@@ -516,6 +516,48 @@ export const userAPI = {
   },
 };
 
+// ============ ADDRESSES API ============
+
+export const userAddressAPI = {
+  getAddresses: async (userId) =>
+    requestJson(`${API_BASE_URL}/users/${userId}/addresses`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }, 'Failed to fetch addresses'),
+
+  getDefaultAddress: async (userId) =>
+    requestJson(`${API_BASE_URL}/users/${userId}/addresses/default`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }, 'Failed to fetch default address'),
+
+  createAddress: async (userId, payload) =>
+    requestJson(`${API_BASE_URL}/users/${userId}/addresses`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }, 'Failed to create address'),
+
+  updateAddress: async (userId, addressId, payload) =>
+    requestJson(`${API_BASE_URL}/users/${userId}/addresses/${addressId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }, 'Failed to update address'),
+
+  deleteAddress: async (userId, addressId) =>
+    requestJson(`${API_BASE_URL}/users/${userId}/addresses/${addressId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    }, 'Failed to delete address'),
+
+  setDefaultAddress: async (userId, addressId) =>
+    requestJson(`${API_BASE_URL}/users/${userId}/addresses/${addressId}/default`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+    }, 'Failed to set default address'),
+};
+
 // ============ ORDERS API ============
 
 export const orderAPI = {

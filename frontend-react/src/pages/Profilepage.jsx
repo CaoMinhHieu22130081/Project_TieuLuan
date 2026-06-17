@@ -5,6 +5,7 @@ import { useWishlist } from "../context/WishlistContext";
 import { useToast } from "../context/ToastContext";
 import { useCart } from "../context/CartContext";
 import { productAPI, userAPI, orderAPI, reviewAPI } from "../services/api";
+import AddressBook from "../components/AddressBook";
 import "./css/Profilepage.css";
 
 // Lấy ảnh thumbnail từ sản phẩm (hỗ trợ cả images[] lẫn image)
@@ -982,6 +983,11 @@ export default function ProfilePage() {
                 <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
             } />
+            <NavItem tabKey="addresses" label="Địa chỉ giao hàng" icon={
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+                <path d="M12 2c-4.418 0-8 3.582-8 8 0 3.328 1.954 6.388 4.706 7.551A8.001 8.001 0 0012 22c2.408 0 4.542-.99 6.012-2.569C20.407 16.388 22 13.328 22 10c0-4.418-3.582-8-8-8zm0 18c-3.309 0-6-2.691-6-6 0-3.12 1.487-5.592 3.655-7.394A7.962 7.962 0 0112 4c3.309 0 6 2.691 6 6 0 3.309-2.691 6-6 6zm0-10a2 2 0 100 4 2 2 0 000-4z" fill="currentColor"/>
+              </svg>
+            } />
             <NavItem tabKey="info" label="Thông tin cá nhân" icon={
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.5"/>
@@ -1575,6 +1581,9 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
+
+            {/* Addresses */}
+            {activeTab === "addresses" && <AddressBook userId={currentUserId} />}
 
             {/* Info */}
             {activeTab === "info" && (

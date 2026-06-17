@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { orderAPI, paymentAPI, shippingAPI } from "../services/api";
+import { orderAPI, paymentAPI, shippingAPI, userAddressAPI } from "../services/api";
 import { FREE_SHIPPING_THRESHOLD, formatShippingThreshold, isFreeShippingEligible } from "../utils/shipping";
 import "./css/Checkoutpage.css";
 
@@ -76,6 +76,9 @@ export default function CheckoutPage() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [shippingQuote, setShippingQuote] = useState(null);
 
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+
   const [shippingForm, setShippingForm] = useState({
     fullName: "",
     phone: "",
@@ -93,13 +96,49 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!user) return;
 
-    setShippingForm((current) => ({
-      ...current,
-      fullName: current.fullName || user.name || "",
-      phone: current.phone || user.phone || "",
-      email: current.email || user.email || "",
-      address: current.address || user.address || "",
-    }));
+    const fetchAddresses = async () => {
+      try {
+        const addresses = await userAddressAPI.getAddresses(user.id);
+        const addressList = Array.isArray(addresses) ? addresses : [];
+        setSavedAddresses(addressList);
+        
+        const defaultAddr = addressList.find(a => a.isDefault) || addressList[0];
+        
+        if (defaultAddr) {
+          setShippingForm((current) => ({
+            ...current,
+            fullName: defaultAddr.receiverName || user.name || "",
+            phone: defaultAddr.receiverPhone || user.phone || "",
+            email: current.email || user.email || "",
+            address: defaultAddr.detailAddress || "",
+            provinceId: defaultAddr.provinceId || "",
+            city: defaultAddr.provinceName || "",
+            districtId: defaultAddr.districtId || "",
+            district: defaultAddr.districtName || "",
+            wardCode: defaultAddr.wardCode || "",
+            ward: defaultAddr.wardName || "",
+          }));
+        } else {
+          setShippingForm((current) => ({
+            ...current,
+            fullName: current.fullName || user.name || "",
+            phone: current.phone || user.phone || "",
+            email: current.email || user.email || "",
+            address: current.address || user.address || "",
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to load addresses:", err);
+        setShippingForm((current) => ({
+          ...current,
+          fullName: current.fullName || user.name || "",
+          phone: current.phone || user.phone || "",
+          email: current.email || user.email || "",
+          address: current.address || user.address || "",
+        }));
+      }
+    };
+    fetchAddresses();
   }, [user]);
 
   useEffect(() => {
@@ -342,19 +381,19 @@ export default function CheckoutPage() {
   const shippingLineValue = freeShippingEligible
     ? "Miễn phí 🎉"
     : ghnReady
-    ? quoteLoading
-      ? "Đang tính phí GHN..."
-      : shippingQuote?.source === "ghn"
-      ? formatPrice(shippingFee)
-      : shippingQuote?.message || "GHN chưa trả được phí ship"
-    : "GHN hiện chưa sẵn sàng";
+      ? quoteLoading
+        ? "Đang tính phí GHN..."
+        : shippingQuote?.source === "ghn"
+          ? formatPrice(shippingFee)
+          : shippingQuote?.message || "GHN chưa trả được phí ship"
+      : "GHN hiện chưa sẵn sàng";
   const shippingNote = freeShippingEligible
     ? `Đơn từ ${formatShippingThreshold()} được miễn phí ship.`
     : ghnReady
-    ? quoteLoading
-      ? "GHN đang tính phí ship theo địa chỉ đã chọn..."
-      : shippingQuote?.message || `Phí ship cho đơn dưới ${formatShippingThreshold()} sẽ được GHN tính theo địa chỉ đã chọn.`
-    : `GHN hiện chưa sẵn sàng, phí ship sẽ được tính theo địa chỉ khi GHN trả kết quả.`;
+      ? quoteLoading
+        ? "GHN đang tính phí ship theo địa chỉ đã chọn..."
+        : shippingQuote?.message || `Phí ship cho đơn dưới ${formatShippingThreshold()} sẽ được GHN tính theo địa chỉ đã chọn.`
+      : `GHN hiện chưa sẵn sàng, phí ship sẽ được tính theo địa chỉ khi GHN trả kết quả.`;
   const total = subtotal + shippingFee;
 
   const handleShipChange = (event) => {
@@ -595,8 +634,8 @@ export default function CheckoutPage() {
               {isVnpayWaiting
                 ? "Đơn hàng đang chờ VNPay xác nhận. Khi xác nhận hoàn tất, trạng thái sẽ chuyển sang đang xử lý."
                 : paymentResultType === "vnpay"
-                ? "Thanh toán đã được xác nhận, đơn hàng sẽ được xử lý trong thời gian sớm nhất."
-                : "Đơn hàng sẽ được xử lý trong thời gian sớm nhất."}
+                  ? "Thanh toán đã được xác nhận, đơn hàng sẽ được xử lý trong thời gian sớm nhất."
+                  : "Đơn hàng sẽ được xử lý trong thời gian sớm nhất."}
             </p>
             <div className="order-code">
               Mã đơn hàng: #{orderResult?.orderCode || orderResult?.id || "UNQ"}
@@ -665,9 +704,22 @@ export default function CheckoutPage() {
                           : "Nhập địa chỉ rõ ràng để đơn COD được giao nhanh và chính xác hơn."}
                       </p>
                     </div>
-                    <span className="address-status-pill">
-                      {ghnReady ? "GHN · Miễn phí từ 500.000đ" : "COD · Giao tận nơi"}
-                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
+                      <span className="address-status-pill">
+                        {ghnReady ? "GHN · Miễn phí từ 500.000đ" : "COD · Giao tận nơi"}
+                      </span>
+                      {savedAddresses.length > 0 && (
+                        <button 
+                          type="button"
+                          className="btn-secondary" 
+                          style={{ padding: "6px 12px", fontSize: "0.85rem", height: "auto", display: "flex", alignItems: "center", gap: "6px", borderRadius: "8px" }}
+                          onClick={() => setShowAddressPicker(true)}
+                        >
+                          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                          Sổ địa chỉ
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {shippingError && (
@@ -1000,6 +1052,74 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {showAddressPicker && (
+        <div className="modal-overlay" style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center"
+        }}>
+          <div className="modal-content" style={{
+            background: "var(--bg-1)", width: "100%", maxWidth: "500px", borderRadius: "8px",
+            padding: "24px", maxHeight: "90vh", overflowY: "auto", position: "relative"
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: "20px" }}>Chọn địa chỉ giao hàng</h3>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {savedAddresses.map((address) => (
+                <div 
+                  key={address.id} 
+                  style={{
+                    padding: "16px",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    background: "var(--bg-2)",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onClick={() => {
+                    setShippingForm(current => ({
+                      ...current,
+                      fullName: address.receiverName || user?.name || "",
+                      phone: address.receiverPhone || user?.phone || "",
+                      address: address.detailAddress || "",
+                      provinceId: address.provinceId || "",
+                      city: address.provinceName || "",
+                      districtId: address.districtId || "",
+                      district: address.districtName || "",
+                      wardCode: address.wardCode || "",
+                      ward: address.wardName || ""
+                    }));
+                    setShowAddressPicker(false);
+                    setGhnDistricts([]);
+                    setGhnWards([]);
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+                    <h4 style={{ margin: 0, fontSize: "1rem" }}>{address.receiverName}</h4>
+                    <span style={{ color: "var(--text-secondary)" }}>|</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>{address.receiverPhone}</span>
+                    {address.isDefault && (
+                      <span style={{ fontSize: "0.7rem", background: "var(--accent)", color: "white", padding: "2px 8px", borderRadius: "4px" }}>
+                        Mặc định
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: "1.5" }}>
+                    <p style={{ margin: 0 }}>{address.detailAddress}</p>
+                    <p style={{ margin: 0 }}>{address.wardName}, {address.districtName}, {address.provinceName}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px" }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowAddressPicker(false)}>Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
