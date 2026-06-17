@@ -24,6 +24,7 @@ build/
 .env
 .env.local
 .env.*.local
+backend-spring/src/main/resources/application-local.properties
 
 # Python cache
 __pycache__/
