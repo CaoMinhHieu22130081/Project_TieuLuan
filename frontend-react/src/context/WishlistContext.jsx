@@ -1,70 +1,77 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { wishlistAPI } from '../services/api';
 
 const WishlistContext = createContext();
 
 export function WishlistProvider({ children }) {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Hàm lấy storage key theo user
-  const getStorageKey = () => {
-    if (user?.id) {
-      return `wishlist_${user.id}`;
-    }
-    return null; // Không lưu nếu chưa đăng nhập
-  };
-
-  // Load wishlist từ localStorage khi component mount hoặc user thay đổi
+  // Load wishlist từ Database khi component mount hoặc user thay đổi
   useEffect(() => {
-    try {
-      const storageKey = getStorageKey();
-      if (storageKey) {
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-          setWishlist(JSON.parse(saved));
-        } else {
-          setWishlist([]);
+    let isMounted = true;
+    const fetchWishlist = async () => {
+      setLoading(true);
+      if (isAuthenticated() && user?.id) {
+        try {
+          // wishlist data from backend has shapes { id, userId, productId, product }
+          // Or we might just receive [{productId: 1, product: {id: 1, name: '...'}}] 
+          // So let's map it back to just an array of products for the frontend
+          const savedWishlist = await wishlistAPI.getUserWishlist(user.id);
+          if (isMounted) {
+             // Assuming the backend returns list of Wishlist entity, which includes the product object
+             setWishlist(savedWishlist.map(w => w.product || w).filter(Boolean));
+          }
+        } catch (err) {
+          console.error('Failed to load wishlist from DB:', err);
+          if (isMounted) setWishlist([]);
         }
       } else {
-        // Nếu chưa đăng nhập, xóa wishlist (session only)
-        setWishlist([]);
+        if (isMounted) setWishlist([]);
       }
-    } catch (err) {
-      console.error('Failed to load wishlist:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+      if (isMounted) setLoading(false);
+    };
 
-  // Save wishlist vào localStorage khi thay đổi (chỉ cho user đã đăng nhập)
-  useEffect(() => {
-    if (!loading) {
-      try {
-        const storageKey = getStorageKey();
-        if (storageKey) {
-          localStorage.setItem(storageKey, JSON.stringify(wishlist));
-        }
-        // Nếu không có storageKey, không lưu vào localStorage
-      } catch (err) {
-        console.error('Failed to save wishlist:', err);
-      }
-    }
-  }, [wishlist, loading, user?.id]);
+    fetchWishlist();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, isAuthenticated]);
 
   // Thêm sản phẩm vào wishlist
-  const addToWishlist = (product) => {
+  const addToWishlist = async (product) => {
+    if (!product || !product.id) return;
+    
+    // Optimistic update
     setWishlist((prev) => {
-      const exists = prev.find((p) => p.id === product.id);
-      if (exists) return prev;
+      if (prev.some((p) => p.id === product.id)) return prev;
       return [...prev, product];
     });
+
+    if (isAuthenticated() && user?.id) {
+      try {
+        await wishlistAPI.addToWishlist(user.id, product.id);
+      } catch (err) {
+        console.error('Failed to save wishlist item to DB:', err);
+        // Rollback on failure could be implemented here
+      }
+    }
   };
 
   // Xóa sản phẩm khỏi wishlist
-  const removeFromWishlist = (productId) => {
+  const removeFromWishlist = async (productId) => {
     setWishlist((prev) => prev.filter((p) => p.id !== productId));
+    
+    if (isAuthenticated() && user?.id) {
+      try {
+        await wishlistAPI.removeFromWishlist(user.id, productId);
+      } catch (err) {
+        console.error('Failed to remove wishlist item from DB:', err);
+      }
+    }
   };
 
   // Toggle wishlist
@@ -82,8 +89,15 @@ export function WishlistProvider({ children }) {
   };
 
   // Clear wishlist
-  const clearWishlist = () => {
+  const clearWishlist = async () => {
     setWishlist([]);
+    if (isAuthenticated() && user?.id) {
+      try {
+        await wishlistAPI.clearWishlist(user.id);
+      } catch (err) {
+        console.error('Failed to clear wishlist in DB:', err);
+      }
+    }
   };
 
   return (

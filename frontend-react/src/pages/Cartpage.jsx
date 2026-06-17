@@ -5,13 +5,13 @@ import {
   Trash2,
   Minus,
   Plus,
-  Check,
   ChevronRight,
   ChevronLeft,
   PartyPopper
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { FREE_SHIPPING_THRESHOLD, formatShippingThreshold } from "../utils/shipping";
+import { voucherAPI, userAPI } from "../services/api";
 import "./css/Cartpage.css";
 
 const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
@@ -21,6 +21,8 @@ export default function CartPage() {
   const { cart, removeFromCart, updateQty, clearCart, getTotalPrice } = useCart();
   const [promoCode,    setPromoCode]    = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [discount, setDiscount] = useState(0);
   const [selectedItems, setSelectedItems] = useState(new Set());
 
   const items = cart;
@@ -54,13 +56,30 @@ export default function CartPage() {
 
   const selectedItemsData = items.filter(item => selectedItems.has(item.cartItemId));
   const subtotal = selectedItemsData.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const discount = promoApplied ? Math.round(subtotal * 0.1) : 0;
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : null;
   const total    = subtotal - discount + (shipping ?? 0);
 
-  const handlePromo = () => {
-    if (promoCode.toUpperCase() === "UNIQ10") setPromoApplied(true);
-    else alert("Mã giảm giá không hợp lệ.");
+  const handlePromo = async () => {
+    if (!promoCode) return;
+    try {
+      const user = userAPI.getCurrentUser();
+      const result = await voucherAPI.applyVoucher({
+        userId: user?.id,
+        code: promoCode,
+        subtotal,
+        shippingFee: 0,
+      });
+
+      if (result.discountAmount > 0) {
+        setAppliedVoucher(result);
+        setDiscount(Number(result.discountAmount));
+        setPromoApplied(true);
+      } else {
+        alert("Mã giảm giá không áp dụng được cho đơn này.");
+      }
+    } catch (err) {
+      alert(err.message || "Mã giảm giá không hợp lệ.");
+    }
   };
 
   if (items.length === 0) {
@@ -205,17 +224,37 @@ export default function CartPage() {
               </div>
             ))}
 
-            <div className="promo-row">
-              <input
-                className="promo-input"
-                placeholder="Nhập mã giảm giá (UNIQ10)"
-                value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value)}
-                disabled={promoApplied}
-              />
-               <button className="promo-btn" onClick={handlePromo} disabled={promoApplied}>
-                 {promoApplied ? <><Check size={16} style={{ marginRight: 6 }} /> Đã áp dụng</> : "Áp dụng"}
-               </button>
+            <div className={`promo-row ${promoApplied ? "applied" : ""}`}>
+              <div className="promo-copy">
+                <span className="promo-ticket-mark" aria-hidden="true">
+                  <svg width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 7.5A2.5 2.5 0 0 0 6.5 5h11A1.5 1.5 0 0 1 19 6.5v2a3.5 3.5 0 0 0 0 7v2A1.5 1.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 0 4 16.5v-9Z" />
+                  </svg>
+                </span>
+                <div>
+                  <strong>Mã ưu đãi</strong>
+                  <span>Nhập voucher cho các sản phẩm đã chọn</span>
+                </div>
+              </div>
+              <div className="promo-input-group">
+                <input
+                  className="promo-input"
+                  placeholder="VD: SALE10"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  disabled={promoApplied}
+                />
+                <button className="promo-btn" onClick={handlePromo} disabled={promoApplied || selectedItemsData.length === 0}>
+                  {promoApplied ? (
+                    <>
+                      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m5 12 4 4L19 6" />
+                      </svg>
+                      Đã áp dụng
+                    </>
+                  ) : "Áp dụng"}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -232,7 +271,7 @@ export default function CartPage() {
               </div>
               {promoApplied && (
                 <div className="summary-line discount">
-                  <span className="summary-line-label">Giảm giá (UNIQ10)</span>
+                  <span className="summary-line-label">Giảm giá ({promoCode})</span>
                   <span className="summary-line-value">−{formatPrice(discount)}</span>
                 </div>
               )}
@@ -262,7 +301,12 @@ export default function CartPage() {
                    alert("Vui lòng chọn ít nhất 1 sản phẩm để thanh toán");
                    return;
                  }
-                 navigate("/checkout", { state: { selectedItems: Array.from(selectedItems) } });
+                 navigate("/checkout", { 
+                   state: { 
+                     selectedItems: Array.from(selectedItems),
+                     appliedVoucherCode: promoApplied ? promoCode : null
+                   } 
+                 });
                }}
              >
                Thanh toán ngay <ChevronRight size={18} style={{ marginLeft: 8 }} />

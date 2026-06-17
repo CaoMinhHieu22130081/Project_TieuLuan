@@ -558,6 +558,134 @@ export const userAddressAPI = {
     }, 'Failed to set default address'),
 };
 
+// ============ WISHLIST API ============
+
+export const wishlistAPI = {
+  getUserWishlist: async (userId) =>
+    requestJson(`${API_BASE_URL}/wishlists/user/${userId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }, 'Failed to fetch wishlist'),
+
+  addToWishlist: async (userId, productId) =>
+    requestJson(`${API_BASE_URL}/wishlists`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ userId, productId }),
+    }, 'Failed to add to wishlist'),
+
+  removeFromWishlist: async (userId, productId) =>
+    requestJson(`${API_BASE_URL}/wishlists/${userId}/${productId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    }, 'Failed to remove from wishlist'),
+
+  clearWishlist: async (userId) =>
+    requestJson(`${API_BASE_URL}/wishlists/user/${userId}/clear`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    }, 'Failed to clear wishlist'),
+};
+
+// ============ CART API ============
+
+export const cartAPI = {
+  getUserCart: async (userId) =>
+    requestJson(`${API_BASE_URL}/cart/user/${userId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }, 'Failed to fetch cart'),
+
+  addToCart: async (payload) =>
+    requestJson(`${API_BASE_URL}/cart`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }, 'Failed to add to cart'),
+
+  updateQty: async (cartItemId, qty) =>
+    requestJson(`${API_BASE_URL}/cart/${cartItemId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ qty }),
+    }, 'Failed to update cart qty'),
+
+  removeFromCart: async (cartItemId) =>
+    requestJson(`${API_BASE_URL}/cart/${cartItemId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    }, 'Failed to remove from cart'),
+
+  clearCart: async (userId) =>
+    requestJson(`${API_BASE_URL}/cart/user/${userId}/clear`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    }, 'Failed to clear cart'),
+
+  mergeCart: async (items) => 
+    requestJson(`${API_BASE_URL}/cart/merge`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(items),
+    }, 'Failed to merge cart'),
+};
+
+// ============ VOUCHERS API ============
+
+export const voucherAPI = {
+  getPublicVouchers: async () =>
+    requestJson(`${API_BASE_URL}/vouchers/public`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }, 'Failed to fetch vouchers'),
+
+  getUserVouchers: async (userId) =>
+    requestJson(`${API_BASE_URL}/vouchers/user/${userId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }, 'Failed to fetch user vouchers'),
+
+  saveVoucher: async (voucherId, userId) =>
+    requestJson(`${API_BASE_URL}/vouchers/${voucherId}/save?userId=${userId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    }, 'Failed to save voucher'),
+
+  applyVoucher: async (payload) =>
+    requestJson(`${API_BASE_URL}/vouchers/apply`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }, 'Failed to apply voucher'),
+
+  // --- Admin API ---
+  getAllVouchers: async () =>
+    requestJson(`${API_BASE_URL}/vouchers/all`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }, 'Failed to fetch all vouchers'),
+
+  createVoucher: async (payload) =>
+    requestJson(`${API_BASE_URL}/vouchers/create`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }, 'Failed to create voucher'),
+
+  updateVoucher: async (id, payload) =>
+    requestJson(`${API_BASE_URL}/vouchers/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }, 'Failed to update voucher'),
+
+  deleteVoucher: async (id) =>
+    requestJson(`${API_BASE_URL}/vouchers/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    }, 'Failed to delete voucher'),
+};
+
 // ============ ORDERS API ============
 
 export const orderAPI = {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { orderAPI, paymentAPI, shippingAPI, userAddressAPI } from "../services/api";
+import { orderAPI, paymentAPI, shippingAPI, userAddressAPI, voucherAPI } from "../services/api";
 import { FREE_SHIPPING_THRESHOLD, formatShippingThreshold, isFreeShippingEligible } from "../utils/shipping";
 import "./css/Checkoutpage.css";
 
@@ -79,6 +79,14 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
 
+  const initCode = location.state?.appliedVoucherCode || "";
+  const [appliedProductCode, setAppliedProductCode] = useState(initCode);
+  const [appliedShippingCode, setAppliedShippingCode] = useState("");
+  const [productDiscount, setProductDiscount] = useState(0);
+  const [shippingDiscount, setShippingDiscount] = useState(0);
+  const [userVouchers, setUserVouchers] = useState([]);
+  const [manualVoucherInput, setManualVoucherInput] = useState("");
+
   const [shippingForm, setShippingForm] = useState({
     fullName: "",
     phone: "",
@@ -139,6 +147,17 @@ export default function CheckoutPage() {
       }
     };
     fetchAddresses();
+
+    const fetchVouchers = async () => {
+      try {
+        const data = await voucherAPI.getUserVouchers(user.id);
+        setUserVouchers(data || []);
+      } catch (err) {
+        console.error("Failed to load user vouchers", err);
+      }
+    };
+    fetchVouchers();
+
   }, [user]);
 
   useEffect(() => {
@@ -394,7 +413,44 @@ export default function CheckoutPage() {
         ? "GHN đang tính phí ship theo địa chỉ đã chọn..."
         : shippingQuote?.message || `Phí ship cho đơn dưới ${formatShippingThreshold()} sẽ được GHN tính theo địa chỉ đã chọn.`
       : `GHN hiện chưa sẵn sàng, phí ship sẽ được tính theo địa chỉ khi GHN trả kết quả.`;
-  const total = subtotal + shippingFee;
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDiscount = async () => {
+      if (!appliedProductCode && !appliedShippingCode) {
+        setProductDiscount(0);
+        setShippingDiscount(0);
+        return;
+      }
+      try {
+        const result = await voucherAPI.applyVoucher({
+          userId: user?.id || null,
+          code: appliedProductCode || "",
+          shippingCode: appliedShippingCode || "",
+          subtotal,
+          shippingFee
+        });
+        if (!cancelled) {
+          setProductDiscount(Number(result.discountAmount || 0));
+          setShippingDiscount(Number(result.shippingDiscount || 0));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setProductDiscount(0);
+          setShippingDiscount(0);
+          setAppliedProductCode("");
+          setAppliedShippingCode("");
+        }
+      }
+    };
+    if (subtotal >= 0 && shippingFee >= 0) {
+      fetchDiscount();
+    }
+    return () => { cancelled = true; };
+  }, [appliedProductCode, appliedShippingCode, subtotal, shippingFee, user?.id]);
+
+  const finalShippingFee = Math.max(0, shippingFee - shippingDiscount);
+  const total = Math.max(0, subtotal - productDiscount) + finalShippingFee;
 
   const handleShipChange = (event) => {
     setShippingForm((current) => ({
@@ -448,6 +504,36 @@ export default function CheckoutPage() {
       ward: wardName,
     }));
     setShippingError("");
+  };
+
+  const handleApplyManualVoucher = async () => {
+    const code = manualVoucherInput.trim().toUpperCase();
+    if (!code) return;
+    try {
+      // Gửi code cho cả 2 field để backend tự phát hiện loại
+      const result = await voucherAPI.applyVoucher({
+        userId: user?.id || null,
+        code: code,
+        shippingCode: code,
+        subtotal,
+        shippingFee
+      });
+      const pDisc = Number(result.discountAmount || 0);
+      const sDisc = Number(result.shippingDiscount || 0);
+      if (pDisc > 0) {
+        setAppliedProductCode(code);
+        setAppliedShippingCode("");
+        setManualVoucherInput("");
+      } else if (sDisc > 0) {
+        setAppliedShippingCode(code);
+        setAppliedProductCode("");
+        setManualVoucherInput("");
+      } else {
+        alert("Mã voucher không hợp lệ hoặc chưa đủ điều kiện áp dụng (đơn hàng chưa đủ giá trị tối thiểu, hết lượt dùng, hoặc đã hết hạn).");
+      }
+    } catch (err) {
+      alert(err.message || "Không thể áp dụng mã giảm giá này");
+    }
   };
 
   const handlePlaceOrder = async () => {
@@ -521,6 +607,8 @@ export default function CheckoutPage() {
 
       const orderPayload = {
         orderCode: buildOrderCode(),
+        voucherCode: productDiscount > 0 ? appliedProductCode : null,
+        shippingVoucherCode: shippingDiscount > 0 ? appliedShippingCode : null,
         ...(user?.id ? { user: { id: Number(user.id) } } : {}),
         customerName: fullName,
         customerPhone: phone,
@@ -1027,13 +1115,117 @@ export default function CheckoutPage() {
                 <span className="label">Tạm tính</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
+              {productDiscount > 0 && (
+                <div className="summary-line" style={{ color: "var(--accent)" }}>
+                  <span className="label">Giảm giá sản phẩm</span>
+                  <span>- {formatPrice(productDiscount)}</span>
+                </div>
+              )}
               <div className="summary-line green">
                 <span className="label">Phí vận chuyển {ghnReady ? `(${shippingServiceName})` : ""}</span>
                 <span className="value">
                   {shippingLineValue}
                 </span>
               </div>
+              {shippingDiscount > 0 && (
+                <div className="summary-line" style={{ color: "var(--accent)" }}>
+                  <span className="label">Giảm phí vận chuyển</span>
+                  <span>- {formatPrice(shippingDiscount)}</span>
+                </div>
+              )}
+              {(appliedProductCode || appliedShippingCode) && productDiscount === 0 && shippingDiscount === 0 && (
+                <div className="summary-line" style={{ color: "#f87171", fontSize: "0.82rem" }}>
+                  <span className="label">Mã chưa đủ điều kiện hoặc không hợp lệ</span>
+                </div>
+              )}
             </div>
+
+            <div className="checkout-voucher-section">
+              <p className="voucher-section-title">
+                <span className="voucher-title-icon" aria-hidden="true">
+                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 7.5A2.5 2.5 0 0 0 6.5 5h11A1.5 1.5 0 0 1 19 6.5v2a3.5 3.5 0 0 0 0 7v2A1.5 1.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 0 4 16.5v-9Z" />
+                  </svg>
+                </span>
+                <span>Ưu đãi & giảm giá<small>Chọn voucher đã lưu hoặc nhập mã khác</small></span>
+              </p>
+
+              {/* Chips hiển thị voucher đang được áp dụng */}
+              {(appliedProductCode || appliedShippingCode) && (
+                <div className="voucher-chips-wrapper">
+                  {appliedProductCode && (
+                    <div className="voucher-chip product">
+                      <span className="voucher-chip-dot" /> {appliedProductCode}
+                      <button
+                        type="button"
+                        className="voucher-chip-remove"
+                        onClick={() => { setAppliedProductCode(""); setProductDiscount(0); }}
+                        title="Xóa mã giảm giá sản phẩm"
+                      >×</button>
+                    </div>
+                  )}
+                  {appliedShippingCode && (
+                    <div className="voucher-chip shipping">
+                      <span className="voucher-chip-dot" /> {appliedShippingCode}
+                      <button
+                        type="button"
+                        className="voucher-chip-remove"
+                        onClick={() => { setAppliedShippingCode(""); setShippingDiscount(0); }}
+                        title="Xóa mã giảm phí ship"
+                      >×</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Dropdown voucher đã lưu */}
+              {userVouchers.length > 0 && (
+                <select 
+                   className="voucher-select" 
+                   value=""
+                   onChange={(e) => {
+                     const code = e.target.value;
+                     if (!code) return;
+                     const voucher = userVouchers.find(v => v.promoCode.code === code);
+                     if (!voucher || voucher.status === "used") return;
+                     if (voucher.promoCode.voucherType === "FREE_SHIPPING") {
+                       setAppliedShippingCode(code);
+                     } else {
+                       setAppliedProductCode(code);
+                     }
+                   }}
+                >
+                  <option value="">— Chọn voucher đã lưu của bạn —</option>
+                  {userVouchers.map((v) => (
+                    <option key={v.id} value={v.promoCode.code} disabled={v.status === "used"}>
+                       {v.promoCode.code} {v.status === "used" ? "(Đã sử dụng)" : `- ${v.promoCode.description || v.promoCode.voucherType}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Nhập thủ công */}
+              <div className="voucher-input-group">
+                <div className="voucher-manual-field">
+                  <span>#</span>
+                  <input
+                    className="form-input"
+                    placeholder="NHẬP MÃ VOUCHER"
+                    value={manualVoucherInput}
+                    onChange={(e) => setManualVoucherInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleApplyManualVoucher(); }}
+                  />
+                </div>
+                <button 
+                  type="button"
+                  className="voucher-btn-apply"
+                  onClick={handleApplyManualVoucher}
+                >
+                  Áp dụng
+                </button>
+              </div>
+            </div>
+
 
             <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
               {shippingNote}

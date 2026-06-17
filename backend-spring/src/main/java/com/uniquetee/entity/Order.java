@@ -60,6 +60,18 @@ public class Order {
     @Column(precision = 15, scale = 0)
     private BigDecimal total = BigDecimal.ZERO;
 
+    @Column(name = "voucher_code")
+    private String voucherCode;
+
+    @Column(name = "shipping_voucher_code")
+    private String shippingVoucherCode;
+
+    @Column(name = "discount_amount", precision = 15, scale = 0)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @Column(name = "shipping_discount", precision = 15, scale = 0)
+    private BigDecimal shippingDiscount = BigDecimal.ZERO;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -137,4 +149,16 @@ public class Order {
 
     public LocalDateTime getCancelledAt() { return cancelledAt; }
     public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+
+    public String getVoucherCode() { return voucherCode; }
+    public void setVoucherCode(String voucherCode) { this.voucherCode = voucherCode; }
+
+    public String getShippingVoucherCode() { return shippingVoucherCode; }
+    public void setShippingVoucherCode(String shippingVoucherCode) { this.shippingVoucherCode = shippingVoucherCode; }
+
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
+
+    public BigDecimal getShippingDiscount() { return shippingDiscount; }
+    public void setShippingDiscount(BigDecimal shippingDiscount) { this.shippingDiscount = shippingDiscount; }
 }

@@ -46,6 +46,12 @@ public class OrderService {
     private UserRepository userRepository;
 
     @Autowired
+    private PromoCodeService promoCodeService;
+
+    @Autowired
+    private UserVoucherService userVoucherService;
+
+    @Autowired
     private EmailService emailService;
     
     @Autowired
@@ -184,7 +190,51 @@ public class OrderService {
         }
         order.setSubtotal(subtotal);
         if (order.getShippingFee() == null) order.setShippingFee(BigDecimal.ZERO);
-        order.setTotal(order.getSubtotal().add(order.getShippingFee()));
+
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        BigDecimal shippingDiscount = BigDecimal.ZERO;
+
+        if (order.getVoucherCode() != null && !order.getVoucherCode().isEmpty()) {
+            discountAmount = promoCodeService.calculateSpecificDiscount(order.getVoucherCode(), subtotal, "PRODUCT_DISCOUNT");
+            if (discountAmount.compareTo(BigDecimal.ZERO) > 0) {
+                promoCodeService.usePromoCode(order.getVoucherCode());
+                // Đánh dấu user đã dùng voucher này
+                if (order.getUser() != null && order.getUser().getId() != null) {
+                    userVoucherService.markAsUsedByCode(order.getUser().getId(), order.getVoucherCode());
+                }
+            } else {
+                // Discount = 0 nghĩa là voucher không hợp lệ, xóa khỏi đơn
+                order.setVoucherCode(null);
+            }
+        }
+
+        if (order.getShippingVoucherCode() != null && !order.getShippingVoucherCode().isEmpty()) {
+            shippingDiscount = promoCodeService.calculateSpecificDiscount(order.getShippingVoucherCode(), order.getShippingFee(), "FREE_SHIPPING");
+            if (shippingDiscount.compareTo(BigDecimal.ZERO) > 0) {
+                promoCodeService.usePromoCode(order.getShippingVoucherCode());
+                // Đánh dấu user đã dùng voucher ship này
+                if (order.getUser() != null && order.getUser().getId() != null) {
+                    userVoucherService.markAsUsedByCode(order.getUser().getId(), order.getShippingVoucherCode());
+                }
+            } else {
+                order.setShippingVoucherCode(null);
+            }
+        }
+
+        order.setDiscountAmount(discountAmount);
+        order.setShippingDiscount(shippingDiscount);
+
+        BigDecimal finalShippingFee = order.getShippingFee().subtract(shippingDiscount);
+        if (finalShippingFee.compareTo(BigDecimal.ZERO) < 0) {
+            finalShippingFee = BigDecimal.ZERO;
+        }
+
+        BigDecimal total = order.getSubtotal().subtract(discountAmount).add(finalShippingFee);
+        if (total.compareTo(BigDecimal.ZERO) < 0) {
+            total = BigDecimal.ZERO;
+        }
+
+        order.setTotal(total);
 
         // link user if provided
         if (order.getUser() != null) {

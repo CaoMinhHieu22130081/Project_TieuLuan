@@ -57,4 +57,25 @@ public class ApiExceptionHandler {
         body.put("message", message);
         return ResponseEntity.status(status).body(body);
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "Tham số không hợp lệ";
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("message", message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "Lỗi server";
+        if (message.toLowerCase().contains("unauthorized") || message.toLowerCase().contains("token required")) {
+            Map<String, String> body = new LinkedHashMap<>();
+            body.put("message", message);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+        }
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("message", message);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    }
 }

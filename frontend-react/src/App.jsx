@@ -23,6 +23,7 @@ import AdminProducts from './pages/AdminProducts';
 import AdminOrders from './pages/AdminOrders';
 import AdminUsers from './pages/AdminUsers';
 import AdminReviews from './pages/AdminReviews';
+import AdminVouchers from './pages/AdminVouchers';
 import AdminChat from './pages/AdminChat';
 import AdminContacts from './pages/AdminContacts';
 import ChatWidget from './components/chat/ChatWidget';
@@ -56,6 +57,7 @@ function AppContent() {
           <Route path="/admin/orders" element={<ProtectedRoute element={<AdminOrders />} requiredRoles={["admin", "staff"]} />} />
           <Route path="/admin/users" element={<ProtectedRoute element={<AdminUsers />} requiredRoles={["admin"]} />} />
           <Route path="/admin/reviews" element={<ProtectedRoute element={<AdminReviews />} requiredRoles={["admin"]} />} />
+          <Route path="/admin/vouchers" element={<ProtectedRoute element={<AdminVouchers />} requiredRoles={["admin", "staff"]} />} />
           <Route path="/admin/chat" element={<ProtectedRoute element={<AdminChat />} requiredRoles={["admin", "staff"]} />} />
           <Route path="/admin/contacts" element={<ProtectedRoute element={<AdminContacts />} requiredRoles={["admin", "staff"]} />} />
           <Route path="/about" element={<AboutPage />} />

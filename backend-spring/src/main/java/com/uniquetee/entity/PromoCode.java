@@ -42,6 +42,21 @@ public class PromoCode {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "voucher_type")
+    private String voucherType = "PRODUCT_DISCOUNT"; // PRODUCT_DISCOUNT, FREE_SHIPPING
+
+    @Column(name = "max_discount_amount", precision = 12, scale = 0)
+    private BigDecimal maxDiscountAmount;
+
+    @Column(name = "start_at")
+    private LocalDateTime startAt;
+
+    @Column(name = "per_user_limit")
+    private Integer perUserLimit = 1;
+
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
 
@@ -68,4 +83,19 @@ public class PromoCode {
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+
+    public String getVoucherType() { return voucherType; }
+    public void setVoucherType(String voucherType) { this.voucherType = voucherType; }
+
+    public BigDecimal getMaxDiscountAmount() { return maxDiscountAmount; }
+    public void setMaxDiscountAmount(BigDecimal maxDiscountAmount) { this.maxDiscountAmount = maxDiscountAmount; }
+
+    public LocalDateTime getStartAt() { return startAt; }
+    public void setStartAt(LocalDateTime startAt) { this.startAt = startAt; }
+
+    public Integer getPerUserLimit() { return perUserLimit; }
+    public void setPerUserLimit(Integer perUserLimit) { this.perUserLimit = perUserLimit; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 }

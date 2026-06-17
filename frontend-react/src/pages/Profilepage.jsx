@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useWishlist } from "../context/WishlistContext";
 import { useToast } from "../context/ToastContext";
 import { useCart } from "../context/CartContext";
-import { productAPI, userAPI, orderAPI, reviewAPI } from "../services/api";
+import { productAPI, userAPI, orderAPI, reviewAPI, voucherAPI } from "../services/api";
 import AddressBook from "../components/AddressBook";
 import "./css/Profilepage.css";
 
@@ -279,6 +279,11 @@ export default function ProfilePage() {
 
   // State cho orders
   const [orders, setOrders] = useState([]);
+  
+  // State cho vouchers
+  const [publicVouchers, setPublicVouchers] = useState([]);
+  const [userVouchers, setUserVouchers] = useState([]);
+  const [voucherLoading, setVoucherLoading] = useState(false);
   const [purchaseRecommendations, setPurchaseRecommendations] = useState([]);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [recommendationError, setRecommendationError] = useState("");
@@ -398,6 +403,21 @@ export default function ProfilePage() {
         } catch (err) {
           console.error('Error fetching orders:', err);
           // Orders fail không ảnh hưởng đến profile
+        }
+
+        // Tải danh sách vouchers
+        try {
+          setVoucherLoading(true);
+          const [pubVouchers, usrVouchers] = await Promise.all([
+             voucherAPI.getPublicVouchers(),
+             voucherAPI.getUserVouchers(userId)
+          ]);
+          setPublicVouchers(pubVouchers || []);
+          setUserVouchers(usrVouchers || []);
+        } catch (err) {
+          console.error('Error fetching vouchers:', err);
+        } finally {
+          setVoucherLoading(false);
         }
 
         // Tải gợi ý mua lại
@@ -733,6 +753,20 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSaveVoucher = async (voucherId) => {
+    try {
+      setVoucherLoading(true);
+      await voucherAPI.saveVoucher(voucherId, currentUserId);
+      const usrVouchers = await voucherAPI.getUserVouchers(currentUserId);
+      setUserVouchers(usrVouchers || []);
+      addToast('Lưu voucher thành công!', 'success', 3000);
+    } catch (err) {
+      addToast(err.message || 'Không thể lưu voucher. Có thể bạn đã lưu hoặc hết lượt.', 'error', 3000);
+    } finally {
+      setVoucherLoading(false);
+    }
+  };
+
   const handleSubmitReview = async () => {
     if (!reviewTarget) {
       return;
@@ -981,6 +1015,11 @@ export default function ProfilePage() {
             <NavItem tabKey="wishlist" label="Yêu thích" badge={wishlist.length} icon={
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
                 <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+            } />
+            <NavItem tabKey="vouchers" label="Kho Voucher" badge={userVouchers.filter(v => !v.isUsed).length} icon={
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
               </svg>
             } />
             <NavItem tabKey="addresses" label="Địa chỉ giao hàng" icon={
@@ -1584,6 +1623,121 @@ export default function ProfilePage() {
 
             {/* Addresses */}
             {activeTab === "addresses" && <AddressBook userId={currentUserId} />}
+
+            {/* Vouchers */}
+            {activeTab === "vouchers" && (
+              <div className="profile-section">
+                <div className="voucher-page-heading">
+                  <div>
+                    <p className="profile-section-title">
+                      <span className="section-title-dot" />
+                      Kho voucher
+                    </p>
+                    <p>Lưu ưu đãi và sử dụng khi thanh toán đơn hàng phù hợp.</p>
+                  </div>
+                  <span className="voucher-wallet-count">
+                    {userVouchers.filter(v => !(v.isUsed || v.status === "used")).length} mã khả dụng
+                  </span>
+                </div>
+                
+                <div className="voucher-group-heading">
+                  <h3>Ưu đãi đang phát hành</h3>
+                  <span>{publicVouchers.length} voucher</span>
+                </div>
+                <div className="voucher-grid voucher-public-grid">
+                  {voucherLoading && publicVouchers.length === 0 ? (
+                    <p className="voucher-list-message">Đang tải voucher...</p>
+                  ) : publicVouchers.length === 0 ? (
+                    <p className="voucher-list-message">Hiện chưa có mã công khai nào.</p>
+                  ) : (
+                    publicVouchers.map(v => {
+                      const isSaved = userVouchers.some(uv => uv.promoCode && uv.promoCode.id === v.id);
+                      const discountLabel = v.discountType === "percent"
+                        ? `Giảm ${Number(v.discountValue || 0)}%`
+                        : v.discountType === "free_shipping"
+                          ? "Miễn phí ship"
+                          : `Giảm ${formatPrice(v.discountValue)}`;
+                      return (
+                        <div key={v.id} className={`voucher-card ${v.voucherType === 'PRODUCT_DISCOUNT' ? 'type-product' : 'type-shipping'}`}>
+                          <div className="voucher-card-main">
+                            <div className="voucher-card-mark" aria-hidden="true">
+                              <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 7.5A2.5 2.5 0 0 0 6.5 5h11A1.5 1.5 0 0 1 19 6.5v2a3.5 3.5 0 0 0 0 7v2A1.5 1.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 0 4 16.5v-9Z" />
+                                <path strokeLinecap="round" d="M12 8v8" />
+                              </svg>
+                            </div>
+                            <div className="voucher-info">
+                              <span className={`voucher-badge ${v.voucherType === 'PRODUCT_DISCOUNT' ? 'type-product' : 'type-shipping'}`}>
+                                {v.voucherType === "PRODUCT_DISCOUNT" ? "Sản phẩm" : "Vận chuyển"}
+                              </span>
+                              <p className="voucher-value">{discountLabel}</p>
+                              <p className="voucher-desc">{v.description || "Áp dụng cho đơn hàng đủ điều kiện"}</p>
+                            </div>
+                          </div>
+                          <div className="voucher-card-code">
+                            <div>
+                              <span>Mã ưu đãi</span>
+                              <strong>{v.code}</strong>
+                            </div>
+                            <div className="voucher-condition">
+                              {v.minOrder ? `Đơn từ ${formatPrice(v.minOrder)}` : "Không yêu cầu đơn tối thiểu"}
+                            </div>
+                          </div>
+                          <div className="voucher-action">
+                            <button 
+                              className="voucher-btn"
+                              onClick={() => !isSaved && handleSaveVoucher(v.id)}
+                              disabled={isSaved || voucherLoading}
+                            >
+                              {isSaved ? "Đã lưu vào ví" : "Lưu voucher"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="voucher-group-heading saved">
+                  <h3>Voucher của bạn</h3>
+                  <span>Dùng tại bước thanh toán</span>
+                </div>
+                <div className="voucher-grid">
+                  {userVouchers.length === 0 ? (
+                    <div className="profile-empty-state voucher-empty-state">
+                      <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7.5A2.5 2.5 0 0 0 6.5 5h11A1.5 1.5 0 0 1 19 6.5v2a3.5 3.5 0 0 0 0 7v2A1.5 1.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 0 4 16.5v-9Z" />
+                      </svg>
+                      <p className="profile-empty-state-title">Bạn chưa có voucher nào</p>
+                    </div>
+                  ) : (
+                    userVouchers.map(uv => {
+                      const isUsed = uv.isUsed || uv.status === "used";
+                      return (
+                      <div key={uv.id} className={`voucher-card saved-voucher ${isUsed ? 'used' : ''}`}>
+                        <div className="voucher-card-main">
+                          <div className="voucher-card-mark" aria-hidden="true">
+                            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7.5A2.5 2.5 0 0 0 6.5 5h11A1.5 1.5 0 0 1 19 6.5v2a3.5 3.5 0 0 0 0 7v2A1.5 1.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 0 4 16.5v-9Z" />
+                            </svg>
+                          </div>
+                          <div className="voucher-info">
+                            <p className="voucher-code">{uv.promoCode.code}</p>
+                            <p className="voucher-desc">{uv.promoCode.description || "Áp dụng cho đơn hàng đủ điều kiện"}</p>
+                            <p className="voucher-min">{uv.promoCode.minOrder ? `Đơn từ ${formatPrice(uv.promoCode.minOrder)}` : "Không yêu cầu đơn tối thiểu"}</p>
+                          </div>
+                        </div>
+                        {isUsed ? (
+                          <span className="voucher-status-text used">Đã dùng</span>
+                        ) : (
+                          <span className="voucher-status-text ready">Sẵn sàng sử dụng</span>
+                        )}
+                      </div>
+                    )})
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Info */}
             {activeTab === "info" && (

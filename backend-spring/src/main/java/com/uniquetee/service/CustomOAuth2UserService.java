@@ -107,7 +107,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         try {
             // Kiểm tra user đã tồn tại chưa
-            Optional<User> existingUser = userRepository.findByEmail(email);
+            Optional<User> existingUser = userRepository.findByEmailIgnoreCase(email);
             User user;
 
             if (existingUser.isPresent()) {
@@ -175,7 +175,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             }
 
             // Kiểm tra user đã tồn tại chưa
-            Optional<User> existingUser = userRepository.findByEmail(email);
+            Optional<User> existingUser = userRepository.findByEmailIgnoreCase(email);
             User user;
 
             if (existingUser.isPresent()) {

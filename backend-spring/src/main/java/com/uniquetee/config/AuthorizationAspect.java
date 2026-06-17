@@ -20,11 +20,11 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AuthorizationAspect {
 
     @Before("@annotation(requiredRole)")
-    public void checkRole(RequiredRole requiredRole) throws Exception {
+    public void checkRole(RequiredRole requiredRole) throws SecurityException {
         // Lấy request từ context
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attributes == null) {
-            throw new Exception("❌ Request context not found");
+            throw new SecurityException("❌ Unauthorized: Token required");
         }
         
         HttpServletRequest request = attributes.getRequest();

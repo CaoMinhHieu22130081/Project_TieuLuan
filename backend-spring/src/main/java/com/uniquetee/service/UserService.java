@@ -38,6 +38,10 @@ public class UserService {
         return userRepository.findByEmail(email);
     }
 
+    public Optional<User> getUserByEmailIgnoreCase(String email) {
+        return userRepository.findByEmailIgnoreCase(email);
+    }
+
     /**
      * Register new user with password hashing
      * @param user User object với password plain text

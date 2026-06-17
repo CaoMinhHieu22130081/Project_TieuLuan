@@ -340,7 +340,7 @@ public class UserController {
                 userOpt = userService.getUserById(userId);
             }
             if (userOpt.isEmpty() && email != null) {
-                userOpt = userService.getUserByEmail(email);
+                userOpt = userService.getUserByEmailIgnoreCase(email);
             }
 
             if (userOpt.isEmpty()) {

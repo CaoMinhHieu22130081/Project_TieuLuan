@@ -12,7 +12,8 @@ import {
   LogOut,
   Store,
   Bell,
-  Menu
+  Menu,
+  Ticket
 } from "lucide-react";
 import {
   ADMIN_ACTIVITY_EVENT,
@@ -57,6 +58,12 @@ const NAV_LINKS = [
     label: "Người dùng",
     roles: ["admin"],
     icon: <Users size={18} strokeWidth={2} />,
+  },
+  {
+    to: "/admin/vouchers",
+    label: "Voucher",
+    roles: ["admin", "staff"],
+    icon: <Ticket size={18} strokeWidth={2} />,
   },
   {
     to: "/admin/reviews",
