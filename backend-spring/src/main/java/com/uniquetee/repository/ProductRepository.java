@@ -15,4 +15,31 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     List<Product> findByCategoryName(@Param("name") String name);
 
     List<Product> findByNameContainingIgnoreCase(String name);
+
+    @Query("""
+            SELECT p FROM Product p
+            LEFT JOIN p.category c
+            WHERE p.id <> :productId
+              AND p.isActive = true
+              AND (
+                    (:categoryId IS NOT NULL AND c.id = :categoryId)
+                 OR (:type IS NOT NULL AND LOWER(p.type) = LOWER(:type))
+              )
+            """)
+    List<Product> findRecommendationCandidates(
+            @Param("productId") Integer productId,
+            @Param("categoryId") Integer categoryId,
+            @Param("type") String type
+    );
+
+    @Query("""
+            SELECT p FROM Product p
+            WHERE p.id <> :productId
+              AND p.isActive = true
+            """)
+    List<Product> findActiveExcept(@Param("productId") Integer productId);
+
+    List<Product> findByIsActiveTrueOrderBySoldDesc(org.springframework.data.domain.Pageable pageable);
+
+    List<Product> findByIsActiveTrueOrderByIdDesc(org.springframework.data.domain.Pageable pageable);
 }

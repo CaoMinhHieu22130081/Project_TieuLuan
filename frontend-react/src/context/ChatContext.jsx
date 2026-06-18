@@ -82,10 +82,18 @@ export const ChatProvider = ({ children }) => {
             subscriptionRef.current = stompClientRef.current.subscribe(
                 `/topic/conversation/${convId}`,
                 (message) => {
-                    const newMsg = JSON.parse(message.body);
-                    setMessages(prev => [...prev, newMsg]);
+                    const incomingMsg = JSON.parse(message.body);
+                    setMessages(prev => {
+                        const existsIndex = prev.findIndex(m => m.id === incomingMsg.id);
+                        if (existsIndex >= 0) {
+                            const newArr = [...prev];
+                            newArr[existsIndex] = incomingMsg;
+                            return newArr;
+                        }
+                        return [...prev, incomingMsg];
+                    });
                     
-                    if (!isOpen && newMsg.senderRole !== user.role) {
+                    if (!isOpen && incomingMsg.senderRole !== user.role && !incomingMsg.isDeleted) {
                         setUnreadCount(prev => prev + 1);
                         addToast('Bạn có tin nhắn mới từ hỗ trợ!', 'info');
                     }
@@ -109,6 +117,7 @@ export const ChatProvider = ({ children }) => {
             }
         };
     }, [isAuthenticated, conversation, connect]);
+    
     const sendMessage = (content) => {
         if (stompClientRef.current && stompClientRef.current.connected && conversation) {
             stompClientRef.current.publish({
@@ -131,7 +140,21 @@ export const ChatProvider = ({ children }) => {
     };
 
     const deleteMessage = (msgId) => {
+        // Optimistic update
         setMessages(prev => prev.map(m => (m.id === msgId || m.clientId === msgId) ? { ...m, isDeleted: true, content: "Tin nhắn đã bị thu hồi" } : m));
+        
+        // Gửi lệnh xóa lên server
+        if (stompClientRef.current && stompClientRef.current.connected && conversation) {
+            stompClientRef.current.publish({
+                destination: '/app/chat.deleteMessage',
+                body: JSON.stringify({
+                    id: msgId,
+                    conversationId: conversation.id,
+                    senderId: user.id,
+                    senderRole: user.role
+                })
+            });
+        }
     };
 
     return (

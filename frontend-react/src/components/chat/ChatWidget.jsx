@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
-import { MessageSquare, Paperclip, MoreVertical, Trash2, Send, X, CheckCheck, Undo2 } from 'lucide-react';
+import { MessageSquare, Paperclip, MoreVertical, Trash2, Send, X, CheckCheck, Undo2, Smile } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 import './ChatWidget.css';
 
 const QUICK_REPLIES = [
@@ -15,6 +16,7 @@ const ChatWidget = () => {
     const { isAuthenticated, user } = useAuth();
     const { isOpen, toggleChat, messages, setMessages, sendMessage, deleteMessage, unreadCount, isConnected, isTyping, setIsTyping } = useChat();
     const [inputText, setInputText] = useState('');
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [activeMsgOptions, setActiveMsgOptions] = useState(null);
     const messagesEndRef = useRef(null);
@@ -71,20 +73,19 @@ const ChatWidget = () => {
     const handleSend = (e) => {
         e.preventDefault();
         if (inputText.trim()) {
-            // Optimistic update for sender's message (assign temporary clientId)
-            const clientId = Date.now().toString();
-            setMessages(prev => [...prev, {
-                id: clientId,
-                clientId: clientId,
-                senderRole: 'customer',
-                content: inputText.trim(),
-                sentAt: new Date().toISOString(),
-                isDeleted: false
-            }]);
             sendMessage(inputText.trim());
             setInputText('');
             setActiveMsgOptions(null);
+            setShowEmojiPicker(false);
         }
+    };
+
+    const isOnlyEmojis = (text) => {
+        if (!text) return false;
+        const stripped = text.replace(/\s+/g, '');
+        if (stripped.length === 0) return false;
+        // If there's any normal letter, number, or punctuation, it's not just emojis
+        return !/[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]/i.test(stripped);
     };
 
     const handleQuickReply = (qr) => {
@@ -193,7 +194,7 @@ const ChatWidget = () => {
                         <button onClick={toggleChat} className="chat-close-btn" aria-label="Đóng chat">✕</button>
                     </div>
 
-                    <div className="chat-messages" onClick={() => setActiveMsgOptions(null)}>
+                    <div className="chat-messages" onClick={() => { setActiveMsgOptions(null); setShowEmojiPicker(false); }}>
                         {/* Empty/Bot State */}
                         {messages.length === 0 && (
                             <div className="chat-bot-welcome">
@@ -224,7 +225,10 @@ const ChatWidget = () => {
                                         </div>
                                     )}
                                     <div className="message-bubble-wrapper">
-                                        <div className={`message-bubble message-${msg.senderRole} ${msg.isDeleted ? 'msg-deleted' : ''}`}>
+                                        {isMe && index === messages.length - 1 && !msg.isDeleted && (
+                                            <div className="msg-status-icon" style={{alignSelf: 'flex-end', marginBottom: '8px'}}><CheckCheck size={12} /></div>
+                                        )}
+                                        <div className={`message-bubble message-${msg.senderRole} ${msg.isDeleted ? 'msg-deleted' : ''} ${!msg.isDeleted && isOnlyEmojis(msg.content) ? 'msg-only-emoji' : ''}`}>
                                             {msg.isDeleted ? <span className="deleted-text"><Undo2 size={12} style={{marginRight: 4}}/> Tin nhắn đã thu hồi</span> : msg.content}
                                             <span className="message-time">
                                                 {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -249,9 +253,6 @@ const ChatWidget = () => {
                                             </div>
                                         )}
                                     </div>
-                                    {isMe && index === messages.length - 1 && !msg.isDeleted && (
-                                        <div className="msg-status-icon"><CheckCheck size={12} /></div>
-                                    )}
                                 </div>
                             );
                         })}
@@ -273,6 +274,24 @@ const ChatWidget = () => {
                         <button type="button" className="attach-button" title="Đính kèm (Demo)">
                             <Paperclip size={18} />
                         </button>
+                        
+                        <div className="emoji-picker-container">
+                            <button type="button" className={`emoji-button ${showEmojiPicker ? 'active' : ''}`} title="Biểu tượng cảm xúc" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+                                <Smile size={18} />
+                            </button>
+                            {showEmojiPicker && (
+                                <div className="emoji-popover-lib">
+                                    <EmojiPicker 
+                                        onEmojiClick={(emojiData) => setInputText(prev => prev + emojiData.emoji)}
+                                        width={300}
+                                        height={400}
+                                        searchDisabled={false}
+                                        skinTonesDisabled={true}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
                         <input 
                             type="text" 
                             placeholder="Nhập tin nhắn..." 

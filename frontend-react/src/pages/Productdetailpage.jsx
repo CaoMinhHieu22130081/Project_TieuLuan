@@ -113,6 +113,16 @@ export default function ProductDetailPage() {
         if (data.colors && data.colors.length > 0) {
           setSelColor(data.colors[0]);
         }
+
+        try {
+          const relatedData = await productAPI.getRelatedProducts(id, 6);
+          setRelated(
+            (relatedData || []).filter((item) => Number(item.id) !== Number(id))
+          );
+        } catch (relatedError) {
+          console.error("Error fetching related products:", relatedError);
+          setRelated([]);
+        }
       } catch (err) {
         setError("Không tìm thấy sản phẩm");
         console.error('Error fetching product:', err);
@@ -627,7 +637,7 @@ export default function ProductDetailPage() {
         {related && related.length > 0 && (
           <div className="related-section">
             <div className="related-header">
-              <h2 className="related-title">Có thể bạn cũng thích <Sparkles size={18} style={{ color: "var(--accent)" }} /></h2>
+              <h2 className="related-title">Sản phẩm phù hợp với lựa chọn của bạn <Sparkles size={18} style={{ color: "var(--accent)" }} /></h2>
               <Link to="/products" className="related-see-all">Xem tất cả <ChevronRight size={14} /></Link>
             </div>
             <div className="related-grid">

@@ -41,4 +41,17 @@ public class ChatController {
     public void handleTyping(@Payload ChatMessageDTO typingInfo) {
         messagingTemplate.convertAndSend("/topic/conversation/" + typingInfo.getConversationId() + "/typing", typingInfo);
     }
+
+    @MessageMapping("/chat.deleteMessage")
+    public void deleteMessage(@Payload ChatMessageDTO deleteInfo) {
+        ChatMessage deletedMsg = chatService.deleteMessage(
+            deleteInfo.getId(),
+            deleteInfo.getSenderId(),
+            deleteInfo.getSenderRole()
+        );
+        
+        ChatMessageDTO responseDTO = chatService.convertToDTO(deletedMsg);
+        
+        messagingTemplate.convertAndSend("/topic/conversation/" + responseDTO.getConversationId(), responseDTO);
+    }
 }

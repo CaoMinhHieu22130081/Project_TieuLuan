@@ -99,6 +99,20 @@ public class ChatService {
         messageRepository.saveAll(unreadMessages);
     }
 
+    @Transactional
+    public ChatMessage deleteMessage(Integer messageId, Integer userId, String userRole) {
+        ChatMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("Message not found"));
+                
+        if (!message.getSender().getId().equals(userId) && !"admin".equals(userRole) && !"staff".equals(userRole)) {
+            throw new RuntimeException("Not authorized to delete this message");
+        }
+        
+        message.setIsDeleted(true);
+        message.setContent("Tin nhắn đã bị thu hồi");
+        return messageRepository.save(message);
+    }
+
     public ChatMessageDTO convertToDTO(ChatMessage message) {
         ChatMessageDTO dto = new ChatMessageDTO();
         dto.setId(message.getId());
@@ -109,9 +123,9 @@ public class ChatService {
         dto.setContent(message.getContent());
         dto.setIsRead(message.getIsRead());
         dto.setSentAt(message.getSentAt());
+        dto.setIsDeleted(message.getIsDeleted() != null ? message.getIsDeleted() : false);
         return dto;
     }
-
     private ChatConversationDTO convertToConversationDTO(ChatConversation conv) {
         ChatConversationDTO dto = new ChatConversationDTO();
         dto.setId(conv.getId());

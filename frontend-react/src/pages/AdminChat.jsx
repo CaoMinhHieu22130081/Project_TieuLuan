@@ -3,7 +3,8 @@ import { chatService } from '../services/chatService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { AdminLayout } from './Adminheader';
-import { MoreVertical, Trash2, CheckCircle2, Zap, Send, MessageSquareOff, Undo2 } from 'lucide-react';
+import { MoreVertical, Trash2, CheckCircle2, Zap, Send, MessageSquareOff, Undo2, Smile } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 import './css/Admin.css';
 import './css/AdminChat.css';
 
@@ -25,6 +26,7 @@ const AdminChat = () => {
     const [inputText, setInputText] = useState('');
     const [isConnected, setIsConnected] = useState(false);
     const [showCanned, setShowCanned] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [activeMsgOptions, setActiveMsgOptions] = useState(null);
     
     const stompClientRef = useRef(null);
@@ -76,6 +78,7 @@ const AdminChat = () => {
         setSelectedConv(conv);
         setActiveMsgOptions(null);
         setShowCanned(false);
+        setShowEmojiPicker(false);
         try {
             const msgs = await chatService.getMessages(conv.id);
             setMessages(msgs);
@@ -87,9 +90,18 @@ const AdminChat = () => {
                     `/topic/conversation/${conv.id}`,
                     (message) => {
                         const newMsg = JSON.parse(message.body);
-                        if (newMsg.senderRole === 'customer') {
-                            setMessages(prev => [...prev, newMsg]);
-                        }
+                        setMessages(prev => {
+                            const existsIndex = prev.findIndex(m => m.id === newMsg.id);
+                            if (existsIndex >= 0) {
+                                const newArr = [...prev];
+                                newArr[existsIndex] = newMsg;
+                                return newArr;
+                            }
+                            if (newMsg.senderRole === 'customer' || newMsg.senderRole === 'admin' || newMsg.senderRole === 'staff') {
+                                return [...prev, newMsg];
+                            }
+                            return prev;
+                        });
                     }
                 );
             }
@@ -101,7 +113,6 @@ const AdminChat = () => {
     const handleSend = (e) => {
         e?.preventDefault();
         if (inputText.trim() && selectedConv && isConnected) {
-            const tempId = Date.now().toString();
             stompClientRef.current.publish({
                 destination: '/app/chat.sendMessage',
                 body: JSON.stringify({
@@ -110,31 +121,41 @@ const AdminChat = () => {
                     content: inputText.trim()
                 })
             });
-            
-            // Optimistic update
-            const optimisticMsg = {
-                id: tempId,
-                clientId: tempId,
-                senderId: user.id,
-                senderRole: user.role,
-                content: inputText.trim(),
-                sentAt: new Date().toISOString(),
-                isDeleted: false
-            };
-            setMessages(prev => [...prev, optimisticMsg]);
             setInputText('');
             setShowCanned(false);
+            setShowEmojiPicker(false);
         }
     };
 
     const handleDeleteMsg = (msgId) => {
+        // Optimistic update
         setMessages(prev => prev.map(m => (m.id === msgId || m.clientId === msgId) ? { ...m, isDeleted: true, content: "Tin nhắn đã bị thu hồi" } : m));
+        
+        // Send to server
+        if (stompClientRef.current && stompClientRef.current.connected && selectedConv) {
+            stompClientRef.current.publish({
+                destination: '/app/chat.deleteMessage',
+                body: JSON.stringify({
+                    id: msgId,
+                    conversationId: selectedConv.id,
+                    senderId: user.id,
+                    senderRole: user.role
+                })
+            });
+        }
         setActiveMsgOptions(null);
     };
 
     const handleEndChat = () => {
         addToast("Đã đánh dấu hoàn tất hội thoại", "success");
         setSelectedConv(null);
+    };
+
+    const isOnlyEmojis = (text) => {
+        if (!text) return false;
+        const stripped = text.replace(/\s+/g, '');
+        if (stripped.length === 0) return false;
+        return !/[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]/i.test(stripped);
     };
 
     useEffect(() => {
@@ -211,7 +232,7 @@ const AdminChat = () => {
                                     return (
                                         <div key={mId} className={`admin-msg-row ${isMe ? 'msg-row-me' : 'msg-row-them'}`}>
                                             <div className="admin-msg-bubble-wrapper">
-                                                <div className={`admin-msg-bubble ${bubbleClass} ${msg.isDeleted ? 'msg-deleted-admin' : ''}`}>
+                                                <div className={`admin-msg-bubble ${bubbleClass} ${msg.isDeleted ? 'msg-deleted-admin' : ''} ${!msg.isDeleted && isOnlyEmojis(msg.content) ? 'msg-only-emoji' : ''}`}>
                                                     {msg.isDeleted ? <span className="deleted-text-admin"><Undo2 size={12} style={{marginRight: 4}}/> Đã thu hồi</span> : msg.content}
                                                     <div className="msg-time">
                                                         {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -259,20 +280,43 @@ const AdminChat = () => {
                                     </div>
                                 )}
 
+                                {showEmojiPicker && (
+                                    <div className="admin-emoji-picker-container">
+                                        <EmojiPicker 
+                                            onEmojiClick={(emojiData) => setInputText(prev => prev + emojiData.emoji)}
+                                            autoFocusSearch={false}
+                                            searchDisabled={false}
+                                            skinTonesDisabled
+                                            height={350}
+                                            width={300}
+                                            previewConfig={{showPreview: false}}
+                                        />
+                                    </div>
+                                )}
+
                                 <form onSubmit={handleSend} className="admin-chat-input-inner">
                                     <button 
                                         type="button" 
                                         className={`quick-reply-toggle ${showCanned ? 'active' : ''}`}
-                                        onClick={() => setShowCanned(!showCanned)}
+                                        onClick={() => { setShowCanned(!showCanned); setShowEmojiPicker(false); }}
                                         title="Tin nhắn mẫu"
                                     >
                                         <Zap size={18} />
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        className={`quick-reply-toggle ${showEmojiPicker ? 'active' : ''}`}
+                                        onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowCanned(false); }}
+                                        title="Biểu tượng cảm xúc"
+                                    >
+                                        <Smile size={18} />
                                     </button>
                                     <input 
                                         type="text"
                                         placeholder="Nhập câu trả lời cho khách hàng (Enter để gửi)..."
                                         value={inputText}
                                         onChange={(e) => setInputText(e.target.value)}
+                                        onClick={() => { setShowEmojiPicker(false); setShowCanned(false); }}
                                     />
                                     <button type="submit" disabled={!isConnected || !inputText.trim()} className="admin-send-btn">
                                         <Send size={16} />

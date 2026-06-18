@@ -1198,7 +1198,7 @@ export default function CheckoutPage() {
                   <option value="">— Chọn voucher đã lưu của bạn —</option>
                   {userVouchers.map((v) => (
                     <option key={v.id} value={v.promoCode.code} disabled={v.status === "used"}>
-                       {v.promoCode.code} {v.status === "used" ? "(Đã sử dụng)" : `- ${v.promoCode.description || v.promoCode.voucherType}`}
+                       {v.promoCode.code} {v.status === "used" ? "(Đã sử dụng)" : `- ${v.promoCode.description || (v.promoCode.voucherType === "PRODUCT_DISCOUNT" ? "Giảm giá sản phẩm" : v.promoCode.voucherType === "FREE_SHIPPING" ? "Miễn phí vận chuyển" : v.promoCode.voucherType)}`}
                     </option>
                   ))}
                 </select>

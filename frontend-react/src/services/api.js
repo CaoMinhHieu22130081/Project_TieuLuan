@@ -109,6 +109,17 @@ export const productAPI = {
     }
   },
 
+  getRelatedProducts: async (id, limit = 8) => {
+    try {
+      return await requestJson(`${API_BASE_URL}/products/${id}/related?limit=${limit}`, {
+        headers: getAuthHeaders(),
+      }, 'Failed to fetch related products');
+    } catch (error) {
+      console.error('Error fetching related products:', error);
+      throw error;
+    }
+  },
+
   // Get products by category
   getProductsByCategory: async (category) => {
     try {

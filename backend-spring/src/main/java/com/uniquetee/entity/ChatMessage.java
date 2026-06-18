@@ -31,6 +31,9 @@ public class ChatMessage {
     @Column(nullable = false)
     private LocalDateTime sentAt;
 
+    @Column(nullable = false)
+    private Boolean isDeleted = false;
+
     @PrePersist
     protected void onCreate() {
         sentAt = LocalDateTime.now();
@@ -58,4 +61,7 @@ public class ChatMessage {
 
     public LocalDateTime getSentAt() { return sentAt; }
     public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
+
+    public Boolean getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }
 }

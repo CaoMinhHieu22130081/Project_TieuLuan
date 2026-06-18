@@ -62,6 +62,131 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
+    public List<Product> getRelatedProducts(int productId, int limit) {
+        Product current = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Sản phẩm không tồn tại"));
+
+        int safeLimit = Math.max(4, Math.min(limit, 12));
+
+        Integer categoryId = current.getCategory() != null ? current.getCategory().getId() : null;
+        String type = StringUtils.hasText(current.getType()) ? current.getType().trim() : null;
+
+        List<Product> candidates = new java.util.ArrayList<>(
+            productRepository.findRecommendationCandidates(productId, categoryId, type)
+        );
+
+        if (candidates.size() < safeLimit) {
+            List<Product> fallback = productRepository.findActiveExcept(productId);
+            for (Product item : fallback) {
+                if (candidates.stream().noneMatch(p -> java.util.Objects.equals(p.getId(), item.getId()))) {
+                    candidates.add(item);
+                }
+            }
+        }
+
+        return candidates.stream()
+                .map(this::syncProductStatistics)
+                .sorted(java.util.Comparator.comparingDouble((Product p) -> recommendationScore(current, p)).reversed())
+                .limit(safeLimit)
+                .collect(Collectors.toList());
+    }
+
+    public List<Product> getBestSellers(int limit) {
+        int safeLimit = Math.max(4, Math.min(limit, 24));
+        return productRepository.findByIsActiveTrueOrderBySoldDesc(org.springframework.data.domain.PageRequest.of(0, safeLimit))
+                .stream()
+                .map(this::syncProductStatistics)
+                .collect(Collectors.toList());
+    }
+
+    public List<Product> getNewArrivals(int limit) {
+        int safeLimit = Math.max(4, Math.min(limit, 24));
+        return productRepository.findByIsActiveTrueOrderByIdDesc(org.springframework.data.domain.PageRequest.of(0, safeLimit))
+                .stream()
+                .map(this::syncProductStatistics)
+                .collect(Collectors.toList());
+    }
+
+    public List<Product> getRecommendedProductsForUser(Integer userId, int limit) {
+        if (userId == null) {
+            return getBestSellers(limit);
+        }
+
+        List<Order> orders = orderRepository.findByUserId(userId);
+        if (orders == null || orders.isEmpty()) {
+            return getBestSellers(limit);
+        }
+
+        Order latestOrder = orders.stream()
+                .filter(o -> o.getCreatedAt() != null)
+                .max(java.util.Comparator.comparing(Order::getCreatedAt))
+                .orElse(null);
+
+        if (latestOrder == null || latestOrder.getItems() == null || latestOrder.getItems().isEmpty()) {
+            return getBestSellers(limit);
+        }
+
+        Integer pid = latestOrder.getItems().get(0).getProductId();
+        if (pid == null) {
+            return getBestSellers(limit);
+        }
+        
+        return getRelatedProducts(pid, limit);
+    }
+
+    private double recommendationScore(Product current, Product candidate) {
+        double score = 0;
+
+        if (sameCategory(current, candidate)) {
+            score += 45;
+        }
+
+        if (sameText(current.getType(), candidate.getType())) {
+            score += 25;
+        }
+
+        if (sameText(current.getMaterial(), candidate.getMaterial())) {
+            score += 12;
+        }
+
+        if (sameText(current.getTag(), candidate.getTag())) {
+            score += 8;
+        }
+
+        if (candidate.getRating() != null) {
+            score += candidate.getRating().doubleValue() * 4;
+        }
+
+        score += Math.log1p(candidate.getSold() == null ? 0 : candidate.getSold()) * 6;
+        score += Math.log1p(candidate.getReviewCount() == null ? 0 : candidate.getReviewCount()) * 3;
+
+        if (current.getPrice() != null && candidate.getPrice() != null) {
+            double currentPrice = current.getPrice().doubleValue();
+            double candidatePrice = candidate.getPrice().doubleValue();
+
+            if (currentPrice > 0) {
+                double priceDiffRate = Math.abs(currentPrice - candidatePrice) / currentPrice;
+                score += Math.max(0, 15 - priceDiffRate * 30);
+            }
+        }
+
+        return score;
+    }
+
+    private boolean sameCategory(Product left, Product right) {
+        if (left.getCategory() == null || right.getCategory() == null) {
+            return false;
+        }
+
+        return java.util.Objects.equals(left.getCategory().getId(), right.getCategory().getId());
+    }
+
+    private boolean sameText(String left, String right) {
+        return StringUtils.hasText(left)
+                && StringUtils.hasText(right)
+                && left.trim().equalsIgnoreCase(right.trim());
+    }
+
     @Transactional
     public Product createProduct(Product product) {
         validateProduct(product);

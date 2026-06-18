@@ -11,6 +11,7 @@ public class ChatMessageDTO {
     private String content;
     private Boolean isRead;
     private LocalDateTime sentAt;
+    private Boolean isDeleted;
 
     // Getters & Setters
     public Integer getId() { return id; }
@@ -36,4 +37,7 @@ public class ChatMessageDTO {
 
     public LocalDateTime getSentAt() { return sentAt; }
     public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
+
+    public Boolean getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }
 }

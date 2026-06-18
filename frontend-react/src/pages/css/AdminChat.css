@@ -340,6 +340,19 @@
     box-shadow: none !important;
 }
 
+.msg-only-emoji {
+    font-size: 42px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    line-height: 1;
+    margin: 0 !important;
+}
+.msg-only-emoji .msg-time {
+    display: none;
+}
+
 .deleted-text-admin {
     display: flex;
     align-items: center;
@@ -412,6 +425,17 @@
 .admin-send-btn:disabled {
     color: #ccc;
     cursor: not-allowed;
+}
+
+.admin-emoji-picker-container {
+    position: absolute;
+    bottom: 100%;
+    left: 20px;
+    z-index: 50;
+    margin-bottom: 10px;
+    animation: slideInUp 0.15s ease;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+    border-radius: 8px;
 }
 
 .canned-responses-popup {

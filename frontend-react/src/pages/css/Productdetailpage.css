@@ -457,21 +457,25 @@
 }
 .related-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 16px;
 }
 
 @media (max-width: 1024px) {
   .detail-layout { grid-template-columns: 1fr; }
   .gallery-col { position: static; }
-  .related-grid { grid-template-columns: repeat(2, 1fr); }
+  .related-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .related-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 600px) {
   .detail-cta { flex-direction: column; }
   .btn-wishlist-lg { width: 100%; }
   .reviews-summary { flex-direction: column; }
-  .related-grid { grid-template-columns: 1fr; }
+  .related-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
 }
 
 /* ── Gallery arrows ── */

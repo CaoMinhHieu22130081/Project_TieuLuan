@@ -54,6 +54,44 @@ public class ProductController {
         return ResponseEntity.ok(products);
     }
 
+    @GetMapping("/{id}/related")
+    public ResponseEntity<?> getRelatedProducts(
+            @PathVariable Integer id,
+            @RequestParam(defaultValue = "8") int limit
+    ) {
+        try {
+            List<Product> products = productService.getRelatedProducts(id, limit);
+            return ResponseEntity.ok(products);
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+        }
+    }
+
+    @GetMapping("/recommended/user/{userId}")
+    public ResponseEntity<List<Product>> getRecommendedForUser(
+            @PathVariable Integer userId,
+            @RequestParam(defaultValue = "12") int limit
+    ) {
+        List<Product> products = productService.getRecommendedProductsForUser(userId, limit);
+        return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/best-sellers")
+    public ResponseEntity<List<Product>> getBestSellers(
+            @RequestParam(defaultValue = "12") int limit
+    ) {
+        List<Product> products = productService.getBestSellers(limit);
+        return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/new-arrivals")
+    public ResponseEntity<List<Product>> getNewArrivals(
+            @RequestParam(defaultValue = "12") int limit
+    ) {
+        List<Product> products = productService.getNewArrivals(limit);
+        return ResponseEntity.ok(products);
+    }
+
     @PostMapping
     @RequiredRole({"admin", "staff"})
     public ResponseEntity<?> createProduct(@RequestBody Product product) {
