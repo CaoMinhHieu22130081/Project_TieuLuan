@@ -195,7 +195,7 @@ public class OrderService {
         BigDecimal shippingDiscount = BigDecimal.ZERO;
 
         if (order.getVoucherCode() != null && !order.getVoucherCode().isEmpty()) {
-            discountAmount = promoCodeService.calculateSpecificDiscount(order.getVoucherCode(), subtotal, "PRODUCT_DISCOUNT");
+            discountAmount = promoCodeService.calculateSpecificDiscount(order.getVoucherCode(), subtotal, subtotal, "PRODUCT_DISCOUNT");
             if (discountAmount.compareTo(BigDecimal.ZERO) > 0) {
                 promoCodeService.usePromoCode(order.getVoucherCode());
                 // Đánh dấu user đã dùng voucher này
@@ -209,7 +209,7 @@ public class OrderService {
         }
 
         if (order.getShippingVoucherCode() != null && !order.getShippingVoucherCode().isEmpty()) {
-            shippingDiscount = promoCodeService.calculateSpecificDiscount(order.getShippingVoucherCode(), order.getShippingFee(), "FREE_SHIPPING");
+            shippingDiscount = promoCodeService.calculateSpecificDiscount(order.getShippingVoucherCode(), order.getShippingFee(), subtotal, "FREE_SHIPPING");
             if (shippingDiscount.compareTo(BigDecimal.ZERO) > 0) {
                 promoCodeService.usePromoCode(order.getShippingVoucherCode());
                 // Đánh dấu user đã dùng voucher ship này

@@ -154,26 +154,26 @@ public class PromoCodeService {
 
         PromoCode promoCode = promo.get();
 
-        // Kiểm tra đơn hàng tối thiểu
         if (promoCode.getMinOrder() != null && orderTotal.compareTo(promoCode.getMinOrder()) < 0) {
             return BigDecimal.ZERO;
         }
 
         BigDecimal discount = BigDecimal.ZERO;
         if ("percent".equals(promoCode.getDiscountType())) {
-            // Giảm giá theo phần trăm
-            discount = orderTotal.multiply(promoCode.getDiscountValue()).divide(new BigDecimal("100"));
+            BigDecimal val = promoCode.getDiscountValue() != null ? promoCode.getDiscountValue() : BigDecimal.ZERO;
+            discount = orderTotal.multiply(val).divide(new BigDecimal("100"), 0, java.math.RoundingMode.HALF_UP);
         } else if ("fixed".equals(promoCode.getDiscountType())) {
-            // Giảm giá cố định
-            discount = promoCode.getDiscountValue();
+            discount = promoCode.getDiscountValue() != null ? promoCode.getDiscountValue() : BigDecimal.ZERO;
         } else if ("free_shipping".equals(promoCode.getDiscountType())) {
-            // free_shipping cần shippingFee làm baseAmount, không phải orderTotal
-            // Dùng calculateSpecificDiscount(code, shippingFee, "FREE_SHIPPING") thay thế
             discount = BigDecimal.ZERO;
         }
 
         if (promoCode.getMaxDiscountAmount() != null && discount.compareTo(promoCode.getMaxDiscountAmount()) > 0) {
             discount = promoCode.getMaxDiscountAmount();
+        }
+
+        if (discount.compareTo(orderTotal) > 0) {
+            discount = orderTotal;
         }
 
         return discount;
@@ -182,7 +182,7 @@ public class PromoCodeService {
     /**
      * Tính toán giảm giá cụ thể theo loại
      */
-    public BigDecimal calculateSpecificDiscount(String code, BigDecimal baseAmount, String requiredType) {
+    public BigDecimal calculateSpecificDiscount(String code, BigDecimal baseAmount, BigDecimal orderTotal, String requiredType) {
         Optional<PromoCode> promo = promoCodeRepository.findByCode(code);
         if (promo.isEmpty() || !isPromoCodeValid(code)) {
             return BigDecimal.ZERO;
@@ -192,21 +192,26 @@ public class PromoCodeService {
             return BigDecimal.ZERO;
         }
 
-        if (promoCode.getMinOrder() != null && baseAmount.compareTo(promoCode.getMinOrder()) < 0) {
+        if (promoCode.getMinOrder() != null && orderTotal.compareTo(promoCode.getMinOrder()) < 0) {
             return BigDecimal.ZERO;
         }
 
         BigDecimal discount = BigDecimal.ZERO;
         if ("percent".equals(promoCode.getDiscountType())) {
-            discount = baseAmount.multiply(promoCode.getDiscountValue()).divide(new BigDecimal("100"));
+            BigDecimal val = promoCode.getDiscountValue() != null ? promoCode.getDiscountValue() : BigDecimal.ZERO;
+            discount = baseAmount.multiply(val).divide(new BigDecimal("100"), 0, java.math.RoundingMode.HALF_UP);
         } else if ("fixed".equals(promoCode.getDiscountType())) {
-            discount = promoCode.getDiscountValue();
+            discount = promoCode.getDiscountValue() != null ? promoCode.getDiscountValue() : BigDecimal.ZERO;
         } else if ("free_shipping".equals(promoCode.getDiscountType())) {
             discount = baseAmount; 
         }
 
         if (promoCode.getMaxDiscountAmount() != null && discount.compareTo(promoCode.getMaxDiscountAmount()) > 0) {
             discount = promoCode.getMaxDiscountAmount();
+        }
+
+        if (discount.compareTo(baseAmount) > 0) {
+            discount = baseAmount;
         }
 
         return discount;
@@ -225,7 +230,7 @@ public class PromoCodeService {
         BigDecimal shippingFee = request.getShippingFee() != null ? request.getShippingFee() : BigDecimal.ZERO;
 
         if (request.getCode() != null && !request.getCode().isEmpty()) {
-            productDiscount = calculateSpecificDiscount(request.getCode(), subtotal, "PRODUCT_DISCOUNT");
+            productDiscount = calculateSpecificDiscount(request.getCode(), subtotal, subtotal, "PRODUCT_DISCOUNT");
             if (productDiscount.compareTo(BigDecimal.ZERO) > 0) {
                 // Kiểm tra perUserLimit nếu có userId
                 if (request.getUserId() != null) {
@@ -248,7 +253,7 @@ public class PromoCodeService {
         }
 
         if (request.getShippingCode() != null && !request.getShippingCode().isEmpty()) {
-            shippingDiscount = calculateSpecificDiscount(request.getShippingCode(), shippingFee, "FREE_SHIPPING");
+            shippingDiscount = calculateSpecificDiscount(request.getShippingCode(), shippingFee, subtotal, "FREE_SHIPPING");
             if (shippingDiscount.compareTo(BigDecimal.ZERO) > 0) {
                 // Kiểm tra perUserLimit nếu có userId
                 if (request.getUserId() != null) {
