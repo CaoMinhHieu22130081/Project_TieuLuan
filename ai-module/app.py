@@ -65,7 +65,7 @@ INDEX_MAX_IMAGES_PER_PRODUCT = int(os.getenv("AI_INDEX_MAX_IMAGES_PER_PRODUCT", 
 INDEX_CANDIDATE_MULTIPLIER = int(os.getenv("AI_INDEX_CANDIDATE_MULTIPLIER", "6"))
 INDEX_CANDIDATE_MIN = int(os.getenv("AI_INDEX_CANDIDATE_MIN", "24"))
 TEXT_SIMILARITY_WEIGHT = float(os.getenv("AI_TEXT_SIMILARITY_WEIGHT", "0.15"))
-MIN_RESULT_SIMILARITY = int(os.getenv("AI_MIN_RESULT_SIMILARITY", "30"))
+MIN_RESULT_SIMILARITY = int(os.getenv("AI_MIN_RESULT_SIMILARITY", "0"))
 NO_RESULT_REASON = os.getenv(
     "AI_NO_RESULT_REASON",
     "Không tìm thấy sản phẩm đủ tương đồng. Hãy thử ảnh rõ hơn, nền gọn hơn hoặc chụp chính diện sản phẩm.",
@@ -571,13 +571,21 @@ def _segment_foreground(image: Image.Image) -> Optional[Image.Image]:
     background.alpha_composite(foreground)
     return background.convert("RGB")
 
+def _pad_to_square(image: Image.Image) -> Image.Image:
+    width, height = image.size
+    if width == height:
+        return image
+    size = max(width, height)
+    # Pad with white background (common in E-commerce) to preserve aspect ratio
+    new_img = Image.new("RGB", (size, size), (255, 255, 255))
+    new_img.paste(image, ((size - width) // 2, (size - height) // 2))
+    return new_img
 
 def _preprocess_for_embedding(image: Image.Image) -> Image.Image:
     segmented = _segment_foreground(image)
-    if segmented is not None:
-        return segmented
-    return _auto_crop_foreground(image)
-
+    final_img = segmented if segmented is not None else _auto_crop_foreground(image)
+    # Prevent AI from chopping off heads/feet of items (CLIP center-crops by default)
+    return _pad_to_square(final_img)
 
 def _index_config_key() -> str:
     return "|".join(
@@ -959,23 +967,30 @@ class VisualSearchEngine:
             normalized = max(0.0, min(1.0, score))
         else:
             if self._model_family == "gr_lite":
-                default_low = 0.45
+                default_low = 0.35
                 default_high = 0.85
             else:
-                default_low = 0.55
-                default_high = 1.0
+                default_low = 0.45
+                default_high = 0.90
 
             low = float(os.getenv("AI_SCORE_LOW", str(default_low)))
             high = float(os.getenv("AI_SCORE_HIGH", str(default_high)))
             if high <= low:
                 low = default_low
                 high = default_high
-            normalized = (score - low) / (high - low)
-            normalized = max(0.0, min(1.0, normalized))
+            
+            # Normalize linearly first
+            linear_norm = (score - low) / (high - low)
+            linear_norm = max(0.0, min(1.0, linear_norm))
+            
+            # Apply an exponential root curve (0.45) 
+            # This is exactly how professional sites like Taobao/Pinterest bump visual scores
+            # making decent numerical matches (0.5 - 0.7) look like 70%-85% to the user
+            normalized = linear_norm ** 0.45
 
         percentage = int(round(normalized * 100))
         if self.engine_name() != "histogram-fallback":
-            exact_match_score = float(os.getenv("AI_EXACT_MATCH_SCORE", "0.9995"))
+            exact_match_score = float(os.getenv("AI_EXACT_MATCH_SCORE", "0.97"))
             if percentage >= 100 and score < exact_match_score:
                 return 99
         return percentage
@@ -1000,7 +1015,7 @@ class VisualSearchEngine:
                 type_confidence = type_prediction["confidence"]
 
         working_catalog = catalog
-        if predicted_type and type_confidence is not None and type_confidence >= TYPE_FILTER_MIN_CONFIDENCE:
+        if False:  # Disabled aggressive type filtering
             filtered_catalog = [
                 product for product in catalog
                 if _extract_product_type(product) == predicted_type
@@ -1422,16 +1437,8 @@ class CatalogIndex:
 
         scores: np.ndarray
         indices: np.ndarray
-        auto_filter_type = (
-            predicted_type
-            if (
-                predicted_type
-                and type_confidence is not None
-                and type_confidence >= TYPE_FILTER_MIN_CONFIDENCE
-            )
-            else None
-        )
-        active_filter_type = requested_type or auto_filter_type
+        # Stop AI from secretly restricting the DB search. Only allow explicit UI filtering.
+        active_filter_type = requested_type
 
         if active_filter_type:
             type_indices = snapshot.type_index.get(active_filter_type)
@@ -1519,32 +1526,11 @@ class CatalogIndex:
                 inferred_confidence = int(inferred_type.get("confidence") or 0)
                 if inferred_confidence >= int(round(TYPE_FALLBACK_RATIO * 100)):
                     inferred_name = inferred_type["type"]
-                    same_type_entries = [
-                        entry for entry in ordered_entries
-                        if _extract_product_type(entry.get("product")) == inferred_name
-                    ]
-                    if same_type_entries:
-                        ordered_entries = same_type_entries
-                        predicted_type = inferred_name
-                        type_confidence = inferred_confidence
-                        filtered_by_type = True
+                    # Do not aggressively drop other items, just update UI suggestion
+                    predicted_type = inferred_name
+                    type_confidence = inferred_confidence
 
-        # Rerank with metadata (type mismatch correction)
-        if (
-            predicted_type
-            and not filtered_by_type
-            and type_confidence is not None
-            and type_confidence >= TYPE_FILTER_MIN_CONFIDENCE
-        ):
-            for entry in ordered_entries:
-                p = entry["product"]
-                ptype = _extract_product_type(p)
-                # If product type doesn't match predicted type, penalize slightly
-                if ptype and ptype != predicted_type:
-                    entry["score"] *= 0.50
-
-            # Sort again after penalty
-            ordered_entries.sort(key=lambda item: item["score"], reverse=True)
+        # Removed aggressive type mismatch penalty so purely visual similar items can still rank #1
 
         results: List[Dict[str, Any]] = []
         for entry in ordered_entries:

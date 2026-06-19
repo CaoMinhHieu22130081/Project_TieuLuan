@@ -89,7 +89,7 @@ public class ChatService {
     public void markAsRead(Integer conversationId, String readerRole) {
         ChatConversation conv = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
-        
+                                                            
         List<ChatMessage> unreadMessages = messageRepository.findByConversationOrderBySentAtAsc(conv)
                 .stream()
                 .filter(m -> !m.getIsRead() && !m.getSenderRole().equals(readerRole))
