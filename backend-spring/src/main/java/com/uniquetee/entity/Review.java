@@ -35,6 +35,9 @@ public class Review {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "admin_reply", columnDefinition = "TEXT")
+    private String adminReply;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -55,6 +58,9 @@ public class Review {
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+
+    public String getAdminReply() { return adminReply; }
+    public void setAdminReply(String adminReply) { this.adminReply = adminReply; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

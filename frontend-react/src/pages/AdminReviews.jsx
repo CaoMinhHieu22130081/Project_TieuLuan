@@ -44,6 +44,7 @@ const normalizeReview = (review) => {
     reviewerEmail: user?.email || review?.userEmail || "",
     rating: normalizeRating(review?.rating),
     content: review?.content || "",
+    adminReply: review?.adminReply || "",
     createdAt: review?.createdAt || review?.createdDate || null,
   };
 };
@@ -61,6 +62,8 @@ export default function AdminReviews() {
   const [ratingTab, setRatingTab] = useState("Tất cả");
   const [detail, setDetail] = useState(null);
   const [savingId, setSavingId] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [isSavingReply, setIsSavingReply] = useState(false);
 
   const loadReviews = async () => {
     try {
@@ -99,6 +102,30 @@ export default function AdminReviews() {
     } finally {
       setSavingId(null);
     }
+  };
+
+  const handleSaveReply = async () => {
+    if (!detail) return;
+    try {
+      setIsSavingReply(true);
+      const updatedReview = await reviewAPI.updateReview(detail.id, {
+        adminReply: replyText
+      });
+      // Cập nhật reviews state
+      setReviews(current => current.map(r => r.id === detail.id ? normalizeReview(updatedReview) : r));
+      setDetail(normalizeReview(updatedReview));
+      alert("Đã lưu phản hồi thành công!");
+    } catch (err) {
+      console.error("Lỗi lưu phản hồi:", err);
+      alert(err.message || "Không thể lưu phản hồi");
+    } finally {
+      setIsSavingReply(false);
+    }
+  };
+
+  const openDetail = (review) => {
+    setDetail(review);
+    setReplyText(review.adminReply || "");
   };
 
   const filteredReviews = reviews.filter((review) => {
@@ -226,6 +253,14 @@ export default function AdminReviews() {
                         <p className="review-content-preview" title={review.content}>
                           {contentPreview || "—"}
                         </p>
+                        {review.adminReply && (
+                          <div style={{ marginTop: 6, padding: '6px 10px', background: 'var(--surface-2)', borderLeft: '2px solid var(--accent)', borderRadius: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--accent)' }}>Phản hồi: </span>
+                            <span title={review.adminReply}>
+                              {review.adminReply.length > 80 ? `${review.adminReply.slice(0, 80)}…` : review.adminReply}
+                            </span>
+                          </div>
+                        )}
                       </td>
                       <td style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>
                         {formatDate(review.createdAt)}
@@ -235,7 +270,7 @@ export default function AdminReviews() {
                           <button
                             type="button"
                             className="action-btn edit"
-                            onClick={() => setDetail(review)}
+                            onClick={() => openDetail(review)}
                           >
                             <Eye size={14} style={{ marginRight: 4 }} /> Chi tiết
                           </button>
@@ -295,7 +330,38 @@ export default function AdminReviews() {
 
               <div className="detail-section">
                 <p className="detail-section-title"><MessageSquareText size={16} style={{ marginRight: 8, display: 'inline' }} /> Nội dung</p>
-                <p className="review-content-full">{detail.content || "Không có nội dung."}</p>
+                <div className="review-chat-bubble user">
+                  <p className="rc-content">{detail.content || "Không có nội dung."}</p>
+                  <span className="rc-time">{formatDate(detail.createdAt)}</span>
+                </div>
+              </div>
+
+              <div className="detail-section">
+                <p className="detail-section-title"><MessageSquareText size={16} style={{ marginRight: 8, display: 'inline', color: 'var(--accent)' }} /> Phản hồi của bạn</p>
+                {detail.adminReply ? (
+                  <div className="review-chat-bubble admin">
+                     <p className="rc-content">{detail.adminReply}</p>
+                     <span className="rc-time">Phản hồi từ Admin</span>
+                  </div>
+                ) : null}
+                
+                <div className="reply-editor">
+                  <textarea
+                    className="reply-textarea"
+                    placeholder="Nhập nội dung phản hồi cho đánh giá này..."
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                  ></textarea>
+                  <div className="reply-actions">
+                    <button 
+                      className={`btn-save-reply ${detail.adminReply === replyText ? 'disabled' : ''}`}
+                      disabled={isSavingReply || detail.adminReply === replyText}
+                      onClick={handleSaveReply}
+                    >
+                      {isSavingReply ? "Đang lưu..." : "Lưu phản hồi"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="modal-footer">

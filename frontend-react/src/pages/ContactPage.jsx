@@ -11,7 +11,7 @@ const ContactPage = () => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    
+
     const messageData = {
       name: e.target[0].value,
       email: e.target[1].value,
@@ -32,12 +32,12 @@ const ContactPage = () => {
   return (
     <div className="contact-cyber-wrapper">
       <div className="contact-grid-container">
-        
+
         {/* LEFT COLUMN: INFO STATS */}
         <div className="contact-info-panel">
           <header className="contact-header-cyber">
             <div className="system-badge">[ TRẠNG THÁI: KẾT NỐI ]</div>
-            <h1>BÁO CÁO <br/><span className="accent-glitch" data-text="SỰ CỐ">SỰ CỐ</span></h1>
+            <h1>BÁO CÁO <br /><span className="accent-glitch" data-text="SỰ CỐ">SỰ CỐ</span></h1>
             <p>Liên kết trực tiếp với Ban Quản Trị. Mọi yêu cầu, phản hồi hoặc hợp tác sẽ được xử lý qua biểu mẫu này.</p>
           </header>
 
@@ -46,7 +46,7 @@ const ContactPage = () => {
               <div className="inf-icon"><span className="icon-pulse"></span>[V]</div>
               <div className="inf-text">
                 <h3>VỊ TRÍ ĐỊA LÝ</h3>
-                <p>Khu phố 6, Linh Trung, Thủ Đức<br/>TP. Hồ Chí Minh, VIỆT NAM</p>
+                <p>Khu phố 6, Linh Trung, Thủ Đức<br />TP. Hồ Chí Minh, VIỆT NAM</p>
               </div>
             </div>
 
@@ -78,14 +78,14 @@ const ContactPage = () => {
         {/* RIGHT COLUMN: FORM */}
         <div className="contact-form-panel">
           <div className="cyber-form-card">
-            
+
             {submitted ? (
               <div className="form-success-cyber">
                 <div className="fs-icon">///</div>
                 <h3 className="glitch-text-small" data-text="ĐÃ GỬI DỮ LIỆU">ĐÃ GỬI DỮ LIỆU</h3>
                 <p>Tin nhắn đã được mã hóa và gửi đến máy chủ thành công. Chúng tôi sẽ sớm phản hồi cho bạn.</p>
-                <button 
-                  onClick={() => setSubmitted(false)} 
+                <button
+                  onClick={() => setSubmitted(false)}
                   className="cyber-btn-outline mt-20"
                 >
                   <span className="btn-text">GỬI YÊU CẦU MỚI</span>
@@ -94,7 +94,7 @@ const ContactPage = () => {
             ) : (
               <form onSubmit={handleSubmit} className="cyber-form-inner">
                 <div className="form-header">
-                  <h3>KHU VỰC NHẬP LIỆU</h3>
+                  <h3>KHU VỰC GỬI THÔNG TIN</h3>
                   <div className="status-dot-blink"></div>
                 </div>
 
@@ -122,8 +122,8 @@ const ContactPage = () => {
                   <div className="input-glow"></div>
                 </div>
 
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className={`cyber-btn-primary ${loading ? 'scanning' : ''}`}
                   disabled={loading}
                 >

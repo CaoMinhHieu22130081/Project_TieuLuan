@@ -549,6 +549,12 @@ export default function ProductDetailPage() {
                             <Stars rating={r.rating} size="sm" />
                           </div>
                           <p className="review-text">{r.content}</p>
+                          {r.adminReply && (
+                            <div className="review-admin-reply" style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(var(--accent-rgb), 0.06)', borderRadius: 8, borderLeft: '3px solid var(--accent)' }}>
+                              <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--accent)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phản hồi từ cửa hàng</p>
+                              <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>{r.adminReply}</p>
+                            </div>
+                          )}
                         </div>
                       );
                     })

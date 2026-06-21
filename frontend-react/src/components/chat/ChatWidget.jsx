@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
-import { MessageSquare, Paperclip, MoreVertical, Trash2, Send, X, CheckCheck, Undo2, Smile } from 'lucide-react';
+import { 
+    CustomChatIcon, CustomAttachIcon, CustomMoreIcon, CustomTrashIcon, 
+    CustomSendIcon, CustomCloseIcon, CustomCheckIcon, CustomUndoIcon, 
+    CustomSmileIcon, CustomOrderIcon, CustomShippingIcon, CustomReturnIcon, CustomSupportIcon
+} from './ChatIcons';
 import EmojiPicker from 'emoji-picker-react';
 import './ChatWidget.css';
 
 const QUICK_REPLIES = [
-    { label: "📦 Kiểm tra đơn hàng", answer: "Để kiểm tra đơn hàng, bạn vui lòng cung cấp mã vận đơn hoặc số điện thoại định dang (ví dụ: 0912xxxxx) vào khung chat nhé!" },
-    { label: "💳 Phí vận chuyển", answer: "Tất cả đồ UniqTee đều có phí vận chuyển đồng giá 25k toàn quốc. Đặc biệt freeship cho đơn từ 500k ạ!" },
-    { label: "🔄 Đổi trả hàng", answer: "Bạn có thể đổi trả miễn phí trong vòng 7 ngày nếu do lỗi sản xuất. Yêu cầu sản phẩm còn nguyên tag và chưa qua sử dụng." },
-    { label: "🙋 Gặp nhân viên", answer: "Đang kết nối với nhân viên hỗ trợ... Bạn vui lòng chờ trong giây lát nhé!" }
+    { icon: CustomOrderIcon, label: "Kiểm tra đơn hàng", answer: "Để kiểm tra đơn hàng, bạn vui lòng cung cấp mã vận đơn hoặc số điện thoại định dang (ví dụ: 0912xxxxx) vào khung chat nhé!" },
+    { icon: CustomShippingIcon, label: "Phí vận chuyển", answer: "Tất cả đồ UniqTee đều có phí vận chuyển đồng giá 25k toàn quốc. Đặc biệt freeship cho đơn từ 500k ạ!" },
+    { icon: CustomReturnIcon, label: "Đổi trả hàng", answer: "Bạn có thể đổi trả miễn phí trong vòng 7 ngày nếu do lỗi sản xuất. Yêu cầu sản phẩm còn nguyên tag và chưa qua sử dụng." },
+    { icon: CustomSupportIcon, label: "Gặp nhân viên", answer: "Đang kết nối với nhân viên hỗ trợ... Bạn vui lòng chờ trong giây lát nhé!" }
 ];
 
 const ChatWidget = () => {
@@ -200,14 +204,18 @@ const ChatWidget = () => {
                             <div className="chat-bot-welcome">
                                 <div className="bot-welcome-avatar">UT</div>
                                 <div className="bot-welcome-bubble">
-                                    Chào {user?.name || 'bạn'}! 👋 Mình là trợ lý ảo của UniqTee. Shop có thể giúp gì cho bạn hôm nay?
+                                    Chào {user?.name || 'bạn'}! 🤖 Mình là trợ lý ảo của UniqTee. Shop có thể giúp gì cho bạn hôm nay?
                                 </div>
                                 <div className="quick-replies-container">
-                                    {QUICK_REPLIES.map((qr, index) => (
-                                        <button key={index} className="quick-reply-btn" onClick={() => handleQuickReply(qr)}>
-                                            {qr.label}
-                                        </button>
-                                    ))}
+                                    {QUICK_REPLIES.map((qr, index) => {
+                                        const Icon = qr.icon;
+                                        return (
+                                            <button key={index} className="quick-reply-btn" onClick={() => handleQuickReply(qr)}>
+                                                {Icon && <Icon size={14} />}
+                                                <span>{qr.label}</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -226,10 +234,10 @@ const ChatWidget = () => {
                                     )}
                                     <div className="message-bubble-wrapper">
                                         {isMe && index === messages.length - 1 && !msg.isDeleted && (
-                                            <div className="msg-status-icon" style={{alignSelf: 'flex-end', marginBottom: '8px'}}><CheckCheck size={12} /></div>
+                                            <div className="msg-status-icon" style={{alignSelf: 'flex-end', marginBottom: '8px'}}><CustomCheckIcon size={12} /></div>
                                         )}
                                         <div className={`message-bubble message-${msg.senderRole} ${msg.isDeleted ? 'msg-deleted' : ''} ${!msg.isDeleted && isOnlyEmojis(msg.content) ? 'msg-only-emoji' : ''}`}>
-                                            {msg.isDeleted ? <span className="deleted-text"><Undo2 size={12} style={{marginRight: 4}}/> Tin nhắn đã thu hồi</span> : msg.content}
+                                            {msg.isDeleted ? <span className="deleted-text"><CustomUndoIcon size={12} style={{marginRight: 4}}/> Tin nhắn đã thu hồi</span> : msg.content}
                                             <span className="message-time">
                                                 {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
@@ -241,12 +249,12 @@ const ChatWidget = () => {
                                                     className="msg-more-btn" 
                                                     onClick={(e) => { e.stopPropagation(); setActiveMsgOptions(showOptions ? null : mId); }}
                                                 >
-                                                    <MoreVertical size={14} />
+                                                    <CustomMoreIcon size={14} />
                                                 </button>
                                                 {showOptions && (
                                                     <div className="msg-options-menu">
                                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteMsg(mId); }}>
-                                                            <Trash2 size={12} /> Thu hồi
+                                                            <CustomTrashIcon size={12} /> Thu hồi
                                                         </button>
                                                     </div>
                                                 )}
@@ -272,12 +280,12 @@ const ChatWidget = () => {
 
                     <form className="chat-input-area" onSubmit={handleSend}>
                         <button type="button" className="attach-button" title="Đính kèm (Demo)">
-                            <Paperclip size={18} />
+                            <CustomAttachIcon size={18} />
                         </button>
                         
                         <div className="emoji-picker-container">
                             <button type="button" className={`emoji-button ${showEmojiPicker ? 'active' : ''}`} title="Biểu tượng cảm xúc" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
-                                <Smile size={18} />
+                                <CustomSmileIcon size={18} />
                             </button>
                             {showEmojiPicker && (
                                 <div className="emoji-popover-lib">
@@ -299,7 +307,7 @@ const ChatWidget = () => {
                             onChange={(e) => setInputText(e.target.value)}
                         />
                         <button type="submit" className="send-button" disabled={!isConnected || !inputText.trim()}>
-                            <Send size={18} />
+                            <CustomSendIcon size={18} />
                         </button>
                     </form>
                 </div>
@@ -329,9 +337,9 @@ const ChatWidget = () => {
                 title="Kéo để di chuyển"
             >
                 {isOpen ? (
-                    <X size={24} />
+                    <CustomCloseIcon size={26} />
                 ) : (
-                    <MessageSquare size={24} />
+                    <CustomChatIcon size={36} />
                 )}
                 {!isOpen && unreadCount > 0 && <div className="chat-badge">{unreadCount}</div>}
             </button>

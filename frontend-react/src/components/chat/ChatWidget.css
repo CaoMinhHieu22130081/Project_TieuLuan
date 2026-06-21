@@ -186,10 +186,8 @@
 }
 
 .quick-replies-container {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     width: 100%;
 }
@@ -197,13 +195,17 @@
 .quick-reply-btn {
     background: #fff;
     border: 1px solid #ffb3cc;
-    padding: 8px 14px;
-    border-radius: 16px;
+    padding: 10px 8px;
+    border-radius: 12px;
     color: #ff4d8d;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     white-space: nowrap;
 }
 

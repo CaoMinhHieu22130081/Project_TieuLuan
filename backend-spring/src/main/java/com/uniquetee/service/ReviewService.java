@@ -145,6 +145,9 @@ public class ReviewService {
             if (reviewDetails.getReviewerName() != null) {
                 existingReview.setReviewerName(reviewDetails.getReviewerName().trim());
             }
+            if (reviewDetails.getAdminReply() != null) {
+                existingReview.setAdminReply(reviewDetails.getAdminReply().trim());
+            }
 
             validateReviewTone(updatedRating, updatedContent);
             existingReview.setRating(updatedRating);
