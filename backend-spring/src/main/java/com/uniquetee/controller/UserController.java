@@ -535,7 +535,7 @@ public class UserController {
 
     private boolean canAccessUser(Integer targetUserId, HttpServletRequest request) {
         String currentRole = getCurrentUserRole(request);
-        if (isAdminOrStaff(currentRole)) {
+        if ("admin".equalsIgnoreCase(currentRole)) {
             return true;
         }
 

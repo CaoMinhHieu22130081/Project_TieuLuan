@@ -121,7 +121,7 @@ public class VoucherController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteVoucher(@PathVariable Integer id, HttpServletRequest request) {
-        ResponseEntity<?> authErr = requireRole(request, "admin", "staff");
+        ResponseEntity<?> authErr = requireRole(request, "admin");
         if (authErr != null) return authErr;
         promoCodeService.deletePromoCode(id);
         return ResponseEntity.ok().build();

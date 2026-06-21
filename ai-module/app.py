@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import math
 import os
 import re
 import threading
@@ -966,33 +967,35 @@ class VisualSearchEngine:
         if self.engine_name() == "histogram-fallback":
             normalized = max(0.0, min(1.0, score))
         else:
+            # Tham số Sigmoid Scaling:
+            # x_0: Midpoint (Điểm tại đó similarity = 50%)
+            # k: Steepness (Độ dốc của hàm, k càng cao càng khắt khe)
             if self._model_family == "gr_lite":
-                default_low = 0.35
-                default_high = 0.85
+                x_0 = float(os.getenv("AI_SCORE_SIGMOID_MIDPOINT", "0.55"))
+                k = float(os.getenv("AI_SCORE_SIGMOID_STEEPNESS", "12.0"))
             else:
-                default_low = 0.45
-                default_high = 0.90
+                x_0 = float(os.getenv("AI_SCORE_SIGMOID_MIDPOINT", "0.60"))
+                k = float(os.getenv("AI_SCORE_SIGMOID_STEEPNESS", "14.0"))
 
-            low = float(os.getenv("AI_SCORE_LOW", str(default_low)))
-            high = float(os.getenv("AI_SCORE_HIGH", str(default_high)))
-            if high <= low:
-                low = default_low
-                high = default_high
-            
-            # Normalize linearly first
-            linear_norm = (score - low) / (high - low)
-            linear_norm = max(0.0, min(1.0, linear_norm))
-            
-            # Apply an exponential root curve (0.45) 
-            # This is exactly how professional sites like Taobao/Pinterest bump visual scores
-            # making decent numerical matches (0.5 - 0.7) look like 70%-85% to the user
-            normalized = linear_norm ** 0.45
+            try:
+                # Hàm logistic map từ [-1.0, 1.0] sang [0.0, 1.0] xung quanh x_0
+                sigmoid_val = 1.0 / (1.0 + math.exp(-k * (score - x_0)))
+            except OverflowError:
+                sigmoid_val = 1.0 if score > x_0 else 0.0
+
+            # Phóng to nội suy để dìm những ảnh không giống và đẩy những ảnh dường như khớp hoàn toàn
+            normalized = (sigmoid_val - 0.05) / 0.90
+            normalized = max(0.0, min(1.0, normalized))
 
         percentage = int(round(normalized * 100))
+        
         if self.engine_name() != "histogram-fallback":
-            exact_match_score = float(os.getenv("AI_EXACT_MATCH_SCORE", "0.97"))
-            if percentage >= 100 and score < exact_match_score:
-                return 99
+            # Override với điểm matching tuyệt đối
+            exact_match_score = float(os.getenv("AI_EXACT_MATCH_SCORE", "0.93"))
+            if score >= exact_match_score:
+                percentage = 99
+            elif percentage >= 100 and score < exact_match_score:
+                percentage = 99
         return percentage
 
     def search(self, query_image: Image.Image, catalog: List[Dict[str, Any]], limit: int) -> Dict[str, Any]:
