@@ -816,8 +816,8 @@ export default function CheckoutPage() {
                         padding: "12px 14px",
                         marginBottom: 16,
                         borderRadius: 12,
-                        background: "rgba(255, 107, 107, 0.12)",
-                        border: "1px solid rgba(255, 107, 107, 0.25)",
+                        background: "rgba(220, 38, 38, 0.12)",
+                        border: "1px solid rgba(220, 38, 38, 0.25)",
                         color: "#ffb3b3",
                         fontSize: "0.9rem",
                         lineHeight: 1.5,
@@ -1055,8 +1055,8 @@ export default function CheckoutPage() {
                         marginTop: 14,
                         padding: "12px 14px",
                         borderRadius: 12,
-                        background: "rgba(255, 107, 107, 0.1)",
-                        border: "1px solid rgba(255, 107, 107, 0.2)",
+                        background: "rgba(220, 38, 38, 0.1)",
+                        border: "1px solid rgba(220, 38, 38, 0.2)",
                         color: "#ff9a9a",
                         fontSize: "0.9rem",
                       }}
@@ -1134,7 +1134,7 @@ export default function CheckoutPage() {
                 </div>
               )}
               {(appliedProductCode || appliedShippingCode) && productDiscount === 0 && shippingDiscount === 0 && (
-                <div className="summary-line" style={{ color: "#f87171", fontSize: "0.82rem" }}>
+                <div className="summary-line" style={{ color: "#dc2626", fontSize: "0.82rem" }}>
                   <span className="label">Mã chưa đủ điều kiện hoặc không hợp lệ</span>
                 </div>
               )}
@@ -1248,10 +1248,10 @@ export default function CheckoutPage() {
       {showAddressPicker && (
         <div className="modal-overlay" style={{
           position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
-          background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center"
+          background: "rgba(15, 23, 42, 0.38)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center"
         }}>
           <div className="modal-content" style={{
-            background: "var(--bg-1)", width: "100%", maxWidth: "500px", borderRadius: "8px",
+            background: "var(--surface)", width: "100%", maxWidth: "500px", borderRadius: "8px",
             padding: "24px", maxHeight: "90vh", overflowY: "auto", position: "relative"
           }}>
             <h3 style={{ marginTop: 0, marginBottom: "20px" }}>Chọn địa chỉ giao hàng</h3>
@@ -1293,7 +1293,7 @@ export default function CheckoutPage() {
                     <span style={{ color: "var(--text-secondary)" }}>|</span>
                     <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>{address.receiverPhone}</span>
                     {address.isDefault && (
-                      <span style={{ fontSize: "0.7rem", background: "var(--accent)", color: "white", padding: "2px 8px", borderRadius: "4px" }}>
+                      <span style={{ fontSize: "0.7rem", background: "var(--accent)", color: "#fff", padding: "2px 8px", borderRadius: "4px" }}>
                         Mặc định
                       </span>
                     )}

@@ -185,9 +185,9 @@ export default function AdminReviews() {
       <div className="users-stats-row">
         {[
           { label: "Tổng đánh giá", value: totalReviews, color: "var(--accent)" },
-          { label: "Điểm trung bình", value: averageRating, color: "#fbbf24" },
-          { label: "5 sao", value: fiveStarReviews, color: "#34d399" },
-          { label: "1-2 sao", value: lowStarReviews, color: "#f87171" },
+          { label: "Điểm trung bình", value: averageRating, color: "#b45309" },
+          { label: "5 sao", value: fiveStarReviews, color: "#047857" },
+          { label: "1-2 sao", value: lowStarReviews, color: "#dc2626" },
         ].map((stat, index) => (
           <div key={index} className="users-stat-card" style={{ "--uc": stat.color }}>
             <p className="uc-value" style={{ color: stat.color }}>

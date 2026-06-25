@@ -174,7 +174,7 @@ function PasswordStrengthChecker({ password }) {
   ];
   const score = checks.filter((c) => c.ok).length;
   const levels = ["", "Yếu", "Trung bình", "Khá", "Mạnh"];
-  const colors = ["", "#f87171", "#fbbf24", "#60a5fa", "#c8ff57"];
+  const colors = ["", "#dc2626", "#b45309", "#2563eb", "#c8ff57"];
 
   if (!password) return null;
 
@@ -970,8 +970,8 @@ export default function ProfilePage() {
                 fontSize: "0.75rem",
                 fontWeight: 600,
                 whiteSpace: "nowrap",
-                background: avatarMessage.startsWith('error') ? "rgba(255, 107, 107, 0.9)" : "rgba(62, 207, 142, 0.9)",
-                color: "white",
+                background: avatarMessage.startsWith('error') ? "rgba(220, 38, 38, 0.9)" : "rgba(4, 120, 87, 0.9)",
+                color: "#fff",
                 zIndex: 2000,
                 animation: "slideDown 0.3s ease"
               }}>
@@ -1243,7 +1243,7 @@ export default function ProfilePage() {
       <span>{Number(order.shippingFee || 0) === 0 ? 'Miễn phí' : formatPrice(order.shippingFee)}</span>
     </div>
     {order.subtotal + order.shippingFee > order.total && (
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#10b981', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#047857', marginBottom: 12 }}>
         <span>Giảm giá</span>
         <span>-{formatPrice((order.subtotal + order.shippingFee) - order.total)}</span>
       </div>
@@ -1302,8 +1302,8 @@ export default function ProfilePage() {
                                   borderRadius: 24,
                                   border: "1px solid rgba(var(--accent-rgb), 0.18)",
                                   background:
-                                    "linear-gradient(180deg, rgba(var(--accent-rgb), 0.09) 0%, rgba(17,17,20,0.98) 28%, rgba(17,17,20,0.98) 100%)",
-                                  boxShadow: "0 20px 48px rgba(0, 0, 0, 0.22)",
+                                    "linear-gradient(180deg, rgba(var(--accent-rgb), 0.09) 0%, rgba(248,250,252,0.98) 28%, rgba(248,250,252,0.98) 100%)",
+                                  boxShadow: "0 20px 48px rgba(15, 23, 42, 0.12)",
                                 }}
                               >
                                 <div
@@ -1354,8 +1354,8 @@ export default function ProfilePage() {
                                       marginBottom: 14,
                                       padding: "11px 14px",
                                       borderRadius: 14,
-                                      border: "1px solid rgba(255, 107, 107, 0.24)",
-                                      background: "rgba(255, 107, 107, 0.08)",
+                                      border: "1px solid rgba(220, 38, 38, 0.24)",
+                                      background: "rgba(220, 38, 38, 0.08)",
                                       color: "#ff9a9a",
                                       fontSize: "0.88rem",
                                     }}
@@ -1626,7 +1626,7 @@ export default function ProfilePage() {
                             position: "absolute",
                             bottom: 12,
                             right: 12,
-                            background: "rgba(0, 0, 0, 0.7)",
+                            background: "rgba(15, 23, 42, 0.52)",
                             color: "#fff",
                             border: "none",
                             borderRadius: "50%",
@@ -1645,7 +1645,7 @@ export default function ProfilePage() {
                             e.currentTarget.style.transform = "scale(1.1)";
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "rgba(0, 0, 0, 0.7)";
+                            e.currentTarget.style.background = "rgba(15, 23, 42, 0.52)";
                             e.currentTarget.style.transform = "scale(1)";
                           }}
                           title="Xóa khỏi yêu thích"

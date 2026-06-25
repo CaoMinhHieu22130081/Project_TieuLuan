@@ -145,10 +145,10 @@ export default function Loginpage() {
                 <div className="server-error-msg" style={{
                   padding: '12px 16px',
                   marginBottom: '16px',
-                  backgroundColor: 'rgba(248, 113, 113, 0.12)',
-                  border: '1px solid #f87171',
+                  backgroundColor: 'rgba(220, 38, 38, 0.12)',
+                  border: '1px solid #dc2626',
                   borderRadius: 'var(--radius)',
-                  color: '#f87171',
+                  color: '#dc2626',
                   fontSize: '14px',
                   lineHeight: 1.5
                 }}>

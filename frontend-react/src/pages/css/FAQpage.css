@@ -3,14 +3,14 @@
    ══════════════════════════════════════════════════════════════ */
 
 .faq-cyber-wrapper {
-  background: #09090b; /* Deep dark background */
+  background: #d7c8d5; /* Soft slate background */
   color: var(--text-primary);
   min-height: 100vh;
   padding: 80px 20px;
   font-family: var(--font-body);
   background-image: 
     radial-gradient(circle at 15% 50%, rgba(var(--accent-rgb), 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 85% 30%, rgba(52, 211, 153, 0.03) 0%, transparent 50%);
+    radial-gradient(circle at 85% 30%, rgba(4, 120, 87, 0.03) 0%, transparent 50%);
 }
 
 .faq-grid-container {

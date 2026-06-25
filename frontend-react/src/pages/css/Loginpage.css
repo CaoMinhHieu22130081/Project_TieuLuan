@@ -6,28 +6,28 @@
 
 /* ── Variables ─────────────────────────────────────────────────────────────── */
 :root {
-  --bg:            #0a0a0c;
-  --bg-2:          #111114;
-  --bg-3:          #18181c;
-  --surface:       #1e1e23;
-  --surface-2:     #26262d;
-  --border:        rgba(255,255,255,0.08);
-  --border-2:      rgba(255,255,255,0.15);
-  --border-focus:  rgba(200,255,87,0.6);
+  --bg:            #eee6ed;
+  --bg-2:          #e2d7e2;
+  --bg-3:          #d7c8d5;
+  --surface:       #f7f1f6;
+  --surface-2:     #eee4ed;
+  --border:        #d4c5d1;
+  --border-2:      #bdaabd;
+  --border-focus: rgba(190, 24, 93, 0.42);
 
   /* more vivid neon accent for an "dị" aesthetic */
-  --accent:        #ff2d95;
-  --accent-rgb:    255,45,149;
-  --accent-dim:    rgba(255,45,149,0.08);
-  --accent-glow:   0 0 36px rgba(255,45,149,0.32);
+  --accent:      #be185d;
+  --accent-rgb:  190, 24, 93;
+  --accent-dim:  #fce7f3;
+  --accent-glow: 0 18px 42px rgba(190, 24, 93, 0.18);
 
-  --error:         #f87171;
-  --error-dim:     rgba(248,113,113,0.12);
-  --ok:            #4ade80;
+  --error:        #dc2626;
+  --error-dim:    rgba(220, 38, 38, 0.1);
+  --ok:           #047857;
 
-  --text-primary:   #f0f0f2;
-  --text-secondary: #8b8b96;
-  --text-muted:     #55555e;
+  --text-primary:   #172033;
+  --text-secondary: #475569;
+  --text-muted:     #64748b;
 
   --font-display: 'Be Vietnam Pro', sans-serif;
   --font-mono:    'Be Vietnam Pro', sans-serif;

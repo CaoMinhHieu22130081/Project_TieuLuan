@@ -7,8 +7,8 @@
     border-bottom: 1px solid transparent;
   }
   .navbar.scrolled {
-    background: rgba(10, 10, 12, 0.88);
-    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(238, 241, 246, 0.92);
+    border-color: rgba(154, 38, 88, 0.16);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
@@ -59,7 +59,7 @@
   }
   .nav-link:hover, .nav-link.active {
     color: var(--text-primary);
-    background: rgba(255,255,255,0.05);
+    background: rgba(var(--accent-rgb), 0.06);
   }
   .nav-link.ai-link {
     display: flex; align-items: center; gap: 7px;
@@ -90,7 +90,7 @@
   }
   .nav-btn-login {
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid rgba(190,24,93,0.16);
     color: var(--text-secondary);
   }
   .nav-btn-login:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
@@ -109,7 +109,7 @@
     position: relative;
     background: none; border: none; cursor: pointer;
   }
-  .nav-icon-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.07); }
+  .nav-icon-btn:hover { color: var(--accent); background: rgba(var(--accent-rgb), 0.1); }
   .cart-badge {
     position: absolute; top: 4px; right: 4px;
     min-width: 16px; height: 16px;
@@ -125,26 +125,26 @@
     border-radius: 10px; transition: background 0.28s;
     background: none; border: none; cursor: pointer;
   }
-  .hamburger:hover { background: rgba(255,255,255,0.07); }
+  .hamburger:hover { background: rgba(var(--accent-rgb), 0.1); }
   .hamburger span {
     display: block; width: 18px; height: 2px;
     background: var(--text-secondary); border-radius: 2px;
   }
   .header-search-overlay {
     position: fixed; inset: 0; z-index: 900;
-    background: rgba(0,0,0,0.55);
+    background: rgba(36,22,35,0.28);
     backdrop-filter: blur(6px);
     animation: fadeOverlay 0.2s ease;
   }
   @keyframes fadeOverlay { from {opacity:0} to {opacity:1} }
   .header-search-panel {
     position: fixed; top: 0; left: 0; right: 0; z-index: 901;
-    background: rgba(18,18,22,0.97);
-    border-bottom: 1px solid rgba(255,255,255,0.14);
+    background: rgba(238,241,246,0.97);
+    border-bottom: 1px solid rgba(15,23,42,0.14);
     backdrop-filter: blur(24px);
     padding: 18px 24px 22px;
     animation: slidePanel 0.22s cubic-bezier(0.4,0,0.2,1);
-    box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+    box-shadow: 0 24px 72px rgba(15,23,42,0.14);
   }
   @keyframes slidePanel {
     from { opacity:0; transform:translateY(-16px); }
@@ -167,29 +167,29 @@
     width: 32px; height: 32px;
     display: flex; align-items: center; justify-content: center;
     border-radius: 50%;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(var(--accent-rgb), 0.08);
+    border: 1px solid rgba(190,24,93,0.14);
     color: var(--text-secondary); cursor: pointer;
     transition: background 0.2s, color 0.2s, border-color 0.2s;
   }
   .header-search-close:hover {
-    background: rgba(255,95,163,0.1);
+    background: rgba(var(--accent-rgb), 0.12);
     color: var(--accent);
-    border-color: rgba(255,95,163,0.3);
+    border-color: rgba(var(--accent-rgb), 0.28);
   }
   .header-search-hint { display: flex; gap: 8px; flex-wrap: wrap; }
   .search-hint-tag {
     font-size: 0.75rem; padding: 4px 10px;
     border-radius: 20px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(var(--accent-rgb), 0.06);
+    border: 1px solid rgba(15,23,42,0.14);
     color: var(--text-muted); cursor: pointer;
     transition: background 0.18s, color 0.18s, border-color 0.18s;
-    font-family: var(--font-body); background: none;
+    font-family: var(--font-body);
   }
   .search-hint-tag:hover {
-    background: rgba(255,95,163,0.08);
-    border-color: rgba(255,95,163,0.25);
+    background: rgba(var(--accent-rgb), 0.1);
+    border-color: rgba(var(--accent-rgb), 0.25);
     color: var(--accent);
   }
   @media (max-width: 768px) {
@@ -198,7 +198,7 @@
       top: 68px; left: 0; right: 0;
       flex-direction: column; padding: 24px;
       background: var(--bg-2);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      border-bottom: 1px solid rgba(15,23,42,0.14);
       gap: 4px; align-items: stretch;
     }
     .nav-links.open { display: flex; }

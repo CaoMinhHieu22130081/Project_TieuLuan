@@ -61,10 +61,10 @@ function ToastContainer() {
             borderRadius: 8,
             background:
               toast.type === 'success'
-                ? '#10b981'
+                ? '#047857'
                 : toast.type === 'error'
-                ? '#ef4444'
-                : '#3b82f6',
+                ? '#dc2626'
+                : '#2563eb',
             color: '#fff',
             fontWeight: 600,
             fontSize: '0.95rem',

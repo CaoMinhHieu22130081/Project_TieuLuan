@@ -301,19 +301,20 @@
 }
 
 .voucher-switch.active {
-  border-color: rgba(52, 211, 153, .35);
-  background: rgba(52, 211, 153, .14);
+  border-color: rgba(4, 120, 87, .35);
+  background: rgba(4, 120, 87, .14);
 }
 
 .voucher-switch.active span {
   transform: translateX(18px);
-  background: #34d399;
+  background: #047857;
 }
 
 .voucher-modal-footer {
   flex-shrink: 0;
   padding: 14px 24px;
-  background: rgba(13, 13, 16, .92);
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
 }
 
 .voucher-btn-primary,
@@ -352,13 +353,13 @@
 }
 
 .voucher-btn-danger {
-  border: 1px solid rgba(248, 113, 113, .3);
-  background: rgba(248, 113, 113, .12);
+  border: 1px solid rgba(220, 38, 38, .3);
+  background: rgba(220, 38, 38, .12);
   color: #fca5a5;
 }
 
 .voucher-btn-danger:hover:not(:disabled) {
-  background: rgba(248, 113, 113, .2);
+  background: rgba(220, 38, 38, .2);
 }
 
 .voucher-btn-primary:disabled,
@@ -378,10 +379,10 @@
   margin: 0 auto 14px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(248, 113, 113, .25);
+  border: 1px solid rgba(220, 38, 38, .25);
   border-radius: 14px;
-  background: rgba(248, 113, 113, .09);
-  color: #f87171;
+  background: rgba(220, 38, 38, .09);
+  color: #dc2626;
 }
 
 .voucher-delete-modal h2 {

@@ -3,7 +3,7 @@
    ══════════════════════════════════════════════════════════════ */
 
 .about-dystopia-wrapper {
-  background: #09090b; /* Deep dark background */
+  background: #d7c8d5; /* Soft slate background */
   color: var(--text-primary);
   min-height: 100vh;
   padding-bottom: 80px;
@@ -261,7 +261,7 @@
 .cyber-btn {
   margin-top: 24px;
   position: relative;
-  background: transparent;
+  background: var(--accent);
   color: #fff;
   font-family: var(--font-mono);
   font-size: 0.85rem;
@@ -269,28 +269,30 @@
   letter-spacing: 0.1em;
   padding: 14px 28px;
   border: 1px solid var(--accent);
+  border-radius: 8px;
   cursor: pointer;
   overflow: hidden;
   transition: all 0.2s;
   text-transform: uppercase;
+  box-shadow: 0 12px 28px rgba(var(--accent-rgb), 0.18);
 }
 .cyber-btn::before {
   content: '';
   position: absolute;
   top: 0; left: 0; width: 10px; height: 10px;
-  border-top: 2px solid #fff; border-left: 2px solid #fff;
+  border-top: 2px solid rgba(255,255,255,0.85); border-left: 2px solid rgba(255,255,255,0.85);
   opacity: 0; transition: 0.2s;
 }
 .cyber-btn::after {
   content: '';
   position: absolute;
   bottom: 0; right: 0; width: 10px; height: 10px;
-  border-bottom: 2px solid #fff; border-right: 2px solid #fff;
+  border-bottom: 2px solid rgba(255,255,255,0.85); border-right: 2px solid rgba(255,255,255,0.85);
   opacity: 0; transition: 0.2s;
 }
 .cyber-btn:hover {
-  background: rgba(var(--accent-rgb), 0.1);
-  box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.3) inset;
+  background: var(--accent-2);
+  box-shadow: 0 16px 34px rgba(var(--accent-rgb), 0.24);
 }
 .cyber-btn:hover::before, .cyber-btn:hover::after {
   opacity: 1;
@@ -308,8 +310,8 @@
 
 .neon-stat-card {
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--border-2);
+  background: linear-gradient(180deg, #fbf7fb 0%, #f2e8f1 100%);
+  border: 1px solid #d4c5d1;
   border-radius: 20px;
   padding: 40px 20px;
   text-align: center;
@@ -318,11 +320,13 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: transform 0.3s;
+  box-shadow: 0 14px 34px rgba(112, 38, 74, 0.12);
+  transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
 }
 .neon-stat-card:hover {
   transform: translateY(-8px);
   border-color: var(--accent);
+  box-shadow: 0 20px 44px rgba(var(--accent-rgb), 0.16);
 }
 
 .nsc-ring {
@@ -331,7 +335,8 @@
   transform: translate(-50%, -50%);
   width: 120px; height: 120px;
   border-radius: 50%;
-  border: 1px dashed rgba(var(--accent-rgb), 0.2);
+  border: 1px dashed rgba(var(--accent-rgb), 0.18);
+  background: rgba(var(--accent-rgb), 0.035);
   animation: rotate-slow 10s linear infinite;
   pointer-events: none;
 }
@@ -350,10 +355,10 @@
   font-family: var(--font-display);
   font-size: 3rem;
   font-weight: 900;
-  color: #fff;
+  color: var(--accent);
   position: relative;
   z-index: 2;
-  text-shadow: 0 0 20px rgba(255,255,255,0.2);
+  text-shadow: none;
 }
 
 .nsc-label {
@@ -374,13 +379,13 @@
 }
 
 .vision-glass-panel {
-  background: rgba(15, 15, 23, 0.6);
+  background: linear-gradient(180deg, #fbf7fb 0%, #f2e8f1 100%);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid #d4c5d1;
   border-radius: 12px;
   padding: 50px 60px;
   position: relative;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+  box-shadow: 0 24px 56px rgba(112, 38, 74, 0.16);
 }
 .vision-glass-panel::before {
   content: '';
@@ -395,8 +400,8 @@
   justify-content: space-between;
   font-family: var(--font-mono);
   font-size: 0.65rem;
-  color: var(--text-muted);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: var(--text-secondary);
+  border-bottom: 1px solid #d4c5d1;
   padding-bottom: 15px;
   margin-bottom: 30px;
   text-transform: uppercase;
@@ -406,7 +411,7 @@
   font-family: var(--font-display);
   font-size: 2.2rem;
   margin-bottom: 24px;
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .vision-glass-panel p {
@@ -419,7 +424,7 @@
   margin-top: 30px;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: #34d399; /* Console green */
+  color: #047857; /* Console green */
   animation: blink 1.5s infinite step-end;
 }
 

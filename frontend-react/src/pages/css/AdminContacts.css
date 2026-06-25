@@ -371,9 +371,9 @@
   background: rgba(129,140,248,.1);
 }
 .contacts-action-btn.delete:hover {
-  border-color: #f87171;
-  color: #f87171;
-  background: rgba(248,113,113,.1);
+  border-color: #dc2626;
+  color: #dc2626;
+  background: rgba(220, 38, 38, .1);
 }
 
 /* ── Detail Panel ────────────────────────────────────────────── */
@@ -452,9 +452,9 @@
   transition: all .18s;
 }
 .contacts-detail-close:hover {
-  background: rgba(248,113,113,.1);
-  border-color: rgba(248,113,113,.3);
-  color: #f87171;
+  background: rgba(220, 38, 38, .1);
+  border-color: rgba(220, 38, 38, .3);
+  color: #dc2626;
 }
 
 .contacts-detail-status-row {
@@ -477,9 +477,9 @@
   margin-right: 4px;
 }
 .contacts-status-badge.read {
-  background: rgba(52,211,153,.1);
-  border: 1px solid rgba(52,211,153,.25);
-  color: #34d399;
+  background: rgba(4, 120, 87, .1);
+  border: 1px solid rgba(4, 120, 87, .25);
+  color: #047857;
 }
 .contacts-status-badge.unread {
   background: var(--accent-dim);
@@ -506,12 +506,12 @@
   background: rgba(129,140,248,.18);
 }
 .contacts-detail-action-btn.delete {
-  border-color: rgba(248,113,113,.3);
-  background: rgba(248,113,113,.08);
-  color: #f87171;
+  border-color: rgba(220, 38, 38, .3);
+  background: rgba(220, 38, 38, .08);
+  color: #dc2626;
 }
 .contacts-detail-action-btn.delete:hover {
-  background: rgba(248,113,113,.18);
+  background: rgba(220, 38, 38, .18);
 }
 
 .contacts-detail-divider {

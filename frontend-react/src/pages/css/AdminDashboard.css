@@ -27,7 +27,7 @@
 .adb-error {
   padding: 40px;
   text-align: center;
-  color: #f87171;
+  color: #dc2626;
 }
 
 /* ── Welcome Banner ──────────────────────────────────────────── */
@@ -36,7 +36,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 28px;
-  background: linear-gradient(135deg, rgba(255,95,163,.08) 0%, rgba(96,165,250,.06) 50%, rgba(167,139,250,.06) 100%);
+  background: linear-gradient(135deg, rgba(255,95,163,.08) 0%, rgba(37, 99, 235, .06) 50%, rgba(109, 40, 217, .06) 100%);
   border: 1px solid rgba(255,95,163,.15);
   border-radius: var(--radius-lg);
   position: relative;
@@ -70,9 +70,9 @@
   gap: 7px;
   padding: 6px 14px;
   border-radius: 20px;
-  background: rgba(52,211,153,.1);
-  border: 1px solid rgba(52,211,153,.2);
-  color: #34d399;
+  background: rgba(4, 120, 87, .1);
+  border: 1px solid rgba(4, 120, 87, .2);
+  color: #047857;
   font-size: .78rem;
   font-weight: 700;
   font-family: var(--font-mono);
@@ -84,7 +84,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #34d399;
+  background: #047857;
   animation: adb-pulse 1.6s ease-in-out infinite;
 }
 
@@ -453,7 +453,7 @@
 
 .adb-top-bar-wrap {
   height: 5px;
-  background: var(--surface-2, #26262d);
+  background: var(--surface-2, #f1f5f9);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -596,7 +596,7 @@
 .adb-cat-bar-wrap {
   flex: 1;
   height: 6px;
-  background: var(--surface-2, #26262d);
+  background: var(--surface-2, #f1f5f9);
   border-radius: 3px;
   overflow: hidden;
 }

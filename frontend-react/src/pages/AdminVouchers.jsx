@@ -257,8 +257,8 @@ export default function AdminVouchers() {
               marginTop: 14,
               padding: "12px 14px",
               borderRadius: 12,
-              border: `1px solid ${notice.type === "error" ? "rgba(248,113,113,.25)" : "rgba(52,211,153,.25)"}`,
-              background: notice.type === "error" ? "rgba(248,113,113,.08)" : "rgba(52,211,153,.08)",
+              border: `1px solid ${notice.type === "error" ? "rgba(220, 38, 38, .25)" : "rgba(4, 120, 87, .25)"}`,
+              background: notice.type === "error" ? "rgba(220, 38, 38, .08)" : "rgba(4, 120, 87, .08)",
               color: notice.type === "error" ? "#fecaca" : "#bbf7d0",
               fontSize: "0.85rem",
             }}

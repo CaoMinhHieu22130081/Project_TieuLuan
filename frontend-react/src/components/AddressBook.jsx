@@ -223,7 +223,7 @@ export default function AddressBook({ userId }) {
                   <span style={{ color: "var(--text-secondary)" }}>|</span>
                   <span style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>{address.receiverPhone}</span>
                   {address.isDefault && (
-                    <span style={{ fontSize: "0.75rem", background: "var(--accent)", color: "white", padding: "2px 8px", borderRadius: "4px" }}>
+                    <span style={{ fontSize: "0.75rem", background: "var(--accent)", color: "#fff", padding: "2px 8px", borderRadius: "4px" }}>
                       Mặc định
                     </span>
                   )}
@@ -257,10 +257,10 @@ export default function AddressBook({ userId }) {
       {showModal && (
         <div className="modal-overlay" style={{
           position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
-          background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center"
+          background: "rgba(15, 23, 42, 0.38)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center"
         }}>
           <div className="modal-content" style={{
-            background: "var(--bg-1)", width: "100%", maxWidth: "500px", borderRadius: "8px",
+            background: "var(--surface)", width: "100%", maxWidth: "500px", borderRadius: "8px",
             padding: "24px", maxHeight: "90vh", overflowY: "auto", position: "relative"
           }}>
             <h3 style={{ marginTop: 0 }}>{editingAddress ? "Cập nhật địa chỉ" : "Thêm địa chỉ mới"}</h3>

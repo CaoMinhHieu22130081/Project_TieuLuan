@@ -100,8 +100,8 @@
   font-family: var(--font-mono);
 }
 .tag-chip.hot { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(var(--accent-rgb),0.25); }
-.tag-chip.sale { background: rgba(255,107,107,0.12); color: #ff6b6b; border: 1px solid rgba(255,107,107,0.25); }
-.tag-chip.new { background: rgba(62,207,142,0.12); color: #3ecf8e; border: 1px solid rgba(62,207,142,0.25); }
+.tag-chip.sale { background: rgba(220, 38, 38, 0.12); color: #dc2626; border: 1px solid rgba(220, 38, 38, 0.25); }
+.tag-chip.new { background: rgba(4, 120, 87, 0.12); color: #047857; border: 1px solid rgba(4, 120, 87, 0.25); }
 
 .detail-name {
   font-family: var(--font-display);
@@ -123,7 +123,7 @@
   gap: 2px;
 }
 .star-lg { font-size: 1rem; color: var(--text-muted); }
-.star-lg.filled { color: #fbbf24; }
+.star-lg.filled { color: #b45309; }
 
 .detail-rating-text {
   font-size: 0.875rem;
@@ -151,8 +151,8 @@
 }
 .detail-discount-badge {
   padding: 3px 10px;
-  background: rgba(255,107,107,0.15);
-  color: #ff6b6b;
+  background: rgba(220, 38, 38, 0.15);
+  color: #dc2626;
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 700;
@@ -161,13 +161,13 @@
 
 .detail-stock {
   font-size: 0.82rem;
-  color: #3ecf8e;
+  color: #047857;
   margin-bottom: 28px;
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.stock-dot { width: 7px; height: 7px; border-radius: 50%; background: #3ecf8e; }
+.stock-dot { width: 7px; height: 7px; border-radius: 50%; background: #047857; }
 
 .detail-divider {
   height: 1px;
@@ -315,7 +315,7 @@
   transform: translateY(-2px);
   background: var(--accent-2);
 }
-.btn-add-cart.added { background: #3ecf8e; }
+.btn-add-cart.added { background: #047857; }
 
 .btn-wishlist-lg {
   width: 50px;
@@ -484,9 +484,9 @@
   top: 50%; transform: translateY(-50%);
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: rgba(10,10,12,0.7);
-  border: 1px solid rgba(255,255,255,0.15);
-  color: var(--text-primary);
+  background: rgba(15, 23, 42, 0.62);
+  border: 1px solid rgba(255,255,255,0.24);
+  color: #fff;
   font-size: 1.4rem;
   line-height: 1;
   display: flex; align-items: center; justify-content: center;
@@ -503,9 +503,9 @@
 .star-row-sm  { display:flex; align-items:center; gap:2px; }
 .star-row-lg  { display:flex; align-items:center; gap:2px; }
 .star-sm      { font-size: 0.85rem; color: var(--text-muted); }
-.star-sm.filled { color: #fbbf24; }
+.star-sm.filled { color: #b45309; }
 .star-lg      { font-size: 1rem;   color: var(--text-muted); }
-.star-lg.filled { color: #fbbf24; }
+.star-lg.filled { color: #b45309; }
 
 /* Selector chosen text */
 .selector-chosen {

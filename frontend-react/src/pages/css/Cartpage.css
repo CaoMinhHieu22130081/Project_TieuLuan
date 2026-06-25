@@ -106,7 +106,7 @@
   cursor: pointer;
   transition: color 0.2s;
 }
-.cart-clear-btn:hover { color: #ff6b6b; }
+.cart-clear-btn:hover { color: #dc2626; }
 
 /* Cart Item */
 .cart-item {
@@ -247,7 +247,7 @@
   display: flex;
   align-items: center;
 }
-.cart-item-remove:hover { color: #ff6b6b; }
+.cart-item-remove:hover { color: #dc2626; }
 
 /* ── Promo Code ── */
 .promo-row {
@@ -262,7 +262,7 @@
   border-radius: 16px;
 }
 
-.promo-row.applied { border-color: rgba(52, 211, 153, .25); background: rgba(52, 211, 153, .045); }
+.promo-row.applied { border-color: rgba(4, 120, 87, .25); background: rgba(4, 120, 87, .045); }
 .promo-copy { min-width: 0; display: flex; align-items: center; gap: 11px; }
 .promo-ticket-mark { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border: 1px solid rgba(var(--accent-rgb), .2); border-radius: 11px; background: rgba(var(--accent-rgb), .08); color: var(--accent); }
 .promo-copy > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -354,8 +354,8 @@
 
 .summary-line-label { color: var(--text-secondary); }
 .summary-line-value { font-weight: 500; }
-.summary-line.discount .summary-line-value { color: #3ecf8e; }
-.summary-line.shipping .summary-line-value { color: #3ecf8e; }
+.summary-line.discount .summary-line-value { color: #047857; }
+.summary-line.shipping .summary-line-value { color: #047857; }
 
 .summary-divider {
   height: 1px;

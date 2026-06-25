@@ -3,8 +3,8 @@
     height: calc(100vh - 120px);
     gap: 0; /* Zalo has no gap between sidebar and main window */
     font-family: var(--font-body, 'Be Vietnam Pro', sans-serif);
-    background: #fff;
-    border: 1px solid #e5e5e5;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.05);
     overflow: hidden;
@@ -15,27 +15,27 @@
     display: flex;
     flex-direction: column;
     padding: 0;
-    background: #fff;
-    border-right: 1px solid #e5e5e5;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
 }
 
 .sidebar-header {
     padding: 20px 16px;
-    border-bottom: 1px solid #f0f0f0;
-    background: #fff;
+    border-bottom: 1px solid var(--surface-2);
+    background: var(--surface);
 }
 
 .sidebar-header h3 {
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: #111;
+    color: var(--text-primary);
 }
 
 .sidebar-subtitle {
     margin: 4px 0 0;
     font-size: 13px;
-    color: #888;
+    color: var(--text-muted);
 }
 
 .conversations-list {
@@ -56,19 +56,19 @@
 }
 
 .conversation-item:hover {
-    background: #f5f5f5;
+    background: var(--surface-2);
 }
 
 .conversation-item.active {
-    background: #fff0f5; /* Light pink background for active */
+    background: var(--accent-dim); /* Light pink background for active */
 }
 
 .user-avatar {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: #ff4d8d;
-    color: white;
+    background: var(--accent);
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -95,15 +95,15 @@
 .conv-name {
     font-size: 15px;
     font-weight: 600;
-    color: #111;
+    color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .unread-badge {
-    background: #ff2d55;
-    color: white;
+    background: var(--accent-2);
+    color: #fff;
     border-radius: 999px;
     padding: 2px 7px;
     font-size: 11px;
@@ -112,7 +112,7 @@
 
 .last-msg {
     font-size: 13px;
-    color: #777;
+    color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -124,14 +124,14 @@
     display: flex;
     flex-direction: column;
     padding: 0;
-    background: #f4ecf0; /* Zalo's signature light gray-color layout, adapted locally */
+    background: var(--bg-2); /* Zalo's signature light gray-color layout, adapted locally */
     position: relative;
 }
 
 .chat-window-header {
     padding: 14px 20px;
-    background: #ffffff;
-    border-bottom: 1px solid #e5e5e5;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -156,7 +156,7 @@
 .chat-window-user-name {
     font-weight: 600;
     font-size: 16px;
-    color: #111;
+    color: var(--text-primary);
     margin-bottom: 2px;
 }
 
@@ -166,7 +166,7 @@
 }
 
 .chat-connection-pill.online {
-    color: #555;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
 }
@@ -175,7 +175,7 @@
     display: inline-block;
     width: 8px;
     height: 8px;
-    background: #34c759;
+    background: #047857;
     border-radius: 50%;
     margin-right: 6px;
 }
@@ -189,8 +189,8 @@
     display: flex;
     align-items: center;
     background: transparent;
-    border: 1px solid #ddd;
-    color: #555;
+    border: 1px solid var(--border-2);
+    color: var(--text-secondary);
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 13px;
@@ -200,8 +200,8 @@
 }
 
 .chat-resolve-btn:hover {
-    background: #f5f5f5;
-    color: #111;
+    background: var(--surface-2);
+    color: var(--text-primary);
 }
 
 .chat-messages-area {
@@ -248,15 +248,15 @@
 }
 
 .msg-customer {
-    background: #ffffff;
-    color: #111;
+    background: var(--surface);
+    color: var(--text-primary);
     border-radius: 12px 12px 12px 4px;
     border: 1px solid rgba(0,0,0,0.03);
 }
 
 .msg-admin, .msg-staff {
-    background: #ff4d8d;
-    color: #ffffff;
+    background: var(--accent);
+    color: #fff;
     border-radius: 12px 12px 4px 12px;
 }
 
@@ -268,7 +268,7 @@
 }
 
 .msg-customer .msg-time {
-    color: #666;
+    color: var(--text-secondary);
 }
 
 .msg-admin .msg-time, .msg-staff .msg-time {
@@ -282,7 +282,7 @@
 .admin-msg-more-btn {
     background: none;
     border: none;
-    color: #999;
+    color: var(--text-muted);
     cursor: pointer;
     padding: 4px;
     opacity: 0;
@@ -292,7 +292,7 @@
 
 .admin-msg-more-btn:hover {
     background: rgba(0,0,0,0.05);
-    color: #555;
+    color: var(--text-secondary);
 }
 
 .admin-msg-row:hover .admin-msg-more-btn {
@@ -304,7 +304,7 @@
     right: 100%;
     top: 50%;
     transform: translateY(-50%);
-    background: #fff;
+    background: var(--surface);
     border: 1px solid rgba(0,0,0,0.08);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -320,7 +320,7 @@
     text-align: left;
     padding: 8px 12px;
     font-size: 13px;
-    color: #e74c3c;
+    color: #dc2626;
     cursor: pointer;
     border-radius: 4px;
     display: flex;
@@ -362,8 +362,8 @@
 /* Input Area matches Zalo */
 .admin-chat-input-wrapper {
     position: relative;
-    background: #ffffff;
-    border-top: 1px solid #e5e5e5;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
     padding: 12px 20px;
 }
 
@@ -376,7 +376,7 @@
 .quick-reply-toggle {
     background: transparent;
     border: none;
-    color: #999;
+    color: var(--text-muted);
     cursor: pointer;
     transition: color 0.1s;
     display: flex;
@@ -385,31 +385,31 @@
 }
 
 .quick-reply-toggle:hover {
-    color: #ff4d8d;
+    color: var(--accent);
 }
 
 .quick-reply-toggle.active {
-    color: #ff4d8d;
+    color: var(--accent);
 }
 
 .admin-chat-input-inner input {
     flex: 1;
     border: none;
-    background: #f0f0f0;
+    background: var(--surface-2);
     padding: 12px 16px;
     border-radius: 20px;
     outline: none;
     font-size: 14.5px;
-    color: #111;
+    color: var(--text-primary);
 }
 
 .admin-chat-input-inner input::placeholder {
-    color: #888;
+    color: var(--text-muted);
 }
 
 .admin-send-btn {
     background: transparent;
-    color: #ff4d8d;
+    color: var(--accent);
     border: none;
     cursor: pointer;
     display: flex;
@@ -423,7 +423,7 @@
 }
 
 .admin-send-btn:disabled {
-    color: #ccc;
+    color: var(--border-2);
     cursor: not-allowed;
 }
 
@@ -443,8 +443,8 @@
     bottom: 100%;
     left: 20px;
     width: 300px;
-    background: #fff;
-    border: 1px solid #e5e5e5;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 8px;
     box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
     margin-bottom: 10px;
@@ -457,12 +457,12 @@
 }
 
 .canned-header {
-    background: #fafafa;
+    background: var(--surface-2);
     padding: 10px 14px;
     font-size: 13px;
     font-weight: 600;
     color: #444;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border);
 }
 
 .canned-list {
@@ -477,19 +477,19 @@
     text-align: left;
     padding: 10px 12px;
     font-size: 14px;
-    color: #111;
+    color: var(--text-primary);
     cursor: pointer;
     border-radius: 4px;
     transition: background 0.1s;
 }
 
 .canned-item:hover {
-    background: #f5f5f5;
+    background: var(--surface-2);
 }
 
 .chat-history-empty {
     text-align: center;
-    color: #999;
+    color: var(--text-muted);
     margin: auto;
     font-size: 14px;
 }
@@ -499,7 +499,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #888;
+    color: var(--text-muted);
     flex-direction: column;
     gap: 16px;
     text-align: center;
@@ -521,7 +521,7 @@
         width: 100%;
         max-height: 270px;
         border-right: none;
-        border-bottom: 1px solid #e5e5e5;
+        border-bottom: 1px solid var(--border);
     }
     .chat-window {
         min-height: 460px;

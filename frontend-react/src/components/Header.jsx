@@ -84,11 +84,11 @@ function MiniCart({ isOpen, onClose }) {
           right: 20,
           width: 360,
           maxHeight: 500,
-          background: "#1a1a1a",
-          border: "1px solid #333",
+          background: "var(--surface)",
+          border: "1px solid var(--border-2)",
           borderRadius: 12,
           zIndex: 999,
-          boxShadow: "0 20px 60px rgba(0,0,0,0.8)",
+          boxShadow: "0 22px 56px rgba(15, 23, 42, 0.16)",
           display: "flex",
           flexDirection: "column",
           animation: "slideDown 0.3s ease-out",
@@ -101,13 +101,13 @@ function MiniCart({ isOpen, onClose }) {
         <div
           style={{
             padding: 16,
-            borderBottom: "1px solid #333",
+            borderBottom: "1px solid var(--border)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
           }}
         >
-          <h3 style={{ margin: 0, color: "#fff", fontFamily: "var(--font-display)" }}>
+          <h3 style={{ margin: 0, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
             Giỏ hàng
           </h3>
           <button
@@ -115,7 +115,7 @@ function MiniCart({ isOpen, onClose }) {
             style={{
               background: "none",
               border: "none",
-              color: "#888",
+              color: "var(--text-muted)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -136,7 +136,7 @@ function MiniCart({ isOpen, onClose }) {
           }}
         >
           {cart.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 40, color: "#666" }}>
+            <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>
               <p style={{ fontSize: "0.9rem", margin: 0 }}>Giỏ hàng trống</p>
             </div>
           ) : (
@@ -147,7 +147,7 @@ function MiniCart({ isOpen, onClose }) {
                   display: "flex",
                   gap: 12,
                   padding: 12,
-                  borderBottom: "1px solid #2a2a2a",
+                  borderBottom: "1px solid var(--border)",
                 }}
               >
                 <img
@@ -164,7 +164,7 @@ function MiniCart({ isOpen, onClose }) {
                   <p
                     style={{
                       margin: 0,
-                      color: "#fff",
+                      color: "var(--text-primary)",
                       fontSize: "0.85rem",
                       fontWeight: 600,
                       whiteSpace: "nowrap",
@@ -177,7 +177,7 @@ function MiniCart({ isOpen, onClose }) {
                   <p
                     style={{
                       margin: "4px 0 0 0",
-                      color: "#888",
+                      color: "var(--text-muted)",
                       fontSize: "0.75rem",
                     }}
                   >
@@ -202,9 +202,9 @@ function MiniCart({ isOpen, onClose }) {
                         style={{
                           width: 20,
                           height: 20,
-                          border: "1px solid #333",
-                          background: "#2a2a2a",
-                          color: "#fff",
+                          border: "1px solid var(--border-2)",
+                          background: "var(--surface-2)",
+                          color: "var(--text-primary)",
                           borderRadius: 3,
                           cursor: "pointer",
                           fontSize: "0.7rem",
@@ -212,7 +212,7 @@ function MiniCart({ isOpen, onClose }) {
                       >
                         <Minus size={12} />
                       </button>
-                      <span style={{ color: "#ccc", fontSize: "0.8rem" }}>
+                      <span style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>
                         {item.qty}
                       </span>
                       <button
@@ -222,9 +222,9 @@ function MiniCart({ isOpen, onClose }) {
                         style={{
                           width: 20,
                           height: 20,
-                          border: "1px solid #333",
-                          background: "#2a2a2a",
-                          color: "#fff",
+                          border: "1px solid var(--border-2)",
+                          background: "var(--surface-2)",
+                          color: "var(--text-primary)",
                           borderRadius: 3,
                           cursor: "pointer",
                           fontSize: "0.7rem",
@@ -237,7 +237,7 @@ function MiniCart({ isOpen, onClose }) {
                       <p
                         style={{
                           margin: 0,
-                          color: "#fff",
+                          color: "var(--text-primary)",
                           fontSize: "0.85rem",
                           fontWeight: 600,
                         }}
@@ -249,7 +249,7 @@ function MiniCart({ isOpen, onClose }) {
                         style={{
                           background: "none",
                           border: "none",
-                          color: "#888",
+                          color: "var(--text-muted)",
                           cursor: "pointer",
                           fontSize: "0.75rem",
                           padding: 0,
@@ -271,7 +271,7 @@ function MiniCart({ isOpen, onClose }) {
           <div
             style={{
               padding: 12,
-              borderTop: "1px solid #333",
+              borderTop: "1px solid var(--border)",
             }}
           >
             <div
@@ -281,8 +281,8 @@ function MiniCart({ isOpen, onClose }) {
                 marginBottom: 12,
               }}
             >
-              <span style={{ color: "#ccc" }}>Tổng cộng:</span>
-              <span style={{ color: "#fff", fontWeight: 600 }}>
+              <span style={{ color: "var(--text-secondary)" }}>Tổng cộng:</span>
+              <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
                 {fmt(subtotal)}
               </span>
             </div>

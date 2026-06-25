@@ -41,7 +41,7 @@ const replacement1 = `
       <span>{Number(order.shippingFee || 0) === 0 ? 'Miễn phí' : formatPrice(order.shippingFee)}</span>
     </div>
     {order.subtotal + order.shippingFee > order.total && (
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#10b981', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#047857', marginBottom: 12 }}>
         <span>Giảm giá</span>
         <span>-{formatPrice((order.subtotal + order.shippingFee) - order.total)}</span>
       </div>

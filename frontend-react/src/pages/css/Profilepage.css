@@ -36,7 +36,7 @@
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, transparent 70%);
 }
 
 .profile-inner {
@@ -213,9 +213,9 @@
 }
 
 .badge-verified {
-  background: rgba(62, 207, 142, 0.1);
-  color: #3ecf8e;
-  border: 1px solid rgba(62, 207, 142, 0.2);
+  background: rgba(4, 120, 87, 0.1);
+  color: #047857;
+  border: 1px solid rgba(4, 120, 87, 0.2);
 }
 
 .profile-stats-row {
@@ -317,8 +317,8 @@
   transition: color 0.2s, background 0.2s, transform 0.2s;
 }
 .profile-nav-logout:hover {
-  color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.08);
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
   transform: translateX(2px);
 }
 
@@ -491,10 +491,10 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
 }
-.status-delivered { background: rgba(62,207,142,0.12); color: #3ecf8e; border: 1px solid rgba(62,207,142,0.2); }
-.status-shipping { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+.status-delivered { background: rgba(4, 120, 87, 0.12); color: #047857; border: 1px solid rgba(4, 120, 87, 0.2); }
+.status-shipping { background: rgba(180, 83, 9, 0.12); color: #b45309; border: 1px solid rgba(180, 83, 9, 0.2); }
 .status-processing { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(var(--accent-rgb),0.2); }
-.status-cancelled { background: rgba(255,107,107,0.1); color: #ff6b6b; border: 1px solid rgba(255,107,107,0.2); }
+.status-cancelled { background: rgba(220, 38, 38, 0.1); color: #dc2626; border: 1px solid rgba(220, 38, 38, 0.2); }
 
 .order-items-preview {
   display: flex;
@@ -736,9 +736,9 @@
   margin-bottom: 12px;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 107, 107, 0.25);
-  background: rgba(255, 107, 107, 0.08);
-  color: #ff8b8b;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
   font-size: 0.84rem;
 }
 
@@ -817,7 +817,7 @@
 
 .cancel-other textarea { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); background: var(--bg-2); color: var(--text-primary); min-height: 100px; resize: vertical; }
 .cancel-other textarea::placeholder { color: rgba(255,255,255,0.38); }
-.cancel-error { color: #ff7676; font-size: 0.92rem; }
+.cancel-error { color: #dc2626; font-size: 0.92rem; }
 .cancel-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 
 @media (max-width: 640px) {
@@ -1031,15 +1031,15 @@
 }
 
 .security-message.error {
-  background: rgba(255, 107, 107, 0.08);
-  border: 1px solid rgba(255, 107, 107, 0.2);
-  color: #ff9090;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  color: #dc2626;
 }
 
 .security-message.success {
-  background: rgba(62, 207, 142, 0.08);
-  border: 1px solid rgba(62, 207, 142, 0.2);
-  color: #3ecf8e;
+  background: rgba(4, 120, 87, 0.08);
+  border: 1px solid rgba(4, 120, 87, 0.2);
+  color: #047857;
 }
 
 .security-actions {
@@ -1284,13 +1284,13 @@
 }
 
 .voucher-card.type-product .voucher-card-mark {
-  background: rgba(167, 139, 250, .11);
-  color: #a78bfa;
+  background: rgba(109, 40, 217, .11);
+  color: #6d28d9;
 }
 
 .voucher-card.type-shipping .voucher-card-mark {
-  background: rgba(52, 211, 153, .11);
-  color: #34d399;
+  background: rgba(4, 120, 87, .11);
+  color: #047857;
 }
 
 .voucher-badge {
@@ -1306,15 +1306,15 @@
 }
 
 .voucher-badge.type-product {
-  background: rgba(124, 58, 237, 0.15);
-  color: #c4b5fd;
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: rgba(109, 40, 217, 0.15);
+  color: #6d28d9;
+  border: 1px solid rgba(109, 40, 217, 0.3);
 }
 
 .voucher-badge.type-shipping {
-  background: rgba(52, 211, 153, 0.15);
-  color: #6ee7b7;
-  border: 1px solid rgba(52, 211, 153, 0.3);
+  background: rgba(4, 120, 87, 0.15);
+  color: #047857;
+  border: 1px solid rgba(4, 120, 87, 0.3);
 }
 
 .voucher-info { min-width: 0; display: flex; flex-direction: column; gap: 5px; }

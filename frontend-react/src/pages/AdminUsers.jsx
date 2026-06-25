@@ -256,9 +256,9 @@ export default function AdminUsers() {
       <div className="users-stats-row">
         {[
           { label: "Tổng tài khoản", value: totalUsers, color: "var(--accent)" },
-          { label: "Đang hoạt động", value: activeUsers, color: "#34d399" },
-          { label: "Đã khóa", value: blockedUsers, color: "#f87171" },
-          { label: "Khách hàng", value: customerUsers, color: "#60a5fa" },
+          { label: "Đang hoạt động", value: activeUsers, color: "#047857" },
+          { label: "Đã khóa", value: blockedUsers, color: "#dc2626" },
+          { label: "Khách hàng", value: customerUsers, color: "#2563eb" },
         ].map((stat, index) => (
           <div key={index} className="users-stat-card" style={{ "--uc": stat.color }}>
             <p className="uc-value" style={{ color: stat.color }}>
@@ -324,8 +324,8 @@ export default function AdminUsers() {
                                 user.role === "admin"
                                   ? "var(--accent)"
                                   : user.role === "staff"
-                                    ? "#60a5fa"
-                                    : "#a78bfa",
+                                    ? "#2563eb"
+                                    : "#6d28d9",
                             }}
                           >
                             {initial}
@@ -437,8 +437,8 @@ export default function AdminUsers() {
                       detail.role === "admin"
                         ? "var(--accent)"
                         : detail.role === "staff"
-                          ? "#60a5fa"
-                          : "#a78bfa",
+                          ? "#2563eb"
+                          : "#6d28d9",
                   }}
                 >
                   {(detail.name || "User").charAt(0)}

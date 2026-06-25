@@ -388,9 +388,9 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Size */}
-            <p className="selector-label" style={{ color: sizeErr ? "#ff6b6b" : undefined }}>
+            <p className="selector-label" style={{ color: sizeErr ? "#dc2626" : undefined }}>
               Kích thước
-              {!selSize && <span style={{ color: sizeErr ? "#ff6b6b" : "var(--accent)", fontFamily: "var(--font-body)", textTransform: "none", letterSpacing: 0 }}>
+              {!selSize && <span style={{ color: sizeErr ? "#dc2626" : "var(--accent)", fontFamily: "var(--font-body)", textTransform: "none", letterSpacing: 0 }}>
                 {sizeErr ? " — Vui lòng chọn size!" : " — Chọn size"}
               </span>}
               {selSize && <span className="selector-chosen"> — {selSize}</span>}
@@ -515,7 +515,7 @@ export default function ProductDetailPage() {
                   <div className="review-bars">
                     {ratingDist.map((r) => (
                       <div key={r.stars} className="review-bar-row">
-                         <Star size={12} fill="#fbbf24" stroke="#fbbf24" style={{ marginRight: 4 }} />
+                         <Star size={12} fill="#b45309" stroke="#b45309" style={{ marginRight: 4 }} />
                          <span style={{ minWidth: 8, color: "var(--text-muted)" }}>{r.stars}</span>
                         <div className="review-bar-track">
                           <div className="review-bar-fill" style={{ width: r.pct + "%" }} />

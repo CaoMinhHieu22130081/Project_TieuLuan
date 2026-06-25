@@ -205,9 +205,9 @@
   border: 1px solid rgba(255, 95, 163, 0.3);
 }
 .type-quan {
-  background: rgba(96, 165, 250, 0.2);
-  color: #60a5fa;
-  border: 1px solid rgba(96, 165, 250, 0.3);
+  background: rgba(37, 99, 235, 0.2);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.3);
 }
 
 /* Empty state */
@@ -418,12 +418,12 @@
   font-family: var(--font-mono); text-transform: uppercase;
 }
 .badge-hot  { background: var(--accent); color: #fff; }
-.badge-new  { background: #3ecf8e; color: #0a0a0c; }
-.badge-sale { background: #ff6b6b; color: #fff; }
+.badge-new  { background: #047857; color: #fff; }
+.badge-sale { background: #dc2626; color: #fff; }
 
 .product-discount {
   position: absolute; top: 12px; right: 12px;
-  background: rgba(255, 107, 107, 0.9); color: #fff;
+  background: rgba(220, 38, 38, 0.9); color: #fff;
   padding: 3px 8px; border-radius: 6px;
   font-size: 0.7rem; font-weight: 700; font-family: var(--font-mono);
 }
@@ -439,7 +439,7 @@
   font-family: var(--font-body); border: none; cursor: pointer;
 }
 .product-card:hover .btn-cart-overlay { bottom: 12px; }
-.btn-cart-overlay.added { background: #3ecf8e; }
+.btn-cart-overlay.added { background: #047857; }
 .btn-cart-overlay:hover { box-shadow: var(--accent-glow); }
 
 .product-info {
@@ -465,7 +465,7 @@
 
 .star-row { display: flex; align-items: center; gap: 2px; margin-bottom: 4px; }
 .star { color: var(--text-muted); font-size: 0.8rem; }
-.star.filled { color: #fbbf24; }
+.star.filled { color: #b45309; }
 .rating-num { font-size: 0.78rem; color: var(--text-secondary); margin-left: 4px; font-family: var(--font-mono); }
 .review-count { font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 8px; }
 
@@ -485,9 +485,9 @@
 .wishlist-btn {
   position: absolute; top: 40px; right: 12px;
   width: 34px; height: 34px;
-  background: rgba(10,10,12,0.7); border-radius: 50%;
+  background: rgba(15, 23, 42, 0.62); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  color: var(--text-secondary);
+  color: #fff;
   backdrop-filter: blur(4px);
   transition: color 0.2s, background 0.2s;
   z-index: 2; border: none; cursor: pointer;

@@ -7,7 +7,7 @@ export const CustomChatIcon = ({ size = 28 }) => (
         <path transform="rotate(144 12 12)" d="M12 11.5C9.5 8 8 2.5 10.5 1.5c1 .5 1.5 2.5 1.5 2.5s.5-2 1.5-2.5c2.5-1 1 4.5-1.5 10z" />
         <path transform="rotate(216 12 12)" d="M12 11.5C9.5 8 8 2.5 10.5 1.5c1 .5 1.5 2.5 1.5 2.5s.5-2 1.5-2.5c2.5-1 1 4.5-1.5 10z" />
         <path transform="rotate(288 12 12)" d="M12 11.5C9.5 8 8 2.5 10.5 1.5c1 .5 1.5 2.5 1.5 2.5s.5-2 1.5-2.5c2.5-1 1 4.5-1.5 10z" />
-        <circle cx="12" cy="12" r="3" fill="#ff4d8d" />
+        <circle cx="12" cy="12" r="3" fill="var(--accent)" />
         <circle cx="12" cy="12" r="1.5" fill="currentColor" />
     </svg>
 );

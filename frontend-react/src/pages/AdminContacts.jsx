@@ -102,7 +102,7 @@ const AdminContacts = () => {
     name.trim().split(' ').slice(-2).map(w => w[0]).join('').toUpperCase();
 
   const avatarColors = [
-    '#ec4899','#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#06b6d4','#84cc16'
+    'var(--accent)','#6d28d9','#2563eb','#047857','#b45309','#dc2626','#0e7490','#4d7c0f'
   ];
   const getColor = (name = '') => avatarColors[name.charCodeAt(0) % avatarColors.length];
 
@@ -157,25 +157,25 @@ const AdminContacts = () => {
           </div>
         </div>
         <div className="contacts-stat-card">
-          <div className="csc-icon" style={{ background: 'rgba(236,72,153,0.12)', color: '#ec4899' }}>
+          <div className="csc-icon" style={{ background: 'rgba(var(--accent-rgb), 0.12)', color: 'var(--accent)' }}>
             <Bell size={20} />
           </div>
           <div className="csc-info">
-            <div className="csc-value" style={{ color: '#ec4899' }}>{unreadCount}</div>
+            <div className="csc-value" style={{ color: 'var(--accent)' }}>{unreadCount}</div>
             <div className="csc-label">Chưa đọc</div>
           </div>
         </div>
         <div className="contacts-stat-card">
-          <div className="csc-icon" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}>
+          <div className="csc-icon" style={{ background: 'rgba(4, 120, 87, 0.12)', color: '#047857' }}>
             <CheckCircle2 size={20} />
           </div>
           <div className="csc-info">
-            <div className="csc-value" style={{ color: '#34d399' }}>{readCount}</div>
+            <div className="csc-value" style={{ color: '#047857' }}>{readCount}</div>
             <div className="csc-label">Đã đọc</div>
           </div>
         </div>
         <div className="contacts-stat-card">
-          <div className="csc-icon" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+          <div className="csc-icon" style={{ background: 'rgba(180, 83, 9, 0.12)', color: '#b45309' }}>
             <Calendar size={20} />
           </div>
           <div className="csc-info">

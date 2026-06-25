@@ -426,7 +426,7 @@
   font-size: 0.85rem;
 }
 .summary-line .label { color: var(--text-secondary); }
-.summary-line.green .value { color: #3ecf8e; }
+.summary-line.green .value { color: #047857; }
 
 .summary-divider { height: 1px; background: var(--border); margin: 12px 0; }
 
@@ -508,15 +508,15 @@
 }
 
 .voucher-chip.product {
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(124, 58, 237, 0.4);
-  color: #a78bfa;
+  background: rgba(109, 40, 217, 0.15);
+  border: 1px solid rgba(109, 40, 217, 0.4);
+  color: #6d28d9;
 }
 
 .voucher-chip.shipping {
-  background: rgba(52, 211, 153, 0.15);
-  border: 1px solid rgba(52, 211, 153, 0.4);
-  color: #34d399;
+  background: rgba(4, 120, 87, 0.15);
+  border: 1px solid rgba(4, 120, 87, 0.4);
+  color: #047857;
 }
 
 .voucher-chip-remove {

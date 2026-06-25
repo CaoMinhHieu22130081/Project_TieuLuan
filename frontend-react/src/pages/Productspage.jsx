@@ -222,7 +222,7 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(0,0,0,0.5)",
+          background: "rgba(15, 23, 42, 0.38)",
           zIndex: 999,
         }}
         onClick={onClose}
@@ -233,19 +233,19 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          background: "#1a1a1a",
+          background: "var(--surface)",
           borderRadius: 12,
           padding: 24,
           maxWidth: 400,
           width: "90%",
           zIndex: 1000,
-          boxShadow: "0 20px 60px rgba(0,0,0,0.8)",
-          border: "1px solid rgba(255,255,255,0.1)",
+          boxShadow: "0 24px 64px rgba(15, 23, 42, 0.18)",
+          border: "1px solid var(--border-2)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: "1.25rem", color: "#fff" }}>
+          <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: "1.25rem", color: "var(--text-primary)" }}>
             {product.name}
           </h2>
           <button
@@ -257,7 +257,7 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              color: "#888",
+              color: "var(--text-muted)",
               transition: "color 0.2s",
             }}
           >
@@ -267,7 +267,7 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
 
         {/* Màu sắc */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "block", marginBottom: 10, fontWeight: 600, fontSize: "0.9rem", color: "#fff" }}>
+          <label style={{ display: "block", marginBottom: 10, fontWeight: 600, fontSize: "0.9rem", color: "var(--text-primary)" }}>
             Màu sắc
           </label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -289,7 +289,7 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
             ))}
           </div>
           {selectedColor && (
-            <p style={{ fontSize: "0.85rem", color: "#888", marginTop: 8 }}>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: 8 }}>
               {selectedColor.name}
             </p>
           )}
@@ -297,8 +297,8 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
 
         {/* Size */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "block", marginBottom: 10, fontWeight: 600, fontSize: "0.9rem", color: error ? "#ff6b6b" : "#fff" }}>
-            Kích thước {error && <span style={{ color: "#ff6b6b" }}>- {error}</span>}
+          <label style={{ display: "block", marginBottom: 10, fontWeight: 600, fontSize: "0.9rem", color: error ? "#dc2626" : "var(--text-primary)" }}>
+            Kích thước {error && <span style={{ color: "#dc2626" }}>- {error}</span>}
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
             {displaySizes.map((size) => (
@@ -312,9 +312,9 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
                 disabled={!size.isAvailable}
                 style={{
                   padding: 10,
-                  border: selectedSize === size.value ? "2px solid var(--accent)" : "1px solid #333",
-                  background: selectedSize === size.value ? "var(--accent)" : "#2a2a2a",
-                  color: selectedSize === size.value ? "#fff" : size.isAvailable ? "#ccc" : "#777",
+                  border: selectedSize === size.value ? "2px solid var(--accent)" : "1px solid var(--border-2)",
+                  background: selectedSize === size.value ? "var(--accent)" : "var(--surface-2)",
+                  color: selectedSize === size.value ? "#fff" : size.isAvailable ? "var(--text-secondary)" : "var(--text-muted)",
                   borderRadius: 6,
                   cursor: size.isAvailable ? "pointer" : "not-allowed",
                   fontWeight: 600,
@@ -332,7 +332,7 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
 
         {/* Số lượng */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "block", marginBottom: 10, fontWeight: 600, fontSize: "0.9rem", color: "#fff" }}>
+          <label style={{ display: "block", marginBottom: 10, fontWeight: 600, fontSize: "0.9rem", color: "var(--text-primary)" }}>
             Số lượng
           </label>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -341,10 +341,10 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
                style={{
                  width: 32,
                  height: 32,
-                 border: "1px solid #333",
+                 border: "1px solid var(--border-2)",
                  borderRadius: 6,
-                 background: "#2a2a2a",
-                 color: "#fff",
+                 background: "var(--surface-2)",
+                 color: "var(--text-primary)",
                  cursor: "pointer",
                  display: "flex",
                  alignItems: "center",
@@ -353,16 +353,16 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
              >
                <Minus size={14} />
              </button>
-            <span style={{ minWidth: 40, textAlign: "center", fontWeight: 600, color: "#fff" }}>{qty}</span>
+            <span style={{ minWidth: 40, textAlign: "center", fontWeight: 600, color: "var(--text-primary)" }}>{qty}</span>
             <button
                onClick={() => setQty(qty + 1)}
                style={{
                  width: 32,
                  height: 32,
-                 border: "1px solid #333",
+                 border: "1px solid var(--border-2)",
                  borderRadius: 6,
-                 background: "#2a2a2a",
-                 color: "#fff",
+                 background: "var(--surface-2)",
+                 color: "var(--text-primary)",
                  cursor: "pointer",
                  display: "flex",
                  alignItems: "center",
@@ -382,7 +382,7 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
              style={{
                flex: 1,
                padding: "12px 24px",
-               background: isAdding ? "#a78bfa" : "var(--accent)",
+               background: isAdding ? "#6d28d9" : "var(--accent)",
                color: "#fff",
                border: "none",
                borderRadius: 6,
@@ -405,9 +405,9 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
             style={{
               flex: 1,
               padding: "12px 24px",
-              background: "#2a2a2a",
-              color: "#fff",
-              border: "1px solid #333",
+              background: "var(--surface-2)",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--border-2)",
               borderRadius: 6,
               fontWeight: 700,
               cursor: isAdding ? "not-allowed" : "pointer",
@@ -417,14 +417,14 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
             }}
             onMouseEnter={(e) => {
               if (!isAdding) {
-                e.target.style.background = "#333";
-                e.target.style.borderColor = "#555";
+                e.target.style.background = "var(--surface)";
+                e.target.style.borderColor = "var(--accent)";
               }
             }}
             onMouseLeave={(e) => {
               if (!isAdding) {
-                e.target.style.background = "#2a2a2a";
-                e.target.style.borderColor = "#333";
+                e.target.style.background = "var(--surface-2)";
+                e.target.style.borderColor = "var(--border-2)";
               }
             }}
           >
@@ -1087,7 +1087,7 @@ export default function ProductsPage() {
             </div>
           ) : error ? (
             <div className="products-empty">
-              <AlertTriangle size={48} style={{ color: "#ef4444", marginBottom: 16, display: 'inline-block' }} />
+              <AlertTriangle size={48} style={{ color: "#dc2626", marginBottom: 16, display: 'inline-block' }} />
               <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>{error}</p>
               <button
                 style={{ marginTop: 16, padding: "9px 20px", background: "var(--accent)", color: "#fff", borderRadius: 10, fontWeight: 700, fontSize: "0.875rem", cursor: "pointer", border: "none" }}
@@ -1157,7 +1157,7 @@ export default function ProductsPage() {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 199, background: "rgba(0,0,0,0.5)" }}
+          style={{ position: "fixed", inset: 0, zIndex: 199, background: "rgba(15, 23, 42, 0.38)" }}
           onClick={() => setMobileOpen(false)}
         />
       )}

@@ -113,7 +113,7 @@ function DonutChart({ segments, size = 160, thickness = 28 }) {
   let offset = 0;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible" }}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface-2,#26262d)" strokeWidth={thickness} />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface-2,#f1f5f9)" strokeWidth={thickness} />
       {segments.map((seg, i) => {
         const dash = (seg.value / total) * circ;
         const gap  = circ - dash;
@@ -192,8 +192,8 @@ function AnimatedBarChart({ data, labels, color = "var(--accent)" }) {
                   style={{
                     height: mounted ? `${Math.max(pct, 2)}%` : "0%",
                     background: isMax
-                      ? `linear-gradient(180deg, ${color}, rgba(255,95,163,.5))`
-                      : `linear-gradient(180deg, rgba(255,95,163,.55), rgba(255,95,163,.15))`,
+                      ? `linear-gradient(180deg, ${color}, rgba(var(--accent-rgb), .5))`
+                      : `linear-gradient(180deg, rgba(var(--accent-rgb), .55), rgba(var(--accent-rgb), .15))`,
                     transitionDelay: `${i * 40}ms`,
                   }}
                 />
@@ -337,10 +337,10 @@ export default function AdminDashboard() {
     return acc;
   }, {});
   const donutSegments = [
-    { label: "Đã giao",   value: statusCounts.delivered  || 0, color: "#34d399" },
-    { label: "Đang giao", value: statusCounts.shipping   || 0, color: "#fbbf24" },
-    { label: "Xử lý",     value: statusCounts.processing || 0, color: "#ff5fa3" },
-    { label: "Đã hủy",    value: statusCounts.cancelled  || 0, color: "#f87171" },
+    { label: "Đã giao",   value: statusCounts.delivered  || 0, color: "#047857" },
+    { label: "Đang giao", value: statusCounts.shipping   || 0, color: "#b45309" },
+    { label: "Xử lý",     value: statusCounts.processing || 0, color: "#be185d" },
+    { label: "Đã hủy",    value: statusCounts.cancelled  || 0, color: "#dc2626" },
     { label: "Chờ xác nhận", value: statusCounts.pending || 0, color: "#94a3b8" },
   ].filter((s) => s.value > 0);
 
@@ -409,7 +409,7 @@ export default function AdminDashboard() {
           label="Tổng đơn hàng"
           value={stats.orders ?? orders.length}
           sub={`${statusCounts.delivered || 0} đã giao thành công`}
-          accentColor="#ff5fa3"
+          accentColor="#be185d"
           sparkData={monthly.data.slice(-7)}
           icon={<ClipboardList size={22} color="currentColor" strokeWidth={1.8} />}
         />
@@ -417,7 +417,7 @@ export default function AdminDashboard() {
           label="Tổng doanh thu"
           value={formatCurrency(totalRevenue)}
           sub="Từ tất cả đơn hàng"
-          accentColor="#34d399"
+          accentColor="#047857"
           sparkData={monthly.data.slice(-7).map((v) => v / 1_000)}
           animate={false}
           icon={<DollarSign size={22} color="currentColor" strokeWidth={1.8} />}
@@ -426,7 +426,7 @@ export default function AdminDashboard() {
           label="Sản phẩm"
           value={products.length}
           sub={`${totalAo} áo · ${totalQuan} quần`}
-          accentColor="#60a5fa"
+          accentColor="#6d28d9"
           sparkData={null}
           icon={<Package size={22} color="currentColor" strokeWidth={1.8} />}
         />
@@ -434,7 +434,7 @@ export default function AdminDashboard() {
           label="Người dùng"
           value={totalUsers || stats.users || 0}
           sub={`${stats.customerUsers || 0} khách · ${stats.staffUsers || 0} staff`}
-          accentColor="#a78bfa"
+          accentColor="#6d28d9"
           sparkData={null}
           icon={<Users size={22} color="currentColor" strokeWidth={1.8} />}
         />
@@ -567,15 +567,15 @@ export default function AdminDashboard() {
 
       {/* ── Section: Product category breakdown ───────────── */}
       <div className="adb-cat-grid">
-        <div className="admin-card" style={{ borderTop: "2px solid #ff5fa3" }}>
+        <div className="admin-card" style={{ borderTop: "2px solid #be185d" }}>
           <div className="card-header">
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <div className="adb-cat-ico" style={{ background:"rgba(255,95,163,.12)", color:"#ff5fa3" }}>
+              <div className="adb-cat-ico" style={{ background:"rgba(var(--accent-rgb), .12)", color:"#be185d" }}>
                 <Shirt size={16} strokeWidth={2} />
               </div>
               <p className="card-title">Phân loại Áo</p>
             </div>
-            <span className="card-tag" style={{ color:"#ff5fa3", background:"rgba(255,95,163,.1)", border:"1px solid rgba(255,95,163,.2)" }}>
+            <span className="card-tag" style={{ color:"#be185d", background:"rgba(var(--accent-rgb), .1)", border:"1px solid rgba(var(--accent-rgb), .2)" }}>
               {totalAo} sản phẩm
             </span>
           </div>
@@ -587,7 +587,7 @@ export default function AdminDashboard() {
                   <div key={category} className="adb-cat-row">
                     <span className="adb-cat-name">{category}</span>
                     <div className="adb-cat-bar-wrap">
-                      <div className="adb-cat-bar" style={{ width:`${pct}%`, background:"linear-gradient(90deg,#ff5fa3,rgba(255,95,163,.3))" }}/>
+                      <div className="adb-cat-bar" style={{ width:`${pct}%`, background:"linear-gradient(90deg,#be185d,rgba(var(--accent-rgb), .3))" }}/>
                     </div>
                     <span className="adb-cat-count">{count}</span>
                   </div>
@@ -599,15 +599,15 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        <div className="admin-card" style={{ borderTop: "2px solid #60a5fa" }}>
+        <div className="admin-card" style={{ borderTop: "2px solid #6d28d9" }}>
           <div className="card-header">
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <div className="adb-cat-ico" style={{ background:"rgba(96,165,250,.12)", color:"#60a5fa" }}>
+              <div className="adb-cat-ico" style={{ background:"rgba(37, 99, 235, .12)", color:"#6d28d9" }}>
                 <Layers size={16} strokeWidth={2} />
               </div>
               <p className="card-title">Phân loại Quần</p>
             </div>
-            <span className="card-tag" style={{ color:"#60a5fa", background:"rgba(96,165,250,.1)", border:"1px solid rgba(96,165,250,.2)" }}>
+            <span className="card-tag" style={{ color:"#6d28d9", background:"rgba(37, 99, 235, .1)", border:"1px solid rgba(37, 99, 235, .2)" }}>
               {totalQuan} sản phẩm
             </span>
           </div>
@@ -619,7 +619,7 @@ export default function AdminDashboard() {
                   <div key={category} className="adb-cat-row">
                     <span className="adb-cat-name">{category}</span>
                     <div className="adb-cat-bar-wrap">
-                      <div className="adb-cat-bar" style={{ width:`${pct}%`, background:"linear-gradient(90deg,#60a5fa,rgba(96,165,250,.3))" }}/>
+                      <div className="adb-cat-bar" style={{ width:`${pct}%`, background:"linear-gradient(90deg,#6d28d9,rgba(37, 99, 235, .3))" }}/>
                     </div>
                     <span className="adb-cat-count">{count}</span>
                   </div>
@@ -632,23 +632,23 @@ export default function AdminDashboard() {
         </div>
 
         {/* User distribution */}
-        <div className="admin-card" style={{ borderTop: "2px solid #a78bfa" }}>
+        <div className="admin-card" style={{ borderTop: "2px solid #6d28d9" }}>
           <div className="card-header">
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <div className="adb-cat-ico" style={{ background:"rgba(167,139,250,.12)", color:"#a78bfa" }}>
+              <div className="adb-cat-ico" style={{ background:"rgba(109, 40, 217, .12)", color:"#6d28d9" }}>
                 <User size={16} strokeWidth={2} />
               </div>
               <p className="card-title">Phân quyền người dùng</p>
             </div>
-            <span className="card-tag" style={{ color:"#a78bfa", background:"rgba(167,139,250,.1)", border:"1px solid rgba(167,139,250,.2)" }}>
+            <span className="card-tag" style={{ color:"#6d28d9", background:"rgba(109, 40, 217, .1)", border:"1px solid rgba(109, 40, 217, .2)" }}>
               {totalUsers} tài khoản
             </span>
           </div>
           <div className="adb-cat-list">
             {[
-              { label:"Admin", val: stats.adminUsers || 0, color:"#ff5fa3" },
-              { label:"Staff", val: stats.staffUsers || 0, color:"#60a5fa" },
-              { label:"Khách hàng", val: stats.customerUsers || 0, color:"#a78bfa" },
+              { label:"Admin", val: stats.adminUsers || 0, color:"#be185d" },
+              { label:"Staff", val: stats.staffUsers || 0, color:"#6d28d9" },
+              { label:"Khách hàng", val: stats.customerUsers || 0, color:"#6d28d9" },
             ].map(({ label, val, color }) => {
               const pct = totalUsers > 0 ? (val / totalUsers) * 100 : 0;
               return (

@@ -182,7 +182,7 @@ export default function CartPage() {
                             className="cart-item-price-orig"
                             style={{
                               textDecoration: "line-through",
-                              color: "#888",
+                              color: "var(--text-muted)",
                               fontSize: "0.85rem",
                             }}
                           >
@@ -190,7 +190,7 @@ export default function CartPage() {
                           </span>
                           <span
                             style={{
-                              background: "#ff3b60",
+                              background: "#dc2626",
                               color: "#fff",
                               padding: "2px 8px",
                               borderRadius: "4px",
