@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { 
     CustomChatIcon, CustomAttachIcon, CustomMoreIcon, CustomTrashIcon, 
     CustomSendIcon, CustomCloseIcon, CustomCheckIcon, CustomUndoIcon, 
@@ -10,20 +11,65 @@ import EmojiPicker from 'emoji-picker-react';
 import './ChatWidget.css';
 
 const QUICK_REPLIES = [
-    { icon: CustomOrderIcon, label: "Kiểm tra đơn hàng", answer: "Để kiểm tra đơn hàng, bạn vui lòng cung cấp mã vận đơn hoặc số điện thoại định dang (ví dụ: 0912xxxxx) vào khung chat nhé!" },
-    { icon: CustomShippingIcon, label: "Phí vận chuyển", answer: "Tất cả đồ UniqTee đều có phí vận chuyển đồng giá 25k toàn quốc. Đặc biệt freeship cho đơn từ 500k ạ!" },
-    { icon: CustomReturnIcon, label: "Đổi trả hàng", answer: "Bạn có thể đổi trả miễn phí trong vòng 7 ngày nếu do lỗi sản xuất. Yêu cầu sản phẩm còn nguyên tag và chưa qua sử dụng." },
-    { icon: CustomSupportIcon, label: "Gặp nhân viên", answer: "Đang kết nối với nhân viên hỗ trợ... Bạn vui lòng chờ trong giây lát nhé!" }
+    {
+        icon: CustomOrderIcon,
+        label: { vi: "Kiểm tra đơn hàng", en: "Check order" },
+        answer: {
+            vi: "Để kiểm tra đơn hàng, bạn vui lòng cung cấp mã vận đơn hoặc số điện thoại định dạng (ví dụ: 0912xxxxx) vào khung chat nhé!",
+            en: "To check your order, please send your tracking code or phone number (for example: 0912xxxxx) in the chat box."
+        }
+    },
+    {
+        icon: CustomShippingIcon,
+        label: { vi: "Phí vận chuyển", en: "Shipping fee" },
+        answer: {
+            vi: "Tất cả đồ UniqTee đều có phí vận chuyển đồng giá 25k toàn quốc. Đặc biệt freeship cho đơn từ 500k ạ!",
+            en: "UniqTee applies a flat 25k nationwide shipping fee. Orders from 500k receive free shipping."
+        }
+    },
+    {
+        icon: CustomReturnIcon,
+        label: { vi: "Đổi trả hàng", en: "Returns" },
+        answer: {
+            vi: "Bạn có thể đổi trả miễn phí trong vòng 7 ngày nếu do lỗi sản xuất. Yêu cầu sản phẩm còn nguyên tag và chưa qua sử dụng.",
+            en: "You can exchange or return items for free within 7 days if there is a manufacturing issue. Items must be unused and keep the original tag."
+        }
+    },
+    {
+        icon: CustomSupportIcon,
+        label: { vi: "Gặp nhân viên", en: "Talk to staff" },
+        answer: {
+            vi: "Đang kết nối với nhân viên hỗ trợ... Bạn vui lòng chờ trong giây lát nhé!",
+            en: "Connecting you with a support agent... Please wait a moment."
+        }
+    }
 ];
 
+const BUTTON_SIZE = 62;
+
+const getInitialPosition = () => {
+    if (typeof window === 'undefined') {
+        return { x: 0, y: 0 };
+    }
+
+    const initialX = window.innerWidth - BUTTON_SIZE - 24;
+    const initialY = window.innerHeight - BUTTON_SIZE - 24;
+    return {
+        x: Math.max(8, initialX),
+        y: Math.max(8, initialY),
+    };
+};
+
 const ChatWidget = () => {
+    const { language, t } = useLanguage();
     const { isAuthenticated, user } = useAuth();
     const { isOpen, toggleChat, messages, setMessages, sendMessage, deleteMessage, unreadCount, isConnected, isTyping, setIsTyping } = useChat();
     const [inputText, setInputText] = useState('');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [position, setPosition] = useState(getInitialPosition);
     const [activeMsgOptions, setActiveMsgOptions] = useState(null);
     const messagesEndRef = useRef(null);
+    const quickReplyIdRef = useRef(0);
     const dragStateRef = useRef({
         dragging: false,
         moved: false,
@@ -33,16 +79,6 @@ const ChatWidget = () => {
     });
     const authenticated = isAuthenticated();
     const isStaffOrAdmin = user?.role === 'admin' || user?.role === 'staff';
-    const BUTTON_SIZE = 62;
-
-    useEffect(() => {
-        const initialX = window.innerWidth - BUTTON_SIZE - 24;
-        const initialY = window.innerHeight - BUTTON_SIZE - 24;
-        setPosition({
-            x: Math.max(8, initialX),
-            y: Math.max(8, initialY),
-        });
-    }, []);
 
     useEffect(() => {
         const handleResize = () => {
@@ -88,18 +124,20 @@ const ChatWidget = () => {
         if (!text) return false;
         const stripped = text.replace(/\s+/g, '');
         if (stripped.length === 0) return false;
-        // If there's any normal letter, number, or punctuation, it's not just emojis
-        return !/[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]/i.test(stripped);
+        return !/[\p{L}\p{N}\p{P}]/u.test(stripped);
     };
 
     const handleQuickReply = (qr) => {
-        const clientId = Date.now().toString();
+        quickReplyIdRef.current += 1;
+        const clientId = `quick-${quickReplyIdRef.current}`;
+        const replyLabel = t(qr.label);
+        const replyAnswer = t(qr.answer);
         // User sends the quick reply text
         setMessages(prev => [...prev, {
             id: clientId,
             clientId: clientId,
             senderRole: 'customer',
-            content: qr.label,
+            content: replyLabel,
             sentAt: new Date().toISOString()
         }]);
         
@@ -107,11 +145,12 @@ const ChatWidget = () => {
         // Bot responds after a delay
         setTimeout(() => {
             setIsTyping(false);
+            quickReplyIdRef.current += 1;
             setMessages(prev => [...prev, {
-                id: Date.now().toString() + "_bot",
+                id: `quick-${quickReplyIdRef.current}-bot`,
                 senderRole: 'admin',
                 senderName: 'UniqTee Bot',
-                content: qr.answer,
+                content: replyAnswer,
                 sentAt: new Date().toISOString()
             }]);
         }, 1500);
@@ -204,7 +243,9 @@ const ChatWidget = () => {
                             <div className="chat-bot-welcome">
                                 <div className="bot-welcome-avatar">UT</div>
                                 <div className="bot-welcome-bubble">
-                                    Chào {user?.name || 'bạn'}! 🤖 Mình là trợ lý ảo của UniqTee. Shop có thể giúp gì cho bạn hôm nay?
+                                    {language === 'en'
+                                        ? `Hi ${user?.name || 'there'}! I am UniqTee's virtual assistant. How can we help you today?`
+                                        : `Chào ${user?.name || 'bạn'}! Mình là trợ lý ảo của UniqTee. Shop có thể giúp gì cho bạn hôm nay?`}
                                 </div>
                                 <div className="quick-replies-container">
                                     {QUICK_REPLIES.map((qr, index) => {
@@ -212,7 +253,7 @@ const ChatWidget = () => {
                                         return (
                                             <button key={index} className="quick-reply-btn" onClick={() => handleQuickReply(qr)}>
                                                 {Icon && <Icon size={14} />}
-                                                <span>{qr.label}</span>
+                                                <span>{t(qr.label)}</span>
                                             </button>
                                         );
                                     })}
@@ -239,7 +280,7 @@ const ChatWidget = () => {
                                         <div className={`message-bubble message-${msg.senderRole} ${msg.isDeleted ? 'msg-deleted' : ''} ${!msg.isDeleted && isOnlyEmojis(msg.content) ? 'msg-only-emoji' : ''}`}>
                                             {msg.isDeleted ? <span className="deleted-text"><CustomUndoIcon size={12} style={{marginRight: 4}}/> Tin nhắn đã thu hồi</span> : msg.content}
                                             <span className="message-time">
-                                                {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {new Date(msg.sentAt).toLocaleTimeString(language === 'en' ? 'en-US' : 'vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
 

@@ -7,6 +7,8 @@ import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './i18n/LanguageContext';
+import PublicI18nSync from './i18n/PublicI18nSync';
 import HomePage from './pages/Homepage';
 import ProductsPage from './pages/Productspage';
 import ProductDetailPage from './pages/Productdetailpage';
@@ -38,6 +40,7 @@ function AppContent() {
 
   return (
     <>
+      <PublicI18nSync disabled={isAdmin} />
       {!isAdmin && <Header />}
       <main style={{ paddingTop: isAdmin ? 0 : 68 }}>
         <Routes>
@@ -73,17 +76,19 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <WishlistProvider>
-          <CartProvider>
-            <ToastProvider>
-              <ChatProvider>
-                <AppContent />
-              </ChatProvider>
-            </ToastProvider>
-          </CartProvider>
-        </WishlistProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <WishlistProvider>
+            <CartProvider>
+              <ToastProvider>
+                <ChatProvider>
+                  <AppContent />
+                </ChatProvider>
+              </ToastProvider>
+            </CartProvider>
+          </WishlistProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </Router>
   );
 }

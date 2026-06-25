@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { userAddressAPI, shippingAPI } from "../services/api";
+import { useLanguage } from "../i18n/LanguageContext";
 
 export default function AddressBook({ userId }) {
+  const { t } = useLanguage();
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,13 +32,7 @@ export default function AddressBook({ userId }) {
     isDefault: false
   });
 
-  // Load Addresses
-  useEffect(() => {
-    loadAddresses();
-    loadGhnConfiguration();
-  }, [userId]);
-
-  const loadAddresses = async () => {
+  const loadAddresses = useCallback(async () => {
     try {
       setLoading(true);
       const data = await userAddressAPI.getAddresses(userId);
@@ -47,9 +43,9 @@ export default function AddressBook({ userId }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
-  const loadGhnConfiguration = async () => {
+  const loadGhnConfiguration = useCallback(async () => {
     try {
       setDataLoading(prev => ({ ...prev, provinces: true }));
       const config = await shippingAPI.getGhnConfiguration();
@@ -68,7 +64,13 @@ export default function AddressBook({ userId }) {
     } finally {
       setDataLoading(prev => ({ ...prev, provinces: false }));
     }
-  };
+  }, []);
+
+  // Load Addresses
+  useEffect(() => {
+    loadAddresses();
+    loadGhnConfiguration();
+  }, [loadAddresses, loadGhnConfiguration]);
 
   // Load districts when provinceId changes
   useEffect(() => {
@@ -159,19 +161,19 @@ export default function AddressBook({ userId }) {
       setShowModal(false);
       loadAddresses();
     } catch (err) {
-      setError(err.message || "Đã xảy ra lỗi");
+      setError(err.message || t({ vi: "Đã xảy ra lỗi", en: "Something went wrong" }));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (addressId) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa địa chỉ này?")) return;
+    if (!window.confirm(t({ vi: "Bạn có chắc chắn muốn xóa địa chỉ này?", en: "Are you sure you want to delete this address?" }))) return;
     try {
       await userAddressAPI.deleteAddress(userId, addressId);
       loadAddresses();
     } catch (err) {
-      alert(err.message || "Xóa thất bại");
+      alert(err.message || t({ vi: "Xóa thất bại", en: "Delete failed" }));
     }
   };
 
@@ -180,7 +182,7 @@ export default function AddressBook({ userId }) {
       await userAddressAPI.setDefaultAddress(userId, addressId);
       loadAddresses();
     } catch (err) {
-      alert(err.message || "Đặt mặc định thất bại");
+      alert(err.message || t({ vi: "Đặt mặc định thất bại", en: "Set default failed" }));
     }
   };
 

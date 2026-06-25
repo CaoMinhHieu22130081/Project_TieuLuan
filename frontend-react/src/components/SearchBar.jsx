@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { productAPI } from '../services/api';
+import { useLanguage } from '../i18n/LanguageContext';
 import '../pages/css/SearchBar.css';
 
 function highlightMatch(text, query) {
@@ -25,6 +26,7 @@ function SearchBar({
   autoFocus = false,
   enableAutoSearch = false, // Nếu true, sẽ gọi API search thay vì dùng suggestions
 }) {
+  const { language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -77,7 +79,7 @@ function SearchBar({
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'vi-VN';
+    recognition.lang = language === 'en' ? 'en-US' : 'vi-VN';
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
@@ -107,7 +109,7 @@ function SearchBar({
       recognition.stop();
       recognitionRef.current = null;
     };
-  }, []);
+  }, [language]);
 
   // Auto search khi enableAutoSearch = true
   useEffect(() => {
@@ -182,7 +184,7 @@ function SearchBar({
     }
   };
 
-  const formatPrice = (p) => p.toLocaleString('vi-VN') + 'đ';
+  const formatPrice = (p) => p.toLocaleString(language === 'en' ? 'en-US' : 'vi-VN') + 'đ';
 
   const hasClear = Boolean(value);
   const voiceTitle = !speechSupported

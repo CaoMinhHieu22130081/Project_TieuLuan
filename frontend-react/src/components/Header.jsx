@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
@@ -7,16 +7,23 @@ import {
   User,
   Minus,
   Plus,
-  Trash2
+  Trash2,
+  Globe2,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useLanguage } from '../i18n/LanguageContext';
+import { headerTranslations, LANGUAGES } from '../i18n/translations';
 import SearchBar from './SearchBar';
 import '../pages/css/Header.css';
 
 function HeaderSearchOverlay({ onClose }) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const copy = headerTranslations.nav;
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -37,7 +44,7 @@ function HeaderSearchOverlay({ onClose }) {
       <div className="header-search-panel">
         <div className="header-search-inner">
            <div className="header-search-top">
-             <span className="header-search-label"><Search size={16} style={{ marginRight: 8 }} /> Tìm kiếm</span>
+             <span className="header-search-label"><Search size={16} style={{ marginRight: 8 }} /> {t(copy.search)}</span>
              <button className="header-search-close" onClick={onClose}>
                <X size={20} />
              </button>
@@ -45,7 +52,7 @@ function HeaderSearchOverlay({ onClose }) {
           <SearchBar
             value={query}
             onChange={setQuery}
-            placeholder="Tìm tên sản phẩm, phong cách, màu sắc…"
+            placeholder={t(copy.searchPlaceholder)}
             onSearch={handleSearch}
             showSuggestions={true}
             autoFocus={true}
@@ -60,6 +67,8 @@ function HeaderSearchOverlay({ onClose }) {
 function MiniCart({ isOpen, onClose }) {
   const { cart, removeFromCart, updateQty } = useCart();
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const copy = headerTranslations.nav;
 
   const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 
@@ -108,7 +117,7 @@ function MiniCart({ isOpen, onClose }) {
           }}
         >
           <h3 style={{ margin: 0, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
-            Giỏ hàng
+            {t(copy.cart)}
           </h3>
           <button
             onClick={onClose}
@@ -137,7 +146,7 @@ function MiniCart({ isOpen, onClose }) {
         >
           {cart.length === 0 ? (
             <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>
-              <p style={{ fontSize: "0.9rem", margin: 0 }}>Giỏ hàng trống</p>
+              <p style={{ fontSize: "0.9rem", margin: 0 }}>{t(copy.emptyCart)}</p>
             </div>
           ) : (
             cart.map((item) => (
@@ -256,7 +265,7 @@ function MiniCart({ isOpen, onClose }) {
                           marginTop: 2,
                         }}
                       >
-                        <Trash2 size={14} style={{ marginRight: 4 }} /> Xóa
+                        <Trash2 size={14} style={{ marginRight: 4 }} /> {t(copy.remove)}
                       </button>
                     </div>
                   </div>
@@ -281,7 +290,7 @@ function MiniCart({ isOpen, onClose }) {
                 marginBottom: 12,
               }}
             >
-              <span style={{ color: "var(--text-secondary)" }}>Tổng cộng:</span>
+              <span style={{ color: "var(--text-secondary)" }}>{t(copy.subtotal)}</span>
               <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
                 {fmt(subtotal)}
               </span>
@@ -303,7 +312,7 @@ function MiniCart({ isOpen, onClose }) {
                 fontSize: "0.9rem",
               }}
             >
-              Xem giỏ hàng
+              {t(copy.viewCart)}
             </button>
           </div>
         )}
@@ -330,10 +339,14 @@ export default function Header() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { getTotalItems } = useCart();
+  const { language, currentLanguage, setLanguage, t } = useLanguage();
+  const copy = headerTranslations.nav;
+  const languageMenuRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartDropdownOpen, setCartDropdownOpen] = useState(false);
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
 
   const cartCount = getTotalItems();
   const isProductsPage = location.pathname === '/products';
@@ -344,9 +357,36 @@ export default function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    if (!languageMenuOpen) return undefined;
+
+    const onPointerDown = (event) => {
+      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
+        setLanguageMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setLanguageMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [languageMenuOpen]);
+
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
+  };
+
+  const handleLanguageSelect = (nextLanguage) => {
+    setLanguage(nextLanguage);
+    setLanguageMenuOpen(false);
   };
 
   return (
@@ -361,25 +401,58 @@ export default function Header() {
           </a>
 
           <nav className={`nav-links ${menuOpen ? 'open' : ''}`}>
-            <a href="/" className="nav-link">Trang chủ</a>
-            <a href="/products" className="nav-link">Sản phẩm</a>
+            <a href="/" className="nav-link">{t(copy.home)}</a>
+            <a href="/products" className="nav-link">{t(copy.products)}</a>
             <a href="/#ai-search" className="nav-link ai-link">
-              <span className="pulse-dot" /> Tìm bằng ảnh
+              <span className="pulse-dot" /> {t(copy.aiSearch)}
             </a>
-            <a href="/about" className="nav-link">Giới thiệu</a>
-            <a href="/faq" className="nav-link">Hỏi đáp</a>
-            <a href="/contact" className="nav-link">Liên hệ</a>
+            <a href="/about" className="nav-link">{t(copy.about)}</a>
+            <a href="/faq" className="nav-link">{t(copy.faq)}</a>
+            <a href="/contact" className="nav-link">{t(copy.contact)}</a>
           </nav>
 
           <div className="nav-actions">
+            <div className="language-menu-wrap" ref={languageMenuRef}>
+              <button
+                type="button"
+                className={`language-switcher ${languageMenuOpen ? 'open' : ''}`}
+                onClick={() => setLanguageMenuOpen((open) => !open)}
+                aria-label={t(copy.languageTitle)}
+                aria-haspopup="listbox"
+                aria-expanded={languageMenuOpen}
+                title={t(copy.languageTitle)}
+              >
+                <Globe2 size={16} />
+                <span>{currentLanguage.shortLabel}</span>
+                <ChevronDown size={14} className="language-chevron" />
+              </button>
+              {languageMenuOpen && (
+                <div className="language-dropdown" role="listbox" aria-label={t(copy.languageTitle)}>
+                  {Object.values(LANGUAGES).map((option) => (
+                    <button
+                      key={option.code}
+                      type="button"
+                      className={`language-option ${language === option.code ? 'active' : ''}`}
+                      role="option"
+                      aria-selected={language === option.code}
+                      onClick={() => handleLanguageSelect(option.code)}
+                    >
+                      <span className="language-option-code">{option.shortLabel}</span>
+                      <span className="language-option-label">{option.label}</span>
+                      {language === option.code && <Check size={15} />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             {!user ? (
               <>
-                <a href="/login" className="nav-btn-link nav-btn-login">Đăng nhập</a>
-                <a href="/register" className="nav-btn-link nav-btn-register">Đăng ký</a>
+                <a href="/login" className="nav-btn-link nav-btn-login">{t(copy.login)}</a>
+                <a href="/register" className="nav-btn-link nav-btn-register">{t(copy.register)}</a>
               </>
             ) : (
               <button onClick={handleLogout} className="nav-btn-link nav-btn-register">
-                Đăng xuất
+                {t(copy.logout)}
               </button>
             )}
             {isProductsPage && (
