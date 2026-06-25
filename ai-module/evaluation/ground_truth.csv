@@ -1,0 +1,5 @@
+image_path,expected_product_ids,expected_type
+manual_external/ao/ao_01.jpg,"10,11,15",Áo
+manual_external/ao/ao_02.jpg,"11; 12",Áo
+manual_external/quan/quan_01.jpg,"20|21",Quần
+catalog_queries/product_12.jpg,12,Áo

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import base64
+import csv
 import json
+import math
 import re
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Set
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -177,6 +179,24 @@ def _relative_to_base(path: Path) -> str:
 def _load_cases(config_path: Path) -> List[Dict[str, Any]]:
     if not config_path.exists():
         return []
+    
+    if config_path.suffix.lower() == ".csv":
+        cases = []
+        with config_path.open("r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                case = {
+                    "query_image_path": row.get("query_image_path", "").strip() or row.get("image_path", "").strip(),
+                }
+                ids_str = row.get("expected_product_ids", "").strip() or row.get("expected_product_id", "").strip()
+                if ids_str:
+                    # Support multiple IDs separated by comma or space
+                    case["expected_product_ids"] = [i.strip() for i in re.split(r"[,;|\s]+", ids_str) if i.strip()]
+                if row.get("expected_type"):
+                    case["expected_type"] = row.get("expected_type").strip()
+                cases.append(case)
+        return cases
+
     data = json.loads(config_path.read_text(encoding="utf-8"))
     if isinstance(data, dict):
         data = data.get("cases") or []
@@ -363,6 +383,19 @@ def call_image_search(base_url: str, image_path: Path, limit: int) -> Tuple[Dict
     return data, elapsed
 
 
+def compute_ndcg(found_ids: List[str], expected_ids: Set[str], k: int) -> float:
+    dcg = 0.0
+    for i, item in enumerate(found_ids[:k]):
+        if item in expected_ids:
+            dcg += 1.0 / math.log2(i + 2)  # +2 because i is 0-indexed, and log(1) is 0
+    
+    idcg = 0.0
+    for i in range(min(len(expected_ids), k)):
+        idcg += 1.0 / math.log2(i + 2)
+        
+    return dcg / idcg if idcg > 0 else 0.0
+
+
 def run_evaluation(cases: List[Dict[str, Any]], base_url: str, limit: int, generated: bool) -> None:
     if not cases:
         print("No evaluation cases found.")
@@ -371,14 +404,24 @@ def run_evaluation(cases: List[Dict[str, Any]], base_url: str, limit: int, gener
     cases_run = 0
     skipped = 0
     errors = 0
+    
     id_cases = 0
-    top1_hits = 0
-    topk_hits = 0
-    reciprocal_rank_total = 0.0
     type_cases = 0
     type_hits = 0
     no_result_count = 0
     total_latency = 0.0
+    
+    # Advanced IR Metrics accumulated
+    total_ap = 0.0
+    total_mrr = 0.0
+    total_precision_1 = 0.0
+    total_precision_5 = 0.0
+    total_precision_limit = 0.0
+    total_recall_5 = 0.0
+    total_recall_limit = 0.0
+    total_ndcg_5 = 0.0
+    total_ndcg_limit = 0.0
+    
     failures: List[Dict[str, Any]] = []
 
     print(f"Starting evaluation on {len(cases)} cases...")
@@ -387,7 +430,15 @@ def run_evaluation(cases: List[Dict[str, Any]], base_url: str, limit: int, gener
 
     for case in cases:
         image_path = _resolve_query_path(case.get("query_image_path") or case.get("image_path"))
-        expected_id = _normalize_id(case.get("expected_product_id"))
+        
+        expected_ids: Set[str] = set()
+        if "expected_product_ids" in case and isinstance(case["expected_product_ids"], list):
+            expected_ids = {str(i).strip() for i in case["expected_product_ids"] if i}
+        elif "expected_product_id" in case:
+            single = _normalize_id(case.get("expected_product_id"))
+            if single:
+                expected_ids.add(single)
+                
         expected_type = _extract_text_value(case.get("expected_type"))
 
         if not image_path or not image_path.exists():
@@ -421,59 +472,83 @@ def run_evaluation(cases: List[Dict[str, Any]], base_url: str, limit: int, gener
         found_ids = [_normalize_id(result.get("id")) for result in results if isinstance(result, dict)]
         found_ids = [found_id for found_id in found_ids if found_id]
 
-        if expected_id:
+        if expected_ids:
             id_cases += 1
-            rank = None
+            
+            # MRR and AP
+            hits = 0
+            sum_precisions = 0.0
+            first_hit_rank = 0
+            
             for index, found_id in enumerate(found_ids[:limit], start=1):
-                if found_id == expected_id:
-                    rank = index
-                    break
-
-            if rank == 1:
-                top1_hits += 1
-            if rank is not None:
-                topk_hits += 1
-                reciprocal_rank_total += 1.0 / rank
+                if found_id in expected_ids:
+                    if first_hit_rank == 0:
+                        first_hit_rank = index
+                    hits += 1
+                    sum_precisions += hits / index
+                    
+            if first_hit_rank > 0:
+                total_mrr += 1.0 / first_hit_rank
+            if hits > 0:
+                total_ap += sum_precisions / min(len(expected_ids), limit)
             else:
-                failures.append(
-                    {
-                        "image": _relative_to_base(image_path),
-                        "expected_id": expected_id,
-                        "top_ids": found_ids[:limit],
-                        "predicted_type": predicted_type,
-                        "no_result": bool(data.get("noResult")),
-                        "reason": data.get("noResultReason"),
-                    }
-                )
+                failures.append({
+                    "image": _relative_to_base(image_path),
+                    "expected_ids": list(expected_ids),
+                    "top_ids": found_ids[:5],
+                    "predicted_type": predicted_type,
+                    "no_result": bool(data.get("noResult")),
+                })
 
-    print("\n--- EVALUATION RESULTS ---")
-    print(f"Cases run: {cases_run}/{len(cases)}")
-    print(f"Skipped: {skipped}")
-    print(f"Errors: {errors}")
-    print(f"Top-1 Accuracy: {_pct(top1_hits, id_cases)} ({top1_hits}/{id_cases})")
-    print(f"Top-{limit} Accuracy: {_pct(topk_hits, id_cases)} ({topk_hits}/{id_cases})")
+            # Precision & Recall @ K
+            def count_hits(k: int) -> int:
+                return sum(1 for item in found_ids[:k] if item in expected_ids)
+                
+            total_precision_1 += count_hits(1) / 1.0
+            total_precision_5 += count_hits(5) / 5.0
+            total_precision_limit += count_hits(limit) / float(limit)
+            
+            max_possible = len(expected_ids)
+            total_recall_5 += count_hits(5) / max_possible
+            total_recall_limit += count_hits(limit) / max_possible
+            
+            # NDCG
+            total_ndcg_5 += compute_ndcg(found_ids, expected_ids, 5)
+            total_ndcg_limit += compute_ndcg(found_ids, expected_ids, limit)
+
+    print("\n--- PROFESSIONAL EVALUATION RESULTS ---")
+    print(f"Cases run: {cases_run}/{len(cases)} (Skipped: {skipped}, Errors: {errors})")
+    
     if id_cases > 0:
-        print(f"MRR: {reciprocal_rank_total / id_cases:.3f}")
+        print(f"\n[ Ranking Metrics ]")
+        print(f"mAP (Mean Average Precision) : {_pct(total_ap, id_cases)}")
+        print(f"MRR (Mean Reciprocal Rank)   : {total_mrr / id_cases:.4f}")
+        print(f"NDCG@5                       : {_pct(total_ndcg_5, id_cases)}")
+        print(f"NDCG@{limit:<23}: {_pct(total_ndcg_limit, id_cases)}")
+        
+        print(f"\n[ Recall (Khả năng tìm thấy kết quả đúng) ]")
+        print(f"Recall@5                     : {_pct(total_recall_5, id_cases)}")
+        print(f"Recall@{limit:<21}: {_pct(total_recall_limit, id_cases)}")
+        
+        print(f"\n[ Precision (Tỷ lệ kết quả đúng trên tổng trả về) ]")
+        print(f"Precision@1                  : {_pct(total_precision_1, id_cases)}")
+        print(f"Precision@5                  : {_pct(total_precision_5, id_cases)}")
+        print(f"Precision@{limit:<18}: {_pct(total_precision_limit, id_cases)}")
     else:
-        print("MRR: n/a")
-    print(f"Type Accuracy: {_pct(type_hits, type_cases)} ({type_hits}/{type_cases})")
-    print(f"No-result count: {no_result_count}")
-    if cases_run > 0:
-        print(f"Avg Latency: {total_latency / cases_run:.3f}s")
-    else:
-        print("Avg Latency: n/a")
+        print("\nNo product ID cases found to calculate ranking metrics.")
+
+    print(f"\n[ Other Metrics ]")
+    print(f"Category Accuracy: {_pct(type_hits, type_cases)} ({type_hits}/{type_cases})")
+    print(f"No-result Count  : {no_result_count}")
+    print(f"Avg Latency      : {total_latency / max(1, cases_run):.3f}s")
 
     if failures:
-        print("\nFailed ID matches:")
+        print(f"\nFailed ID matches (No relevant items found in top {limit}):")
         for failure in failures[:10]:
-            print(
-                f"- {failure['image']}: expected={failure['expected_id']}, "
-                f"top={failure['top_ids']}, type={failure['predicted_type']}, "
-                f"noResult={failure['no_result']}"
-            )
+            print(f"- {failure['image']}: expected={failure['expected_ids']}, top={failure['top_ids']}")
         if len(failures) > 10:
             print(f"... and {len(failures) - 10} more")
-    print("--------------------------\n")
+    print("---------------------------------------\n")
 
 
 def parse_args() -> argparse.Namespace:
