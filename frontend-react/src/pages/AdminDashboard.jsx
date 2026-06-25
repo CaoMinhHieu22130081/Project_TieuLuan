@@ -253,7 +253,7 @@ const buildWordReportHtml = ({ generatedAt, stats, totalRevenue, shirtCategories
   ];
   const renderRow = (cells) => `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Báo cáo UniqTee</title>
-  <style>body{font-family:sans-serif;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}</style>
+  <style>body{font-family:'Be Vietnam Pro',sans-serif;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d1d5db;padding:8px}th{background:#f3f4f6}</style>
   </head><body><h1>Báo cáo quản trị UniqTee</h1><p>${escapeHtml(generatedAt)}</p>
   <h2>Tổng quan</h2><table><thead><tr><th>Chỉ số</th><th>Giá trị</th><th>Ghi chú</th></tr></thead><tbody>${summaryRows.map((r) => renderRow(r.map(escapeHtml))).join("")}</tbody></table>
   <h2>Sản phẩm bán chạy</h2><table><thead><tr><th>#</th><th>Sản phẩm</th><th>Loại</th><th>Đã bán</th><th>Doanh thu</th></tr></thead>

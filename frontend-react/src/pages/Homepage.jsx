@@ -774,11 +774,11 @@ function HomePage() {
         <div className="hero-inner">
           <div className="hero-text-col">
             <h1 className="hero-title">
-              Thời trang<br /><span className="accent">Unisex</span><br />Dành cho bạn
+              Thời trang <span className="accent">Unisex</span><br />Dành cho bạn
             </h1>
             <p className="hero-desc">
-              Hàng trăm mẫu áo thun, quần jeans, cargo & jogger unisex đa dạng phong cách.
-              Tìm đúng bộ trang phục bạn muốn chỉ bằng một tấm ảnh.
+              Khám phá bộ sưu tập hàng trăm mẫu áo thun, quần jeans, cargo & jogger cực chất. 
+              Trải nghiệm không gian mua sắm thông minh, tìm đúng bộ trang phục bạn yêu thích chỉ bằng một tấm ảnh nhờ công nghệ AI tiên tiến.
             </p>
             <div className="hero-cta">
               <Link to="/products" className="btn-primary">Mua ngay</Link>
