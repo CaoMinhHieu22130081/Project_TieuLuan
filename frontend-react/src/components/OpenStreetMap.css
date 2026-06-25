@@ -1,0 +1,218 @@
+.osm-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fbf7fb 0%, #f2e8f1 100%);
+  box-shadow: 0 24px 56px rgba(112, 38, 74, 0.14);
+}
+
+.osm-map-shell {
+  position: relative;
+  min-height: 300px;
+  background: var(--surface-2);
+}
+
+.osm-map {
+  width: 100%;
+  height: 300px;
+  z-index: 1;
+}
+
+.osm-map-badge {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 450;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(12px);
+}
+
+.osm-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.osm-eyebrow {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.osm-panel h3 {
+  margin: 0 0 4px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.osm-panel p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.osm-notice {
+  display: inline-flex;
+  margin-top: 8px;
+  color: #b45309;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.osm-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.osm-action-btn,
+.osm-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: #fffafd;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  transition: border-color var(--transition), background var(--transition), color var(--transition), transform var(--transition);
+}
+
+.osm-action-btn {
+  gap: 7px;
+  padding: 9px 12px;
+}
+
+.osm-icon-btn {
+  width: 38px;
+}
+
+.osm-action-btn:hover,
+.osm-icon-btn:hover {
+  border-color: rgba(var(--accent-rgb), 0.38);
+  background: var(--accent-dim);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.osm-action-btn:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
+}
+
+.osm-action-btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.osm-action-btn.primary:hover {
+  background: var(--accent-2);
+  color: #fff;
+}
+
+.osm-marker-store,
+.osm-marker-user {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.osm-marker-store {
+  background: rgba(var(--accent-rgb), 0.16);
+  border: 1px solid rgba(var(--accent-rgb), 0.36);
+  box-shadow: 0 0 0 9px rgba(var(--accent-rgb), 0.08);
+}
+
+.osm-marker-store span {
+  width: 16px;
+  height: 16px;
+  border: 4px solid #fff;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 12px 28px rgba(var(--accent-rgb), 0.4);
+}
+
+.osm-marker-user {
+  background: rgba(37, 99, 235, 0.16);
+  border: 1px solid rgba(37, 99, 235, 0.42);
+  box-shadow: 0 0 0 7px rgba(37, 99, 235, 0.1);
+}
+
+.osm-marker-user span {
+  width: 12px;
+  height: 12px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
+.osm-popup .leaflet-popup-content-wrapper {
+  border-radius: 10px;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18);
+}
+
+.osm-popup .leaflet-popup-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 14px;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  line-height: 1.45;
+}
+
+.osm-popup .leaflet-popup-content strong {
+  color: var(--text-primary);
+}
+
+.leaflet-control-zoom a {
+  color: var(--text-primary);
+}
+
+@media (max-width: 760px) {
+  .osm-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .osm-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .osm-map-shell,
+  .osm-map {
+    min-height: 260px;
+    height: 260px;
+  }
+
+  .osm-action-btn {
+    flex: 1 1 auto;
+  }
+}

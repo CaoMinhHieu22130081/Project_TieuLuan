@@ -1,9 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { orderAPI, paymentAPI, shippingAPI, userAddressAPI, voucherAPI } from "../services/api";
 import { FREE_SHIPPING_THRESHOLD, formatShippingThreshold, isFreeShippingEligible } from "../utils/shipping";
+import AddressMapPicker from "../components/AddressMapPicker";
+import {
+  findAdministrativeOption,
+  parseMapLocationAddress,
+} from "../utils/addressParsing";
 import "./css/Checkoutpage.css";
 
 const STEPS = ["Thông tin", "Thanh toán", "Xác nhận"];
@@ -39,11 +44,23 @@ const getSelectedOptionLabel = (options, key, value, labelKey) => {
   return match?.[labelKey] || "";
 };
 
+const buildShippingAddressText = (data) => [
+  data.address,
+  data.ward,
+  data.district,
+  data.city,
+  "Việt Nam",
+].filter(Boolean).join(", ");
+
+
+
 export default function CheckoutPage() {
   const location = useLocation();
   const { user } = useAuth();
   const { cart, removeFromCart, loading: cartLoading } = useCart();
   const [searchParams, setSearchParams] = useSearchParams();
+  const mapAddressResolveIdRef = useRef(0);
+  const currentMapLocationRef = useRef(null);
 
   const selectedItemIds = Array.isArray(location.state?.selectedItems)
     ? location.state.selectedItems
@@ -99,6 +116,8 @@ export default function CheckoutPage() {
     wardCode: "",
     city: "",
     note: "",
+    latitude: null,
+    longitude: null,
   });
 
   useEffect(() => {
@@ -125,6 +144,8 @@ export default function CheckoutPage() {
             district: defaultAddr.districtName || "",
             wardCode: defaultAddr.wardCode || "",
             ward: defaultAddr.wardName || "",
+            latitude: defaultAddr.latitude ?? null,
+            longitude: defaultAddr.longitude ?? null,
           }));
         } else {
           setShippingForm((current) => ({
@@ -434,7 +455,7 @@ export default function CheckoutPage() {
           setProductDiscount(Number(result.discountAmount || 0));
           setShippingDiscount(Number(result.shippingDiscount || 0));
         }
-      } catch (err) {
+      } catch {
         if (!cancelled) {
           setProductDiscount(0);
           setShippingDiscount(0);
@@ -504,6 +525,77 @@ export default function CheckoutPage() {
       ward: wardName,
     }));
     setShippingError("");
+  };
+
+  const handleMapLocationChange = async (mapLocation, explicitAddress) => {
+    const parsedAddress = parseMapLocationAddress(mapLocation);
+    const resolveId = mapAddressResolveIdRef.current + 1;
+    mapAddressResolveIdRef.current = resolveId;
+
+    const baseFormUpdate = {
+      latitude: mapLocation.latitude,
+      longitude: mapLocation.longitude,
+      ...(explicitAddress ? { address: explicitAddress } : {}),
+    };
+
+    if (!ghnReady) {
+      setShippingForm((current) => ({
+        ...current,
+        ...baseFormUpdate,
+        city: parsedAddress.provinceName || current.city,
+        district: parsedAddress.districtName || current.district,
+        ward: parsedAddress.wardName || current.ward,
+      }));
+      setShippingError("");
+      return;
+    }
+
+    const matchedProvince = findAdministrativeOption(ghnProvinces, parsedAddress.provinceCandidates, "provinceName");
+    let nextDistricts = [];
+    let nextWards = [];
+    let matchedDistrict = null;
+    let matchedWard = null;
+
+    try {
+      if (matchedProvince) {
+        nextDistricts = await shippingAPI.getGhnDistricts(matchedProvince.provinceId);
+        if (mapAddressResolveIdRef.current !== resolveId) return;
+        nextDistricts = Array.isArray(nextDistricts) ? nextDistricts : [];
+        matchedDistrict = findAdministrativeOption(nextDistricts, parsedAddress.districtCandidates, "districtName");
+
+        if (matchedDistrict) {
+          nextWards = await shippingAPI.getGhnWards(matchedDistrict.districtId);
+          if (mapAddressResolveIdRef.current !== resolveId) return;
+          nextWards = Array.isArray(nextWards) ? nextWards : [];
+          matchedWard = findAdministrativeOption(nextWards, parsedAddress.wardCandidates, "wardName");
+        }
+      }
+
+      setGhnDistricts(nextDistricts);
+      setGhnWards(nextWards);
+      setShippingQuote(null);
+      setShippingError("");
+      setShippingForm((current) => ({
+        ...current,
+        ...baseFormUpdate,
+        provinceId: matchedProvince?.provinceId || "",
+        city: matchedProvince?.provinceName || parsedAddress.provinceName || current.city,
+        districtId: matchedDistrict?.districtId || "",
+        district: matchedDistrict?.districtName || parsedAddress.districtName || current.district,
+        wardCode: matchedWard?.wardCode || "",
+        ward: matchedWard?.wardName || parsedAddress.wardName || current.ward,
+      }));
+    } catch (mapAddressError) {
+      if (mapAddressResolveIdRef.current !== resolveId) return;
+      setShippingForm((current) => ({
+        ...current,
+        ...baseFormUpdate,
+        city: parsedAddress.provinceName || current.city,
+        district: parsedAddress.districtName || current.district,
+        ward: parsedAddress.wardName || current.ward,
+      }));
+      setShippingError(mapAddressError.message || "Không thể tự động điền địa chỉ từ bản đồ.");
+    }
   };
 
   const handleApplyManualVoucher = async () => {
@@ -614,6 +706,8 @@ export default function CheckoutPage() {
         customerPhone: phone,
         customerEmail: email || user?.email || "",
         address,
+        latitude: Number.isFinite(Number(shippingForm.latitude)) ? Number(shippingForm.latitude) : null,
+        longitude: Number.isFinite(Number(shippingForm.longitude)) ? Number(shippingForm.longitude) : null,
         ward: resolvedWard,
         district: resolvedDistrict,
         city: resolvedCity,
@@ -991,6 +1085,32 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
+                  <AddressMapPicker
+                    className="checkout-address-map"
+                    title="Xác nhận vị trí giao hàng"
+                    helperText="Tìm theo địa chỉ đã nhập, dùng định vị hiện tại hoặc bấm trực tiếp trên bản đồ để đặt ghim."
+                    fullAddress={buildShippingAddressText(shippingForm)}
+                    value={{ latitude: shippingForm.latitude, longitude: shippingForm.longitude }}
+                    onLocationChange={(location) => {
+                      currentMapLocationRef.current = location;
+                        setShippingForm((current) => ({
+                        ...current,
+                        latitude: location.latitude,
+                        longitude: location.longitude
+                      }));
+                    }}
+                    onUseSuggestedAddress={(suggestedAddress) => {
+                      if (currentMapLocationRef.current) {
+                        handleMapLocationChange(currentMapLocationRef.current, suggestedAddress);
+                      } else {
+                        setShippingForm((current) => ({
+                          ...current,
+                          address: suggestedAddress
+                        }));
+                      }
+                    }}
+                  />
+
                   <div className="address-guidance">
                     <strong>Gợi ý:</strong> Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố. Tất cả đều có thể nhập tự do theo địa chỉ thực tế của bạn.
                   </div>
@@ -1239,7 +1359,7 @@ export default function CheckoutPage() {
             </div>
 
             <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", textAlign: "center", marginTop: 12 }}>
-              🔒 Thông tin thanh toán được mã hóa SSL
+              Thông tin thanh toán được mã hóa SSL
             </div>
           </div>
         </div>
@@ -1279,7 +1399,9 @@ export default function CheckoutPage() {
                       districtId: address.districtId || "",
                       district: address.districtName || "",
                       wardCode: address.wardCode || "",
-                      ward: address.wardName || ""
+                      ward: address.wardName || "",
+                      latitude: address.latitude ?? null,
+                      longitude: address.longitude ?? null
                     }));
                     setShowAddressPicker(false);
                     setGhnDistricts([]);

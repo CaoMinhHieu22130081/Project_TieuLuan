@@ -1,0 +1,284 @@
+.address-map-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fbf7fb 0%, #f2e8f1 100%);
+  box-shadow: 0 18px 42px rgba(112, 38, 74, 0.1);
+}
+
+.address-map-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px 12px;
+}
+
+.address-map-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 5px;
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.address-map-head h4 {
+  margin: 0 0 4px;
+  color: var(--text-primary);
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.address-map-head p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.address-map-coordinates {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
+  border-radius: 999px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.address-map-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  padding: 0 18px 14px;
+}
+
+.address-map-search-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  background: #fffafd;
+  color: var(--text-muted);
+}
+
+.address-map-search-input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: 600 0.84rem var(--font-body);
+}
+
+.address-map-search-input input::placeholder {
+  color: var(--text-muted);
+}
+
+.address-map-search button,
+.address-map-footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  background: #fffafd;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  transition: border-color var(--transition), background var(--transition), color var(--transition), transform var(--transition);
+}
+
+.address-map-search button:hover,
+.address-map-footer button:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.address-map-search button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
+}
+
+.address-map-shell {
+  min-height: 280px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.address-map-canvas {
+  width: 100%;
+  height: 280px;
+  z-index: 1;
+}
+
+.address-map-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 18px 16px;
+}
+
+.address-map-status {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.address-map-suggestion {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.address-map-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 18px 16px;
+}
+
+.address-map-results-title {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.address-map-result {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fffafd;
+  text-align: left;
+  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+}
+
+.address-map-result:hover,
+.address-map-result.selected {
+  border-color: rgba(var(--accent-rgb), 0.36);
+  background: var(--accent-dim);
+  transform: translateY(-1px);
+}
+
+.address-map-result-rank {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.address-map-result.selected .address-map-result-rank {
+  background: var(--accent);
+  color: #fff;
+}
+
+.address-map-result-text {
+  min-width: 0;
+}
+
+.address-map-result-text strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.address-map-result-text small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.address-map-pin {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.18);
+  border: 1px solid rgba(var(--accent-rgb), 0.38);
+  box-shadow: 0 0 0 9px rgba(var(--accent-rgb), 0.08);
+}
+
+.address-map-pin span {
+  width: 16px;
+  height: 16px;
+  border: 4px solid #fff;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 12px 28px rgba(var(--accent-rgb), 0.42);
+}
+
+.address-map-card.compact .address-map-head {
+  padding: 14px 14px 10px;
+}
+
+.address-map-card.compact .address-map-search {
+  padding: 0 14px 12px;
+}
+
+.address-map-card.compact .address-map-shell,
+.address-map-card.compact .address-map-canvas {
+  min-height: 220px;
+  height: 220px;
+}
+
+.address-map-card.compact .address-map-footer {
+  padding: 12px 14px 14px;
+}
+
+.address-map-card.compact .address-map-results {
+  padding: 0 14px 14px;
+}
+
+@media (max-width: 760px) {
+  .address-map-head,
+  .address-map-footer {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .address-map-search {
+    grid-template-columns: 1fr;
+  }
+
+  .address-map-search button,
+  .address-map-footer button {
+    width: 100%;
+  }
+}

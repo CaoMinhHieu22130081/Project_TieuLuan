@@ -43,6 +43,12 @@ public class Order {
     @Column(columnDefinition = "TEXT")
     private String address;
 
+    @Column(precision = 10)
+    private Double latitude;
+
+    @Column(precision = 10)
+    private Double longitude;
+
     private String ward;
     private String district;
     private String city;
@@ -107,6 +113,12 @@ public class Order {
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
     public String getWard() { return ward; }
     public void setWard(String ward) { this.ward = ward; }

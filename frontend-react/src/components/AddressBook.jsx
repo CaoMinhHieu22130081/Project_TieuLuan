@@ -1,6 +1,19 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { userAddressAPI, shippingAPI } from "../services/api";
 import { useLanguage } from "../i18n/LanguageContext";
+import AddressMapPicker from "./AddressMapPicker";
+import {
+  findAdministrativeOption,
+  parseMapLocationAddress,
+} from "../utils/addressParsing";
+
+const buildAddressText = (data) => [
+  data.detailAddress,
+  data.wardName,
+  data.districtName,
+  data.provinceName,
+  "Việt Nam",
+].filter(Boolean).join(", ");
 
 export default function AddressBook({ userId }) {
   const { t } = useLanguage();
@@ -29,8 +42,80 @@ export default function AddressBook({ userId }) {
     wardName: "",
     detailAddress: "",
     note: "",
-    isDefault: false
+    isDefault: false,
+    latitude: null,
+    longitude: null
   });
+
+  const mapAddressResolveIdRef = useRef(0);
+  const currentMapLocationRef = useRef(null);
+
+  const handleMapLocationChange = async (mapLocation, explicitAddress) => {
+    const parsedAddress = parseMapLocationAddress(mapLocation);
+    const resolveId = mapAddressResolveIdRef.current + 1;
+    mapAddressResolveIdRef.current = resolveId;
+
+    const baseFormUpdate = {
+      latitude: mapLocation.latitude,
+      longitude: mapLocation.longitude,
+      ...(explicitAddress ? { detailAddress: explicitAddress } : {}),
+    };
+
+    if (!ghnConfig.masterDataConfigured) {
+      setFormData((current) => ({
+        ...current,
+        ...baseFormUpdate,
+        provinceName: parsedAddress.provinceName || current.provinceName,
+        districtName: parsedAddress.districtName || current.districtName,
+        wardName: parsedAddress.wardName || current.wardName,
+      }));
+      return;
+    }
+
+    const matchedProvince = findAdministrativeOption(ghnProvinces, parsedAddress.provinceCandidates, "provinceName");
+    let nextDistricts = [];
+    let nextWards = [];
+    let matchedDistrict = null;
+    let matchedWard = null;
+
+    try {
+      if (matchedProvince) {
+        nextDistricts = await shippingAPI.getGhnDistricts(matchedProvince.provinceId);
+        if (mapAddressResolveIdRef.current !== resolveId) return;
+        nextDistricts = Array.isArray(nextDistricts) ? nextDistricts : [];
+        matchedDistrict = findAdministrativeOption(nextDistricts, parsedAddress.districtCandidates, "districtName");
+
+        if (matchedDistrict) {
+          nextWards = await shippingAPI.getGhnWards(matchedDistrict.districtId);
+          if (mapAddressResolveIdRef.current !== resolveId) return;
+          nextWards = Array.isArray(nextWards) ? nextWards : [];
+          matchedWard = findAdministrativeOption(nextWards, parsedAddress.wardCandidates, "wardName");
+        }
+      }
+
+      setGhnDistricts(nextDistricts);
+      setGhnWards(nextWards);
+      setFormData((current) => ({
+        ...current,
+        ...baseFormUpdate,
+        provinceId: matchedProvince?.provinceId || "",
+        provinceName: matchedProvince?.provinceName || parsedAddress.provinceName || current.provinceName,
+        districtId: matchedDistrict?.districtId || "",
+        districtName: matchedDistrict?.districtName || parsedAddress.districtName || current.districtName,
+        wardCode: matchedWard?.wardCode || "",
+        wardName: matchedWard?.wardName || parsedAddress.wardName || current.wardName,
+      }));
+    } catch (mapAddressError) {
+      if (mapAddressResolveIdRef.current !== resolveId) return;
+      setFormData((current) => ({
+        ...current,
+        ...baseFormUpdate,
+        provinceName: parsedAddress.provinceName || current.provinceName,
+        districtName: parsedAddress.districtName || current.districtName,
+        wardName: parsedAddress.wardName || current.wardName,
+      }));
+    }
+  };
 
   const loadAddresses = useCallback(async () => {
     try {
@@ -127,7 +212,9 @@ export default function AddressBook({ userId }) {
         wardName: address.wardName || "",
         detailAddress: address.detailAddress || "",
         note: address.note || "",
-        isDefault: address.isDefault || false
+        isDefault: address.isDefault || false,
+        latitude: address.latitude ?? null,
+        longitude: address.longitude ?? null
       });
     } else {
       setEditingAddress(null);
@@ -142,7 +229,9 @@ export default function AddressBook({ userId }) {
         wardName: "",
         detailAddress: "",
         note: "",
-        isDefault: false
+        isDefault: false,
+        latitude: null,
+        longitude: null
       });
     }
     setShowModal(true);
@@ -243,8 +332,8 @@ export default function AddressBook({ userId }) {
                   )}
                 </div>
                 {!address.isDefault && (
-                  <button 
-                    onClick={() => handleSetDefault(address.id)} 
+                  <button
+                    onClick={() => handleSetDefault(address.id)}
                     style={{ background: "none", border: "1px solid var(--border)", padding: "4px 8px", borderRadius: "4px", fontSize: "0.85rem", cursor: "pointer", color: "var(--text-primary)" }}
                   >
                     Thiết lập mặc định
@@ -262,25 +351,25 @@ export default function AddressBook({ userId }) {
           background: "rgba(15, 23, 42, 0.38)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center"
         }}>
           <div className="modal-content" style={{
-            background: "var(--surface)", width: "100%", maxWidth: "500px", borderRadius: "8px",
-            padding: "24px", maxHeight: "90vh", overflowY: "auto", position: "relative"
+            background: "var(--surface)", width: "100%", maxWidth: "860px", borderRadius: "8px",
+            padding: "24px", maxHeight: "85vh", overflowY: "auto", position: "relative"
           }}>
             <h3 style={{ marginTop: 0 }}>{editingAddress ? "Cập nhật địa chỉ" : "Thêm địa chỉ mới"}</h3>
             {error && <div style={{ color: "red", marginBottom: "12px" }}>{error}</div>}
-            
+
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div className="form-group" style={{ display: "flex", gap: "16px" }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: "block", marginBottom: "6px" }}>Họ và tên</label>
                   <input type="text" required value={formData.receiverName}
-                    onChange={(e) => setFormData({...formData, receiverName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, receiverName: e.target.value })}
                     style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: "block", marginBottom: "6px" }}>Số điện thoại</label>
                   <input type="tel" required value={formData.receiverPhone}
-                    onChange={(e) => setFormData({...formData, receiverPhone: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, receiverPhone: e.target.value })}
                     style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
                   />
                 </div>
@@ -293,7 +382,7 @@ export default function AddressBook({ userId }) {
                     <select required value={formData.provinceId}
                       onChange={(e) => {
                         const sel = e.target.options[e.target.selectedIndex];
-                        setFormData({...formData, provinceId: e.target.value, provinceName: sel.text, districtId: "", districtName: "", wardCode: "", wardName: ""});
+                        setFormData({ ...formData, provinceId: e.target.value, provinceName: sel.text, districtId: "", districtName: "", wardCode: "", wardName: "" });
                       }}
                       style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
                     >
@@ -309,7 +398,7 @@ export default function AddressBook({ userId }) {
                     <select required value={formData.districtId} disabled={!formData.provinceId}
                       onChange={(e) => {
                         const sel = e.target.options[e.target.selectedIndex];
-                        setFormData({...formData, districtId: e.target.value, districtName: sel.text, wardCode: "", wardName: ""});
+                        setFormData({ ...formData, districtId: e.target.value, districtName: sel.text, wardCode: "", wardName: "" });
                       }}
                       style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
                     >
@@ -325,7 +414,7 @@ export default function AddressBook({ userId }) {
                     <select required value={formData.wardCode} disabled={!formData.districtId}
                       onChange={(e) => {
                         const sel = e.target.options[e.target.selectedIndex];
-                        setFormData({...formData, wardCode: e.target.value, wardName: sel.text});
+                        setFormData({ ...formData, wardCode: e.target.value, wardName: sel.text });
                       }}
                       style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
                     >
@@ -341,16 +430,41 @@ export default function AddressBook({ userId }) {
               <div className="form-group">
                 <label style={{ display: "block", marginBottom: "6px" }}>Địa chỉ cụ thể</label>
                 <textarea required value={formData.detailAddress}
-                  onChange={(e) => setFormData({...formData, detailAddress: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, detailAddress: e.target.value })}
                   rows="3" placeholder="Số nhà, tên đường..."
                   style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)", resize: "vertical" }}
                 />
               </div>
 
+              <AddressMapPicker
+                compact
+                title="Chọn vị trí giao hàng"
+                fullAddress={buildAddressText(formData)}
+                value={{ latitude: formData.latitude, longitude: formData.longitude }}
+                onLocationChange={(location) => {
+                  currentMapLocationRef.current = location;
+                  setFormData((current) => ({
+                    ...current,
+                    latitude: location.latitude,
+                    longitude: location.longitude
+                  }));
+                }}
+                onUseSuggestedAddress={(suggestedAddress) => {
+                  if (currentMapLocationRef.current) {
+                    handleMapLocationChange(currentMapLocationRef.current, suggestedAddress);
+                  } else {
+                    setFormData((current) => ({
+                      ...current,
+                      detailAddress: suggestedAddress
+                    }));
+                  }
+                }}
+              />
+
               {!editingAddress?.isDefault && (
                 <div className="form-group" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <input type="checkbox" id="isDefault" checked={formData.isDefault}
-                    onChange={(e) => setFormData({...formData, isDefault: e.target.checked})}
+                    onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
                   />
                   <label htmlFor="isDefault">Đặt làm địa chỉ mặc định</label>
                 </div>

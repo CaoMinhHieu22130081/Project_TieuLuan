@@ -237,6 +237,10 @@
   color: var(--text-primary);
 }
 
+.checkout-address-map {
+  margin-top: 18px;
+}
+
 .form-select {
   padding: 11px 14px;
   background: var(--surface);

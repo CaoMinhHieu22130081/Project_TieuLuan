@@ -44,6 +44,12 @@ public class UserAddress {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String detailAddress;
 
+    @Column(precision = 10)
+    private Double latitude;
+
+    @Column(precision = 10)
+    private Double longitude;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 
@@ -155,6 +161,22 @@ public class UserAddress {
 
     public void setDetailAddress(String detailAddress) {
         this.detailAddress = detailAddress;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
     }
 
     public String getNote() {

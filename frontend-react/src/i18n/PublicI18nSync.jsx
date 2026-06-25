@@ -2,9 +2,21 @@ import { useEffect } from "react";
 import { publicTextPatterns, publicTextTranslations } from "./translations";
 import { useLanguage } from "./LanguageContext";
 
-const textOriginals = new WeakMap();
-const attrOriginals = new WeakMap();
-const translatedText = new WeakMap();
+window.__i18n_textOriginals = window.__i18n_textOriginals || new WeakMap();
+window.__i18n_attrOriginals = window.__i18n_attrOriginals || new WeakMap();
+window.__i18n_translatedText = window.__i18n_translatedText || new WeakMap();
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    window.__i18n_textOriginals = new WeakMap();
+    window.__i18n_attrOriginals = new WeakMap();
+    window.__i18n_translatedText = new WeakMap();
+  });
+}
+
+const textOriginals = window.__i18n_textOriginals;
+const attrOriginals = window.__i18n_attrOriginals;
+const translatedText = window.__i18n_translatedText;
 
 const SKIP_SELECTOR = [
   "script",
@@ -178,12 +190,14 @@ export default function PublicI18nSync({ disabled = false }) {
 
   useEffect(() => {
     if (disabled) return undefined;
+    let rafId;
 
     const apply = () => walk(document.body, language);
     apply();
 
     const observer = new MutationObserver((mutations) => {
-      window.requestAnimationFrame(() => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(() => {
         mutations.forEach((mutation) => {
           if (mutation.type === "characterData") {
             walk(mutation.target, language);
@@ -208,7 +222,10 @@ export default function PublicI18nSync({ disabled = false }) {
       attributeFilter: TRANSLATABLE_ATTRS,
     });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [disabled, language]);
 
   return null;

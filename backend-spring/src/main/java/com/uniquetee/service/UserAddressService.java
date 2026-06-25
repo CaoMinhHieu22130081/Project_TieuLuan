@@ -61,6 +61,8 @@ public class UserAddressService {
         existing.setWardCode(param.getWardCode());
         existing.setWardName(param.getWardName());
         existing.setDetailAddress(param.getDetailAddress());
+        existing.setLatitude(param.getLatitude());
+        existing.setLongitude(param.getLongitude());
         existing.setNote(param.getNote());
 
         if (param.getIsDefault() != null && param.getIsDefault() && !existing.getIsDefault()) {
