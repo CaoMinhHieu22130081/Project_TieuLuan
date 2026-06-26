@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
   Star,
   Loader2,
@@ -25,10 +25,10 @@ import { formatShippingThreshold } from "../utils/shipping";
 import { useWishlist } from "../context/WishlistContext";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
+import { useLanguage } from "../i18n/LanguageContext";
+import { formatCurrency, formatDate, formatNumber } from "../utils/i18nFormat";
 import { getDisplayRating, getSizeOptions } from "../utils/productDisplay";
 import "./css/Productdetailpage.css";
-
-const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
 
 /* ─── Star helper ─────────────────────────────────────── */
 function Stars({ rating, size = "sm" }) {
@@ -50,7 +50,7 @@ function Stars({ rating, size = "sm" }) {
 }
 
 /* ─── Related card ────────────────────────────────────── */
-function RelatedCard({ product }) {
+function RelatedCard({ product, formatPrice }) {
   const rating = getDisplayRating(product);
   const thumb = product.images && product.images.length > 0 
     ? product.images[0].url 
@@ -69,8 +69,8 @@ function RelatedCard({ product }) {
         <p className="related-name">{product.name}</p>
         <Stars rating={rating} size="sm" />
         <div className="related-price-row">
-          <span className="related-price">{fmt(product.price)}</span>
-          {product.originalPrice && <span className="related-orig">{fmt(product.originalPrice)}</span>}
+          <span className="related-price">{formatPrice(product.price)}</span>
+          {product.originalPrice && <span className="related-orig">{formatPrice(product.originalPrice)}</span>}
         </div>
       </div>
     </Link>
@@ -80,17 +80,16 @@ function RelatedCard({ product }) {
 /* ─── Main page ──────────────────────────────────────── */
 export default function ProductDetailPage() {
   const { id }     = useParams();
-  const navigate   = useNavigate();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { addToCart } = useCart();
   const { addToast } = useToast();
+  const { language, t } = useLanguage();
   
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reviews, setReviews] = useState([]);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   const [activeImg,  setActiveImg]  = useState(0);
   const [selColor,   setSelColor]   = useState(null);
@@ -124,7 +123,7 @@ export default function ProductDetailPage() {
           setRelated([]);
         }
       } catch (err) {
-        setError("Không tìm thấy sản phẩm");
+        setError("not_found");
         console.error('Error fetching product:', err);
       } finally {
         setLoading(false);
@@ -145,20 +144,17 @@ export default function ProductDetailPage() {
     setAdded(false);
     setSizeErr(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [product?.id]);
+  }, [product?.id, product?.colors]);
 
   /* Fetch reviews khi product id thay đổi */
   useEffect(() => {
     const fetchReviews = async () => {
       if (!id) return;
       try {
-        setReviewsLoading(true);
         const data = await reviewAPI.getReviewsByProductId(id);
         setReviews(data);
       } catch (err) {
         console.error('Error fetching reviews:', err);
-      } finally {
-        setReviewsLoading(false);
       }
     };
     
@@ -171,7 +167,9 @@ export default function ProductDetailPage() {
       <div className="detail-page">
         <div className="detail-inner" style={{ textAlign: "center", paddingTop: 80 }}>
           <Loader2 className="animate-spin" size={48} style={{ color: "var(--accent)", marginBottom: 16, display: 'inline-block' }} />
-          <h2 style={{ fontFamily: "var(--font-display)", marginBottom: 12 }}>Đang tải sản phẩm...</h2>
+          <h2 style={{ fontFamily: "var(--font-display)", marginBottom: 12 }}>
+            {t({ vi: "Đang tải sản phẩm...", en: "Loading product..." })}
+          </h2>
         </div>
       </div>
     );
@@ -182,12 +180,14 @@ export default function ProductDetailPage() {
       <div className="detail-page">
         <div className="detail-inner" style={{ textAlign: "center", paddingTop: 80 }}>
           <SearchX size={64} style={{ opacity: 0.3, marginBottom: 16, display: 'inline-block' }} />
-          <h2 style={{ fontFamily: "var(--font-display)", marginBottom: 12 }}>Không tìm thấy sản phẩm</h2>
+          <h2 style={{ fontFamily: "var(--font-display)", marginBottom: 12 }}>
+            {t({ vi: "Không tìm thấy sản phẩm", en: "Product not found" })}
+          </h2>
           <p style={{ color: "var(--text-secondary)", marginBottom: 28 }}>
-            {error || "Sản phẩm bạn tìm không tồn tại hoặc đã bị xóa."}
+            {t({ vi: "Sản phẩm bạn tìm không tồn tại hoặc đã bị xóa.", en: "The product you are looking for does not exist or has been removed." })}
           </p>
           <Link to="/products" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <ChevronLeft size={18} /> Xem tất cả sản phẩm
+            <ChevronLeft size={18} /> {t({ vi: "Xem tất cả sản phẩm", en: "View all products" })}
           </Link>
         </div>
       </div>
@@ -207,12 +207,12 @@ export default function ProductDetailPage() {
   // Format prices to handle both number and string
   const formatPrice = (p) => {
     const num = typeof p === 'string' ? parseFloat(p) : p;
-    return num.toLocaleString("vi-VN") + "đ";
+    return formatCurrency(num, language);
   };
 
   const handleAddCart = () => {
     if (!isProductSellable) {
-      addToast("Sản phẩm hiện không khả dụng", "error", 3000);
+      addToast({ vi: "Sản phẩm hiện không khả dụng", en: "This product is currently unavailable" }, "error", 3000);
       return;
     }
 
@@ -223,15 +223,18 @@ export default function ProductDetailPage() {
     addToCart(product, selColor, selSize, qty);
     
     // Hiển thị thông báo
-    addToast(`✓ Đã thêm ${qty} ${product.name} vào giỏ hàng`, 'success', 3000);
+    addToast({
+      vi: `✓ Đã thêm ${qty} ${product.name} vào giỏ hàng`,
+      en: `✓ Added ${qty} ${product.name} to cart`,
+    }, 'success', 3000);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
 
   const TABS = [
-    { key: "desc",    label: "Mô tả sản phẩm"           },
-    { key: "reviews", label: `Đánh giá (${reviewCount})` },
-    { key: "size",    label: "Bảng size"                 },
+    { key: "desc",    label: t({ vi: "Mô tả sản phẩm", en: "Product description" }) },
+    { key: "reviews", label: t({ vi: `Đánh giá (${reviewCount})`, en: `Reviews (${reviewCount})` }) },
+    { key: "size",    label: t({ vi: "Bảng size", en: "Size chart" }) },
   ];
 
   /* Tính toán rating distribution từ reviews thực tế */
@@ -272,9 +275,9 @@ export default function ProductDetailPage() {
 
         {/* Breadcrumb */}
         <nav className="detail-breadcrumb">
-          <Link to="/">Trang chủ</Link>
+          <Link to="/">{t({ vi: "Trang chủ", en: "Home" })}</Link>
           <span>/</span>
-          <Link to="/products">Sản phẩm</Link>
+          <Link to="/products">{t({ vi: "Sản phẩm", en: "Products" })}</Link>
           <span>/</span>
           <span>{product.name}</span>
         </nav>
@@ -335,7 +338,7 @@ export default function ProductDetailPage() {
             <div className="detail-rating-row">
               <Stars rating={displayRating} size="lg" />
               <span className="detail-rating-text">
-                <strong>{displayRating}</strong> · {reviewCount} đánh giá · {soldCount} đã bán
+                <strong>{displayRating}</strong> · {reviewCount} {t({ vi: "đánh giá", en: "reviews" })} · {soldCount} {t({ vi: "đã bán", en: "sold" })}
               </span>
             </div>
 
@@ -349,17 +352,17 @@ export default function ProductDetailPage() {
             <div className="detail-stock">
               <span className="stock-dot" />
               {product.isActive === false
-                ? "Ngừng kinh doanh"
+                ? t({ vi: "Ngừng kinh doanh", en: "Discontinued" })
                 : availableSizeCount > 0
-                  ? `Còn ${availableSizeCount} size đang bán`
-                  : "Hết hàng"}
+                  ? t({ vi: `Còn ${availableSizeCount} size đang bán`, en: `${availableSizeCount} sizes available` })
+                  : t({ vi: "Hết hàng", en: "Out of stock" })}
             </div>
 
             {/* Material */}
             {product.material && (
               <div className="detail-material">
                 <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "10px 0 5px 0" }}>
-                  <strong>Chất liệu:</strong> {product.material}
+                  <strong>{t({ vi: "Chất liệu:", en: "Material:" })}</strong> {product.material}
                 </p>
               </div>
             )}
@@ -368,7 +371,7 @@ export default function ProductDetailPage() {
 
             {/* Color */}
             <p className="selector-label">
-              Màu sắc
+              {t({ vi: "Màu sắc", en: "Color" })}
               {selColor && <span className="selector-chosen"> — {selColor.name}</span>}
             </p>
             <div className="color-selector">
@@ -389,9 +392,11 @@ export default function ProductDetailPage() {
 
             {/* Size */}
             <p className="selector-label" style={{ color: sizeErr ? "#dc2626" : undefined }}>
-              Kích thước
+              {t({ vi: "Kích thước", en: "Size" })}
               {!selSize && <span style={{ color: sizeErr ? "#dc2626" : "var(--accent)", fontFamily: "var(--font-body)", textTransform: "none", letterSpacing: 0 }}>
-                {sizeErr ? " — Vui lòng chọn size!" : " — Chọn size"}
+                {sizeErr
+                  ? t({ vi: " — Vui lòng chọn size!", en: " — Please choose a size!" })
+                  : t({ vi: " — Chọn size", en: " — Choose size" })}
               </span>}
               {selSize && <span className="selector-chosen"> — {selSize}</span>}
             </p>
@@ -408,7 +413,7 @@ export default function ProductDetailPage() {
                       setSizeErr(false);
                     }}
                     disabled={!s.isAvailable}
-                    title={s.isAvailable ? sizeValue : `${sizeValue} - Hết hàng`}
+                    title={s.isAvailable ? sizeValue : t({ vi: `${sizeValue} - Hết hàng`, en: `${sizeValue} - Out of stock` })}
                   >
                     {sizeValue}
                   </button>
@@ -417,23 +422,23 @@ export default function ProductDetailPage() {
             </div>
             {sizeOptions.length > 0 && sizeOptions.every((size) => !size.isAvailable) && (
               <p style={{ fontSize: "0.82rem", color: "#ffb4b4", marginTop: 8 }}>
-                Sản phẩm hiện đã hết size.
+                {t({ vi: "Sản phẩm hiện đã hết size.", en: "This product is currently out of stock in every size." })}
               </p>
             )}
-            <span className="size-guide-link"><Ruler size={14} style={{ marginRight: 6 }} /> Hướng dẫn chọn size</span>
+            <span className="size-guide-link"><Ruler size={14} style={{ marginRight: 6 }} /> {t({ vi: "Hướng dẫn chọn size", en: "Size guide" })}</span>
 
             <div className="detail-divider" />
 
             {/* Qty */}
             <div className="quantity-row">
-              <p className="selector-label" style={{ margin: 0 }}>Số lượng</p>
+              <p className="selector-label" style={{ margin: 0 }}>{t({ vi: "Số lượng", en: "Quantity" })}</p>
               <div className="qty-control">
                 <button className="qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}><Minus size={14} /></button>
                 <span className="qty-num">{qty}</span>
                 <button className="qty-btn" onClick={() => setQty((q) => q + 1)}><Plus size={14} /></button>
               </div>
               <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                Đã mua {soldCount.toLocaleString("vi-VN")} sản phẩm
+                {t({ vi: `Đã mua ${formatNumber(soldCount, language)} sản phẩm`, en: `${formatNumber(soldCount, language)} products sold` })}
               </span>
             </div>
 
@@ -444,18 +449,18 @@ export default function ProductDetailPage() {
                 onClick={handleAddCart}
               >
                 {added ? (
-                  <><Check size={18} style={{ marginRight: 8 }} /> Đã thêm vào giỏ!</>
+                  <><Check size={18} style={{ marginRight: 8 }} /> {t({ vi: "Đã thêm vào giỏ!", en: "Added to cart!" })}</>
                 ) : (
                   <>
                     <ShoppingBag size={18} style={{ marginRight: 8 }} />
-                    Thêm vào giỏ hàng
+                    {t({ vi: "Thêm vào giỏ hàng", en: "Add to cart" })}
                   </>
                 )}
               </button>
               <button
                 className={`btn-wishlist-lg ${product && isInWishlist(product.id) ? "loved" : ""}`}
                 onClick={() => product && toggleWishlist(product)}
-                aria-label="Yêu thích"
+                aria-label={t({ vi: "Yêu thích", en: "Wishlist" })}
               >
                 <Heart size={20} fill={product && isInWishlist(product.id) ? "currentColor" : "none"} />
               </button>
@@ -463,10 +468,10 @@ export default function ProductDetailPage() {
 
             {/* Shipping */}
             <div className="shipping-info">
-              <div className="shipping-item"><Truck size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> Miễn phí giao hàng đơn từ {formatShippingThreshold()}</div>
-              <div className="shipping-item"><RotateCcw size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> Đổi trả miễn phí trong 30 ngày</div>
-              <div className="shipping-item"><Lock size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> Thanh toán bảo mật qua VNPAY / Momo</div>
-              <div className="shipping-item"><CheckCircle2 size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> Cam kết hàng chính hãng 100%</div>
+              <div className="shipping-item"><Truck size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> {t({ vi: `Miễn phí giao hàng đơn từ ${formatShippingThreshold(language)}`, en: `Free shipping from ${formatShippingThreshold(language)}` })}</div>
+              <div className="shipping-item"><RotateCcw size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> {t({ vi: "Đổi trả miễn phí trong 30 ngày", en: "Free returns within 30 days" })}</div>
+              <div className="shipping-item"><Lock size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> {t({ vi: "Thanh toán bảo mật qua VNPAY / Momo", en: "Secure payment via VNPAY / Momo" })}</div>
+              <div className="shipping-item"><CheckCircle2 size={14} style={{ marginRight: 8, color: "var(--accent)" }} /> {t({ vi: "Cam kết hàng chính hãng 100%", en: "100% authentic products guaranteed" })}</div>
             </div>
           </div>
         </div>
@@ -509,7 +514,7 @@ export default function ProductDetailPage() {
                     <div className="review-score-num">{displayRating}</div>
                     <Stars rating={displayRating} size="lg" />
                     <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4 }}>
-                      {reviewCount} đánh giá
+                      {reviewCount} {t({ vi: "đánh giá", en: "reviews" })}
                     </p>
                   </div>
                   <div className="review-bars">
@@ -530,13 +535,15 @@ export default function ProductDetailPage() {
                   {reviews.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}>
                       <FileText size={48} style={{ opacity: 0.2, marginBottom: 12, display: 'inline-block' }} />
-                      <p>Chưa có bình luận nào</p>
-                      <p style={{ fontSize: "0.9rem", marginTop: 8 }}>Hãy là người đầu tiên bình luận về sản phẩm này!</p>
+                      <p>{t({ vi: "Chưa có bình luận nào", en: "No reviews yet" })}</p>
+                      <p style={{ fontSize: "0.9rem", marginTop: 8 }}>
+                        {t({ vi: "Hãy là người đầu tiên bình luận về sản phẩm này!", en: "Be the first to review this product!" })}
+                      </p>
                     </div>
                   ) : (
                     reviews.map((r) => {
                       const reviewDate = r.createdAt 
-                        ? new Date(r.createdAt).toLocaleDateString('vi-VN')
+                        ? formatDate(r.createdAt, language)
                         : 'N/A';
                       return (
                         <div key={r.id} className="review-item">
@@ -551,7 +558,9 @@ export default function ProductDetailPage() {
                           <p className="review-text">{r.content}</p>
                           {r.adminReply && (
                             <div className="review-admin-reply" style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(var(--accent-rgb), 0.06)', borderRadius: 8, borderLeft: '3px solid var(--accent)' }}>
-                              <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--accent)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phản hồi từ cửa hàng</p>
+                              <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--accent)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                {t({ vi: "Phản hồi từ cửa hàng", en: "Store reply" })}
+                              </p>
                               <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>{r.adminReply}</p>
                             </div>
                           )}
@@ -567,9 +576,9 @@ export default function ProductDetailPage() {
             {activeTab === "size" && (
               <div>
                 <p style={{ color: "var(--text-secondary)", marginBottom: 20 }}>
-                  {product.type === "Quần" 
-                    ? "Đo kích thước ở hông và chiều dài toàn bộ. Đơn vị: cm."
-                    : "Đo kích thước ở điểm rộng nhất của cơ thể khi mặc đồ lót. Đơn vị: cm."
+                  {product.type === "Quần"
+                    ? t({ vi: "Đo kích thước ở hông và chiều dài toàn bộ. Đơn vị: cm.", en: "Measure hips and full length. Unit: cm." })
+                    : t({ vi: "Đo kích thước ở điểm rộng nhất của cơ thể khi mặc đồ lót. Đơn vị: cm.", en: "Measure the widest point of the body while wearing underwear. Unit: cm." })
                   }
                 </p>
                 <div style={{ overflowX: "auto" }}>
@@ -577,7 +586,13 @@ export default function ProductDetailPage() {
                     <table className="size-table">
                       <thead>
                         <tr>
-                          {["Size", "Hông (cm)", "Chiều dài (cm)", "Chiều dài bước (cm)", "Cân nặng (kg)"].map((h) => (
+                          {[
+                            "Size",
+                            t({ vi: "Hông (cm)", en: "Hips (cm)" }),
+                            t({ vi: "Chiều dài (cm)", en: "Length (cm)" }),
+                            t({ vi: "Chiều dài bước (cm)", en: "Inseam (cm)" }),
+                            t({ vi: "Cân nặng (kg)", en: "Weight (kg)" }),
+                          ].map((h) => (
                             <th key={h}>{h}</th>
                           ))}
                         </tr>
@@ -605,7 +620,13 @@ export default function ProductDetailPage() {
                     <table className="size-table">
                       <thead>
                         <tr>
-                          {["Size", "Chiều dài", "Rộng ngực", "Rộng vai", "Cân nặng (kg)"].map((h) => (
+                          {[
+                            "Size",
+                            t({ vi: "Chiều dài", en: "Length" }),
+                            t({ vi: "Rộng ngực", en: "Chest width" }),
+                            t({ vi: "Rộng vai", en: "Shoulder width" }),
+                            t({ vi: "Cân nặng (kg)", en: "Weight (kg)" }),
+                          ].map((h) => (
                             <th key={h}>{h}</th>
                           ))}
                         </tr>
@@ -630,8 +651,8 @@ export default function ProductDetailPage() {
                   <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 16 }}>
                     <Sparkles size={12} style={{ marginRight: 6, display: 'inline' }} />
                     {product.type === "Quần"
-                      ? "Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Chiều dài bước (inseam) là khoảng cách từ crotch đến mắt cá chân."
-                      : "Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Với dáng oversized, nên chọn nhỏ hơn 1 size."
+                      ? t({ vi: "Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Chiều dài bước (inseam) là khoảng cách từ đáy quần đến mắt cá chân.", en: "If your measurement is between two sizes, choose the larger size. Inseam is measured from the crotch to the ankle." })
+                      : t({ vi: "Nếu số đo của bạn nằm giữa 2 size, hãy chọn size lớn hơn. Với dáng oversized, nên chọn nhỏ hơn 1 size.", en: "If your measurement is between two sizes, choose the larger size. For an oversized fit, choose one size smaller." })
                     }
                   </p>
               </div>
@@ -643,11 +664,13 @@ export default function ProductDetailPage() {
         {related && related.length > 0 && (
           <div className="related-section">
             <div className="related-header">
-              <h2 className="related-title">Sản phẩm phù hợp với lựa chọn của bạn <Sparkles size={18} style={{ color: "var(--accent)" }} /></h2>
-              <Link to="/products" className="related-see-all">Xem tất cả <ChevronRight size={14} /></Link>
+              <h2 className="related-title">
+                {t({ vi: "Sản phẩm phù hợp với lựa chọn của bạn", en: "Products that match your choice" })} <Sparkles size={18} style={{ color: "var(--accent)" }} />
+              </h2>
+              <Link to="/products" className="related-see-all">{t({ vi: "Xem tất cả", en: "View all" })} <ChevronRight size={14} /></Link>
             </div>
             <div className="related-grid">
-              {related.map((p) => <RelatedCard key={p.id} product={p} />)}
+              {related.map((p) => <RelatedCard key={p.id} product={p} formatPrice={formatPrice} />)}
             </div>
           </div>
         )}

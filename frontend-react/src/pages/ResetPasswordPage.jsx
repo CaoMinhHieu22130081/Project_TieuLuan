@@ -79,7 +79,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const response = await userAPI.resetPassword(token, newPassword);
+      await userAPI.resetPassword(token, newPassword);
       setSuccess(true);
       setError('');
       

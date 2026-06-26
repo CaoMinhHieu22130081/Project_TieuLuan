@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { chatService } from '../services/chatService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -33,20 +33,25 @@ const AdminChat = () => {
     const subscriptionRef = useRef(null);
     const messagesEndRef = useRef(null);
 
-    const loadConversations = async () => {
+    const loadConversations = useCallback(async () => {
         try {
             const data = await chatService.getAllConversations();
             setConversations(data);
         } catch (err) {
             console.error("Load conversations error:", err);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        loadConversations();
+        const initialLoad = window.setTimeout(() => {
+            void loadConversations();
+        }, 0);
         const interval = setInterval(loadConversations, 10000); // 10s
-        return () => clearInterval(interval);
-    }, []);
+        return () => {
+            window.clearTimeout(initialLoad);
+            clearInterval(interval);
+        };
+    }, [loadConversations]);
 
     useEffect(() => {
         const client = chatService.createStompClient(
@@ -72,7 +77,7 @@ const AdminChat = () => {
         client.activate();
         stompClientRef.current = client;
         return () => client.deactivate();
-    }, [selectedConv, addToast]);
+    }, [selectedConv, addToast, loadConversations]);
 
     const handleSelectConversation = async (conv) => {
         setSelectedConv(conv);

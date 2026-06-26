@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { headerTranslations, LANGUAGES } from '../i18n/translations';
+import { formatCurrency } from '../utils/i18nFormat';
 import SearchBar from './SearchBar';
 import '../pages/css/Header.css';
 
@@ -67,10 +68,10 @@ function HeaderSearchOverlay({ onClose }) {
 function MiniCart({ isOpen, onClose }) {
   const { cart, removeFromCart, updateQty } = useCart();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const copy = headerTranslations.nav;
 
-  const fmt = (p) => p.toLocaleString("vi-VN") + "đ";
+  const fmt = (p) => formatCurrency(p, language);
 
   if (!isOpen) return null;
 
@@ -350,6 +351,7 @@ export default function Header() {
 
   const cartCount = getTotalItems();
   const isProductsPage = location.pathname === '/products';
+  const canSwitchLanguage = !['admin', 'staff'].includes(user?.role);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -412,39 +414,41 @@ export default function Header() {
           </nav>
 
           <div className="nav-actions">
-            <div className="language-menu-wrap" ref={languageMenuRef}>
-              <button
-                type="button"
-                className={`language-switcher ${languageMenuOpen ? 'open' : ''}`}
-                onClick={() => setLanguageMenuOpen((open) => !open)}
-                aria-label={t(copy.languageTitle)}
-                aria-haspopup="listbox"
-                aria-expanded={languageMenuOpen}
-                title={t(copy.languageTitle)}
-              >
-                <Globe2 size={16} />
-                <span>{currentLanguage.shortLabel}</span>
-                <ChevronDown size={14} className="language-chevron" />
-              </button>
-              {languageMenuOpen && (
-                <div className="language-dropdown" role="listbox" aria-label={t(copy.languageTitle)}>
-                  {Object.values(LANGUAGES).map((option) => (
-                    <button
-                      key={option.code}
-                      type="button"
-                      className={`language-option ${language === option.code ? 'active' : ''}`}
-                      role="option"
-                      aria-selected={language === option.code}
-                      onClick={() => handleLanguageSelect(option.code)}
-                    >
-                      <span className="language-option-code">{option.shortLabel}</span>
-                      <span className="language-option-label">{option.label}</span>
-                      {language === option.code && <Check size={15} />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {canSwitchLanguage && (
+              <div className="language-menu-wrap" ref={languageMenuRef}>
+                <button
+                  type="button"
+                  className={`language-switcher ${languageMenuOpen ? 'open' : ''}`}
+                  onClick={() => setLanguageMenuOpen((open) => !open)}
+                  aria-label={t(copy.languageTitle)}
+                  aria-haspopup="listbox"
+                  aria-expanded={languageMenuOpen}
+                  title={t(copy.languageTitle)}
+                >
+                  <Globe2 size={16} />
+                  <span>{currentLanguage.shortLabel}</span>
+                  <ChevronDown size={14} className="language-chevron" />
+                </button>
+                {languageMenuOpen && (
+                  <div className="language-dropdown" role="listbox" aria-label={t(copy.languageTitle)}>
+                    {Object.values(LANGUAGES).map((option) => (
+                      <button
+                        key={option.code}
+                        type="button"
+                        className={`language-option ${language === option.code ? 'active' : ''}`}
+                        role="option"
+                        aria-selected={language === option.code}
+                        onClick={() => handleLanguageSelect(option.code)}
+                      >
+                        <span className="language-option-code">{option.shortLabel}</span>
+                        <span className="language-option-label">{option.label}</span>
+                        {language === option.code && <Check size={15} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {!user ? (
               <>
                 <a href="/login" className="nav-btn-link nav-btn-login">{t(copy.login)}</a>
@@ -456,7 +460,7 @@ export default function Header() {
               </button>
             )}
             {isProductsPage && (
-              <button className="nav-icon-btn" aria-label="search" onClick={() => setSearchOpen(true)}>
+              <button className="nav-icon-btn" aria-label={t(copy.search)} onClick={() => setSearchOpen(true)}>
                 <Search size={20} />
               </button>
             )}
@@ -469,17 +473,17 @@ export default function Header() {
                 className="nav-icon-btn"
                 onClick={() => navigate('/cart')}
                 style={{ textDecoration: "none", position: "relative" }}
-                aria-label="cart"
+                aria-label={t(copy.cart)}
               >
                 <ShoppingBag size={20} />
                 {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
               </button>
               {cartDropdownOpen && <MiniCart isOpen={cartDropdownOpen} onClose={() => setCartDropdownOpen(false)} />}
             </div>
-            <a href="/profile" className="nav-icon-btn" style={{ textDecoration: "none" }} aria-label="user">
+            <a href="/profile" className="nav-icon-btn" style={{ textDecoration: "none" }} aria-label={t({ vi: "Tài khoản", en: "Account" })}>
               <User size={20} />
             </a>
-            <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="menu">
+            <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label={t({ vi: "Mở menu", en: "Open menu" })}>
               <span /><span /><span />
             </button>
           </div>

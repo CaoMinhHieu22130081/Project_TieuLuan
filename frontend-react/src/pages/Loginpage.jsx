@@ -8,21 +8,14 @@ export default function Loginpage() {
   const navigate = useNavigate();
   const { login, user } = useAuth();
   const [searchParams] = useSearchParams();
+  const oauthError = searchParams.get("error");
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
-  const [serverError, setServerError] = useState("");
+  const [serverError, setServerError] = useState(() => oauthError ? "OAuth2 login failed: " + oauthError : "");
   const [loginRole, setLoginRole] = useState(null); // Track which role to navigate
-
-  // Check for OAuth2 error on component mount
-  useEffect(() => {
-    const error = searchParams.get("error");
-    if (error) {
-      setServerError("OAuth2 login failed: " + error);
-    }
-  }, [searchParams]);
 
   // Handle navigation after successful login
   useEffect(() => {

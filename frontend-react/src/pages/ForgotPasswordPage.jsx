@@ -7,14 +7,12 @@ export default function ForgotPasswordPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setMessage('');
     setLoading(true);
 
     try {
@@ -24,8 +22,7 @@ export default function ForgotPasswordPage() {
       }
 
       // Request password reset
-      const response = await userAPI.forgotPassword(email);
-      setMessage(response.message);
+      await userAPI.forgotPassword(email);
       setSubmitted(true);
 
       // Optionally redirect to login after 5 seconds

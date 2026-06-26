@@ -201,7 +201,7 @@ function CartModal({ product, isOpen, onClose, onAddToCart }) {
         'success',
         3000
       );
-    } catch (err) {
+    } catch {
       addToast("Có lỗi khi thêm vào giỏ", "error");
     } finally {
       setIsAdding(false);
@@ -579,7 +579,7 @@ export default function ProductsPage() {
     if (search !== searchQuery) {
       setSearchQuery(search);
     }
-  }, [searchParams]);
+  }, [searchParams, searchQuery]);
 
   // Fetch sản phẩm từ API
   useEffect(() => {

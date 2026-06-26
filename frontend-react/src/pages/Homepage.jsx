@@ -17,7 +17,6 @@ import {
   User,
   ArrowRight
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
 import { aiAPI, categoryAPI, productAPI } from "../services/api";
 import { getDisplayRating } from "../utils/productDisplay";
 import "./css/Homepage.css";
@@ -266,19 +265,19 @@ function AiSearchPanel() {
   const requestIdRef = useRef(0);
   const currentFileRef = useRef(null);
 
-  const stopProgressTimer = () => {
+  const stopProgressTimer = useCallback(() => {
     if (progressTimerRef.current) {
       clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const clearPreviewUrl = () => {
+  const clearPreviewUrl = useCallback(() => {
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current);
       previewUrlRef.current = null;
     }
-  };
+  }, []);
 
   const reset = () => {
     stopProgressTimer();
@@ -326,15 +325,15 @@ function AiSearchPanel() {
       stopProgressTimer();
       clearPreviewUrl();
     };
-  }, []);
+  }, [clearPreviewUrl, stopProgressTimer]);
 
-  const beginProgress = () => {
+  const beginProgress = useCallback(() => {
     stopProgressTimer();
     setProgress(12);
     progressTimerRef.current = setInterval(() => {
       setProgress((current) => (current >= 90 ? 90 : current + 8));
     }, 260);
-  };
+  }, [stopProgressTimer]);
 
   const runSearch = useCallback(async (file) => {
     if (!file) {
@@ -392,7 +391,7 @@ function AiSearchPanel() {
         setProgress(0);
       }
     }
-  }, [typeFilter]);
+  }, [beginProgress, stopProgressTimer, typeFilter]);
 
   const handleFile = async (file) => {
     if (!file) {
@@ -713,10 +712,7 @@ function AiSearchPanel() {
 }
 
 function HomePage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "staff";
   const [heroVisible, setHeroVisible] = useState(false);
-  const [products, setProducts] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -750,7 +746,6 @@ function HomePage() {
           ? normalizedCategories
           : buildCategoriesFromProducts(rawProducts);
 
-        setProducts(rawProducts);
         setFeaturedProducts(getFeaturedProducts(rawProducts));
         setCategories(buildCategoryCards(categorySource, rawProducts));
       } catch (err) {

@@ -1,87 +1,121 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 const AuthContext = createContext();
 
+const AUTH_TOKEN_KEY = 'authToken';
+const USER_DATA_KEY = 'userData';
+const LEGACY_AUTH_KEYS = ['user', 'userId', 'userEmail', 'userName'];
+
+const buildStoredUser = (userData) => {
+  if (!userData) return null;
+
+  return {
+    id: userData.id,
+    email: userData.email,
+    name: userData.name,
+    role: userData.role,
+    status: userData.status,
+    phone: userData.phone,
+    gender: userData.gender,
+    address: userData.address,
+  };
+};
+
+const clearStoredAuth = () => {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(USER_DATA_KEY);
+  LEGACY_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
+};
+
+const saveStoredAuth = (authToken, userData) => {
+  const storedUser = buildStoredUser(userData);
+
+  localStorage.setItem(AUTH_TOKEN_KEY, authToken);
+  localStorage.setItem(USER_DATA_KEY, JSON.stringify(storedUser));
+
+  if (storedUser?.id) localStorage.setItem('userId', storedUser.id);
+  if (storedUser?.email) localStorage.setItem('userEmail', storedUser.email);
+  if (storedUser?.name) localStorage.setItem('userName', storedUser.name);
+};
+
+const readStoredAuth = () => {
+  const savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+  const savedUser = localStorage.getItem(USER_DATA_KEY);
+
+  if (!savedToken || !savedUser) {
+    return { token: null, user: null };
+  }
+
+  try {
+    return {
+      token: savedToken,
+      user: JSON.parse(savedUser),
+    };
+  } catch (error) {
+    console.error('Error parsing saved user:', error);
+    clearStoredAuth();
+    return { token: null, user: null };
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [auth, setAuth] = useState(() => readStoredAuth());
+  const { user, token } = auth;
+  const loading = false;
 
-  // Khởi tạo auth từ localStorage
   useEffect(() => {
-    const savedToken = localStorage.getItem('authToken');
-    const savedUser = localStorage.getItem('userData');
+    const handleStorage = (event) => {
+      if (![AUTH_TOKEN_KEY, USER_DATA_KEY].includes(event.key)) return;
+      setAuth(readStoredAuth());
+    };
 
-    if (savedToken && savedUser) {
-      try {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error('Error parsing saved user:', e);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userData');
-      }
-    }
-    setLoading(false);
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  // Login user
-  const login = (token, userData) => {
-    setToken(token);
-    setUser(userData);
-    localStorage.setItem('authToken', token);
+  const login = useCallback((authToken, userData) => {
+    if (!authToken || !userData?.id) {
+      clearStoredAuth();
+      setAuth({ token: null, user: null });
+      return;
+    }
 
-    // Save only essential user data (exclude avatar) to avoid quota exceeded
-    const essentialUserData = {
-      id: userData.id,
-      email: userData.email,
-      name: userData.name,
-      role: userData.role,
-      status: userData.status,
-      phone: userData.phone,
-      gender: userData.gender,
-      address: userData.address,
-    };
-    localStorage.setItem('userData', JSON.stringify(essentialUserData));
-  };
+    setAuth({ token: authToken, user: userData });
+    saveStoredAuth(authToken, userData);
+  }, []);
 
-  // Logout user
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    localStorage.removeItem('user'); // Remove old key if exists
-  };
+  const logout = useCallback(() => {
+    setAuth({ token: null, user: null });
+    clearStoredAuth();
+  }, []);
 
-  // Check if user has specific role
-  const hasRole = (role) => {
+  const hasRole = useCallback((role) => {
     if (!user) return false;
     if (Array.isArray(role)) {
       return role.includes(user.role);
     }
     return user.role === role;
-  };
+  }, [user]);
 
-  // Check if user is authenticated
-  const isAuthenticated = () => !!token && !!user;
+  const isAuthenticated = useCallback(() => !!token && !!user, [token, user]);
+
+  const value = useMemo(() => ({
+    user,
+    token,
+    loading,
+    login,
+    logout,
+    hasRole,
+    isAuthenticated,
+  }), [user, token, loading, login, logout, hasRole, isAuthenticated]);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      token,
-      loading,
-      login,
-      logout,
-      hasRole,
-      isAuthenticated
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook để sử dụng Auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

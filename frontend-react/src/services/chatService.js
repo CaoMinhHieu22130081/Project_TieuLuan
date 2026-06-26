@@ -66,7 +66,7 @@ export const chatService = {
         const client = new Client({
             webSocketFactory: () => socket,
             connectHeaders: getWebSocketHeaders(),
-            debug: (str) => {
+            debug: () => {
                 // Uncomment for debugging
                 // console.log('[STOMP]', str);
             },

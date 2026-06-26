@@ -84,7 +84,10 @@ const syncTextNode = (node, language) => {
 
   if (language === "vi") {
     const original = textOriginals.get(node);
-    if (original && current !== original) node.nodeValue = original;
+    const previousTranslation = translatedText.get(node);
+    if (original && previousTranslation && current === previousTranslation) {
+      node.nodeValue = original;
+    }
     textOriginals.delete(node);
     translatedText.delete(node);
     return;
@@ -92,7 +95,12 @@ const syncTextNode = (node, language) => {
 
   const previousOriginal = textOriginals.get(node);
   const previousTranslation = translatedText.get(node);
-  if (!previousOriginal || (current !== previousTranslation && current !== previousOriginal && hasVietnameseSignal(current))) {
+  const translatedCurrent = translateValue(current);
+  if (!previousOriginal && translatedCurrent === current && !hasVietnameseSignal(current)) {
+    return;
+  }
+
+  if (!previousOriginal || (current !== previousTranslation && current !== previousOriginal && translatedCurrent !== current)) {
     textOriginals.set(node, current);
   }
 
@@ -126,15 +134,21 @@ const syncAttributes = (element, language) => {
     if (!current.trim()) return;
 
     if (language === "vi") {
-      if (store[attr] && current !== store[attr]) {
+      if (store[attr] && store[`${attr}Translation`] && current === store[`${attr}Translation`]) {
         element.setAttribute(attr, store[attr]);
       }
       delete store[attr];
+      delete store[`${attr}Translation`];
       return;
     }
 
     const currentTranslation = store[`${attr}Translation`];
-    if (!store[attr] || (current !== currentTranslation && current !== store[attr] && hasVietnameseSignal(current))) {
+    const translatedCurrent = translateValue(current);
+    if (!store[attr] && translatedCurrent === current && !hasVietnameseSignal(current)) {
+      return;
+    }
+
+    if (!store[attr] || (current !== currentTranslation && current !== store[attr] && translatedCurrent !== current)) {
       store[attr] = current;
     }
 

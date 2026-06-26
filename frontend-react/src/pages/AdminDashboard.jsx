@@ -89,7 +89,6 @@ function useCountUp(target, duration = 1200) {
   const [count, setCount] = useState(0);
   const raf = useRef(null);
   useEffect(() => {
-    if (!target) { setCount(0); return; }
     let start = null;
     const from = 0;
     const step = (ts) => {
@@ -110,14 +109,18 @@ function DonutChart({ segments, size = 160, thickness = 28 }) {
   const r = (size - thickness) / 2;
   const circ = 2 * Math.PI * r;
   const total = segments.reduce((s, seg) => s + seg.value, 0) || 1;
-  let offset = 0;
+  const segmentsWithOffset = segments.map((seg, index) => ({
+    ...seg,
+    offset: segments.slice(0, index).reduce((sum, item) => sum + item.value, 0),
+  }));
+
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible" }}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface-2,#f1f5f9)" strokeWidth={thickness} />
-      {segments.map((seg, i) => {
+      {segmentsWithOffset.map((seg, i) => {
         const dash = (seg.value / total) * circ;
         const gap  = circ - dash;
-        const el = (
+        return (
           <circle
             key={i}
             cx={size/2} cy={size/2} r={r}
@@ -125,13 +128,11 @@ function DonutChart({ segments, size = 160, thickness = 28 }) {
             stroke={seg.color}
             strokeWidth={thickness}
             strokeDasharray={`${dash} ${gap}`}
-            strokeDashoffset={-(offset * circ / total) + circ * 0.25}
+            strokeDashoffset={-(seg.offset * circ / total) + circ * 0.25}
             strokeLinecap="butt"
             style={{ transition: "stroke-dasharray .8s cubic-bezier(.4,0,.2,1)" }}
           />
         );
-        offset += seg.value;
-        return el;
       })}
     </svg>
   );
@@ -242,7 +243,7 @@ const downloadWordReport = (filename, html) => {
   window.URL.revokeObjectURL(url);
 };
 
-const buildWordReportHtml = ({ generatedAt, stats, totalRevenue, shirtCategories, pantCategories, topProducts, recentOrders, products }) => {
+const buildWordReportHtml = ({ generatedAt, stats, totalRevenue, topProducts, recentOrders, products }) => {
   const summaryRows = [
     ["Tổng đơn hàng", stats.orders ?? recentOrders.length, "Tổng hợp từ dữ liệu hiện có"],
     ["Tổng sản phẩm", products.length, "Danh sách hàng hóa"],
@@ -345,8 +346,6 @@ export default function AdminDashboard() {
   ].filter((s) => s.value > 0);
 
   // Spark data — last 7 months revenue
-  const sparkRevenue = monthly.data.filter((_, i) => i >= monthly.data.length - 7);
-
   const notifications  = buildDashboardNotifications({ products, orders });
   const combinedNotifs = mergeNotifications(notifications, serverNotifications);
 

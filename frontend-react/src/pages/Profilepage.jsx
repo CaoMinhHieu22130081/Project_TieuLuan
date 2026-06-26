@@ -228,7 +228,7 @@ export default function ProfilePage() {
   const { wishlist, removeFromWishlist } = useWishlist();
   const { addToast } = useToast();
   const { addToCart } = useCart();
-  const currentUserId = user?.id || localStorage.getItem("userId");
+  const currentUserId = user?.id;
   const isAdmin = user?.role === "admin" || user?.role === "staff";
   const [activeTab, setActiveTab] = useState("orders");
   const [orderFilter, setOrderFilter] = useState("all");
@@ -385,7 +385,7 @@ export default function ProfilePage() {
               try {
                 const product = await productAPI.getProductById(productId);
                 return [productId, getThumb(product) || ""];
-              } catch (productError) {
+              } catch {
                 return [productId, ""];
               }
             })
@@ -445,7 +445,7 @@ export default function ProfilePage() {
     };
 
     fetchUserData();
-  }, [navigate, user]);
+  }, [currentUserId, navigate, user]);
 
   const normalizedOrderFilter = String(orderFilter || "all").toLowerCase();
   const filteredOrders = normalizedOrderFilter === "all"
@@ -531,7 +531,7 @@ export default function ProfilePage() {
         return;
       }
 
-      const response = await userAPI.changePassword(
+      await userAPI.changePassword(
         userId,
         passwordForm.oldPassword,
         passwordForm.newPassword,
@@ -646,7 +646,7 @@ export default function ProfilePage() {
         let product = null;
         try {
           product = await productAPI.getProductById(productId);
-        } catch (e) {
+        } catch {
           product = null;
         }
 
@@ -738,7 +738,7 @@ export default function ProfilePage() {
         otherReason: otherCancelReason?.trim() || "",
       };
 
-      const updated = await orderAPI.cancelOrder(cancelModalOrder.id, payload);
+      await orderAPI.cancelOrder(cancelModalOrder.id, payload);
 
       setOrders((prev) => prev.map((o) => (o.id === cancelModalOrder.id ? { ...o, status: 'cancelled' } : o)));
       setCancelModalOrder(null);
@@ -1066,6 +1066,7 @@ export default function ProfilePage() {
                   ))}
                 </div>
 
+                {normalizedOrderFilter === "all" && (
                 <div className="profile-reco-block">
                   <div className="profile-reco-header">
                     <div>
@@ -1118,6 +1119,7 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {filteredOrders.length === 0 ? (
                   <div className="profile-empty-state">

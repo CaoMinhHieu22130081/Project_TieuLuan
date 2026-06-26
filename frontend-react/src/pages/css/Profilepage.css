@@ -338,7 +338,9 @@
 }
 
 /* ── Content Area ── */
-.profile-content {}
+.profile-content {
+  min-width: 0;
+}
 
 .profile-section {
   background:
@@ -469,27 +471,27 @@
     linear-gradient(180deg, rgba(var(--accent-rgb), 0.03), transparent 20%),
     var(--surface);
   border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 22px;
-  margin-bottom: 14px;
+  border-radius: 20px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
   transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.07);
   position: relative;
   overflow: hidden;
 }
 
 .order-card:hover {
   border-color: rgba(var(--accent-rgb), 0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.1);
 }
 
 .order-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
   gap: 8px;
@@ -497,7 +499,7 @@
 
 .order-id {
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.86rem;
   color: var(--accent);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -505,14 +507,14 @@
 }
 
 .order-date {
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
 }
 
 .order-status {
-  padding: 4px 12px;
+  padding: 6px 14px;
   border-radius: 20px;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -545,12 +547,14 @@
 .order-items-preview {
   display: flex;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  max-height: 72px;
+  overflow: hidden;
 }
 
 .order-item-thumb {
-  width: 62px;
-  height: 78px;
+  width: 64px;
+  height: 76px;
   border-radius: 12px;
   overflow: hidden;
   background: var(--surface-2);
@@ -565,8 +569,8 @@
 }
 
 .order-more-items {
-  width: 62px;
-  height: 78px;
+  width: 64px;
+  height: 76px;
   border-radius: 12px;
   background: var(--bg-3);
   border: 1px solid var(--border);
@@ -584,7 +588,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  padding-top: 14px;
+  padding-top: 12px;
   margin-top: 8px;
   border-top: 1px solid var(--border);
 }
@@ -592,7 +596,7 @@
 .order-total {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   color: var(--accent);
 }
 
@@ -603,9 +607,9 @@
 }
 
 .order-action-btn {
-  padding: 9px 14px;
+  padding: 10px 16px;
   border-radius: 12px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
   border: 1px solid var(--border-2);
   background: rgba(var(--accent-rgb), 0.03);
@@ -633,19 +637,20 @@
 
 /* ── Purchase Recommendations ── */
 .profile-reco-block {
-  margin: 18px 0 24px;
-  padding: 18px;
-  border-radius: 22px;
+  margin: 14px 0 20px;
+  padding: 14px;
+  border-radius: 18px;
   border: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.05), rgba(255, 255, 255, 0.01));
+  min-width: 0;
 }
 
 .profile-reco-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
@@ -653,24 +658,26 @@
   margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.96rem;
 }
 
 .profile-reco-sub {
   margin: 4px 0 0;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
 }
 
 .profile-reco-link {
-  font-size: 0.78rem;
+  flex: 0 0 auto;
+  font-size: 0.74rem;
   font-weight: 600;
   color: var(--accent);
-  padding: 6px 12px;
+  padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid rgba(var(--accent-rgb), 0.3);
   background: rgba(var(--accent-rgb), 0.08);
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  white-space: nowrap;
 }
 
 .profile-reco-link:hover {
@@ -681,17 +688,21 @@
 
 .profile-reco-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
+  align-items: stretch;
+  min-width: 0;
 }
 
 .profile-reco-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 100%;
   transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
 }
 
@@ -703,35 +714,50 @@
 
 .profile-reco-thumb {
   display: block;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1 / 1.08;
   background: var(--surface-2);
+  overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .profile-reco-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center top;
+  display: block;
 }
 
 .profile-reco-info {
-  padding: 12px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
 .profile-reco-name {
-  font-size: 0.82rem;
+  min-height: 2.7em;
+  font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1.4;
   color: var(--text-primary);
+  display: -webkit-box;
+  overflow: hidden;
+  text-decoration: none;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .profile-reco-meta {
-  font-size: 0.72rem;
+  min-height: 34px;
+  font-size: 0.7rem;
+  line-height: 1.45;
   color: var(--text-muted);
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .profile-reco-footer {
@@ -739,25 +765,30 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: auto;
 }
 
 .profile-reco-price {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   color: var(--accent);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .profile-reco-btn {
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 0.75rem;
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 9px;
+  font-size: 0.72rem;
   font-weight: 600;
   border: 1px solid var(--border-2);
   background: rgba(var(--accent-rgb), 0.06);
   color: var(--text-secondary);
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .profile-reco-btn:hover {

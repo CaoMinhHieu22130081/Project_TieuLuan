@@ -310,7 +310,10 @@ export function AdminLayout({ children, title, subtitle, actions, notifications 
 
   // close sidebar on route change
   const location = useLocation();
-  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setSidebarOpen(false), 0);
+    return () => window.clearTimeout(timeout);
+  }, [location.pathname]);
 
   return (
     <div className="admin-layout">

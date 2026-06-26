@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Crosshair, LocateFixed, MapPin, Search } from "lucide-react";
+import { useLanguage } from "../i18n/LanguageContext";
 import "./AddressMapPicker.css";
 
 const DEFAULT_CENTER = [10.7769, 106.7009];
@@ -9,6 +10,7 @@ const DEFAULT_ZOOM = 13;
 const NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org";
 const NOMINATIM_MIN_INTERVAL_MS = 1100;
 const MAX_SEARCH_CANDIDATES = 5;
+const NOMINATIM_REQUEST_FAILED = "NOMINATIM_REQUEST_FAILED";
 const geocodeCache = new Map();
 let nominatimQueue = Promise.resolve();
 let lastNominatimRequestAt = 0;
@@ -34,7 +36,7 @@ const fetchNominatimJson = (path, params) => {
     lastNominatimRequestAt = Date.now();
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error("Không thể kết nối dịch vụ tìm địa chỉ.");
+      throw new Error(NOMINATIM_REQUEST_FAILED);
     }
 
     const data = await response.json();
@@ -196,13 +198,14 @@ const buildSearchQueries = (query) => {
 export default function AddressMapPicker({
   value,
   fullAddress = "",
-  title = "Ghim vị trí giao hàng",
-  helperText = "Tìm địa chỉ hoặc bấm trực tiếp trên bản đồ để đặt ghim giao hàng.",
+  title,
+  helperText,
   onLocationChange,
   onUseSuggestedAddress,
   className = "",
   compact = false,
 }) {
+  const { language, t } = useLanguage();
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -216,6 +219,11 @@ export default function AddressMapPicker({
   const [searchResults, setSearchResults] = useState([]);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const resolvedTitle = title || t({ vi: "Ghim vị trí giao hàng", en: "Pin shipping location" });
+  const resolvedHelperText = helperText || t({
+    vi: "Tìm địa chỉ hoặc bấm trực tiếp trên bản đồ để đặt ghim giao hàng.",
+    en: "Search for an address or click directly on the map to drop a shipping pin.",
+  });
 
   useEffect(() => {
     setSearchTerm(fullAddress || "");
@@ -251,14 +259,14 @@ export default function AddressMapPicker({
   const geocode = useCallback(async (query) => {
     const normalizedQuery = String(query || "").trim();
     if (!normalizedQuery) {
-      setStatus("Nhập địa chỉ để tìm trên bản đồ.");
+      setStatus(t({ vi: "Nhập địa chỉ để tìm trên bản đồ.", en: "Enter an address to search on the map." }));
       return;
     }
 
     try {
       setBusy(true);
       setSearchResults([]);
-      setStatus("Đang tìm địa chỉ trên OpenStreetMap...");
+      setStatus(t({ vi: "Đang tìm địa chỉ trên OpenStreetMap...", en: "Searching for address on OpenStreetMap..." }));
       const queries = buildSearchQueries(normalizedQuery);
       let rankedResults = [];
       let matchedQuery = queries[0] || normalizedQuery;
@@ -273,7 +281,7 @@ export default function AddressMapPicker({
           namedetails: "1",
           extratags: "1",
           dedupe: "1",
-          "accept-language": "vi",
+          "accept-language": language,
         });
 
         const data = await fetchNominatimJson("/search", params);
@@ -289,7 +297,10 @@ export default function AddressMapPicker({
       }
 
       if (rankedResults.length === 0) {
-        setStatus("Không tìm thấy địa chỉ phù hợp. Hãy thử tên địa điểm ngắn hơn hoặc bấm trực tiếp trên bản đồ để đặt ghim.");
+        setStatus(t({
+          vi: "Không tìm thấy địa chỉ phù hợp. Hãy thử tên địa điểm ngắn hơn hoặc bấm trực tiếp trên bản đồ để đặt ghim.",
+          en: "No matching address found. Try a shorter name or click on the map to drop a pin.",
+        }));
         return;
       }
 
@@ -299,17 +310,30 @@ export default function AddressMapPicker({
       setLocation(
         bestResult,
         usedFallback
-          ? `Đã tìm theo biến thể gần nhất: ${matchedQuery}. Hãy kiểm tra danh sách kết quả bên dưới.`
+          ? language === "en"
+            ? `Searched using the closest variant: ${matchedQuery}. Please check the results below.`
+            : `Đã tìm theo biến thể gần nhất: ${matchedQuery}. Hãy kiểm tra danh sách kết quả bên dưới.`
           : rankedResults.length > 1
-            ? "Đã ghim kết quả phù hợp nhất. Bạn có thể chọn kết quả khác bên dưới."
-            : "Đã ghim vị trí theo địa chỉ tìm kiếm."
+            ? t({
+              vi: "Đã ghim kết quả phù hợp nhất. Bạn có thể chọn kết quả khác bên dưới.",
+              en: "Pinned the best match. You can select another result below.",
+            })
+            : t({
+              vi: "Đã ghim vị trí theo địa chỉ tìm kiếm.",
+              en: "Pinned location based on search address.",
+            })
       );
     } catch (error) {
-      setStatus(error.message || "Không thể tìm địa chỉ trên bản đồ.");
+      setStatus(error.message === NOMINATIM_REQUEST_FAILED
+        ? t({
+          vi: "Không thể kết nối dịch vụ tìm địa chỉ.",
+          en: "Unable to connect to the address search service.",
+        })
+        : error.message || t({ vi: "Không thể tìm địa chỉ trên bản đồ.", en: "Unable to find address on the map." }));
     } finally {
       setBusy(false);
     }
-  }, [setLocation]);
+  }, [language, setLocation, t]);
 
   const reverseGeocode = useCallback(async (point) => {
     try {
@@ -320,7 +344,7 @@ export default function AddressMapPicker({
         lat: String(point[0]),
         lon: String(point[1]),
         addressdetails: "1",
-        "accept-language": "vi",
+        "accept-language": language,
       });
       const data = await fetchNominatimJson("/reverse", params);
       const displayName = data?.display_name || "";
@@ -329,17 +353,22 @@ export default function AddressMapPicker({
         longitude: point[1],
         displayName,
         addressDetails: data?.address || null,
-      }, displayName ? "Đã đặt ghim tại vị trí bạn chọn." : "Đã đặt ghim trên bản đồ.");
+      }, displayName
+        ? t({ vi: "Đã đặt ghim tại vị trí bạn chọn.", en: "Pinned at your chosen location." })
+        : t({ vi: "Đã đặt ghim trên bản đồ.", en: "Pinned on the map." }));
     } catch {
       setLocation({
         latitude: point[0],
         longitude: point[1],
         displayName: "",
-      }, "Đã đặt ghim, nhưng chưa lấy được tên địa chỉ.");
+      }, t({
+        vi: "Đã đặt ghim, nhưng chưa lấy được tên địa chỉ.",
+        en: "Pinned, but unable to retrieve address name.",
+      }));
     } finally {
       setBusy(false);
     }
-  }, [setLocation]);
+  }, [language, setLocation, t]);
 
   useEffect(() => {
     reverseGeocodeRef.current = reverseGeocode;
@@ -394,24 +423,30 @@ export default function AddressMapPicker({
   const handleSearch = () => geocode(searchTerm || fullAddress);
 
   const handleChooseResult = (result) => {
-    setLocation(result, "Đã chọn vị trí từ danh sách kết quả.");
+    setLocation(result, t({
+      vi: "Đã chọn vị trí từ danh sách kết quả.",
+      en: "Selected location from search results.",
+    }));
   };
 
   const handleLocate = () => {
     if (!navigator.geolocation) {
-      setStatus("Trình duyệt không hỗ trợ định vị.");
+      setStatus(t({ vi: "Trình duyệt không hỗ trợ định vị.", en: "Browser does not support geolocation." }));
       return;
     }
 
     setBusy(true);
-    setStatus("Đang lấy vị trí hiện tại...");
+    setStatus(t({ vi: "Đang lấy vị trí hiện tại...", en: "Getting current location..." }));
     navigator.geolocation.getCurrentPosition(
       (position) => {
         reverseGeocode([position.coords.latitude, position.coords.longitude]);
       },
       () => {
         setBusy(false);
-        setStatus("Không thể lấy vị trí hiện tại. Hãy kiểm tra quyền định vị của trình duyệt.");
+        setStatus(t({
+          vi: "Không thể lấy vị trí hiện tại. Hãy kiểm tra quyền định vị của trình duyệt.",
+          en: "Unable to get current location. Please check browser location permissions.",
+        }));
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
@@ -421,9 +456,9 @@ export default function AddressMapPicker({
     <section className={`address-map-card ${compact ? "compact" : ""} ${className}`}>
       <div className="address-map-head">
         <div>
-          <p className="address-map-kicker"><MapPin size={14} /> Bản đồ giao hàng</p>
-          <h4>{title}</h4>
-          <p>{helperText}</p>
+          <p className="address-map-kicker"><MapPin size={14} /> {t({ vi: "Bản đồ giao hàng", en: "Shipping map" })}</p>
+          <h4>{resolvedTitle}</h4>
+          <p>{resolvedHelperText}</p>
         </div>
         {selectedPoint && (
           <span className="address-map-coordinates">
@@ -444,16 +479,16 @@ export default function AddressMapPicker({
                 handleSearch();
               }
             }}
-            placeholder="Tìm số nhà, tên đường, phường/xã..."
+            placeholder={t({ vi: "Tìm số nhà, tên đường, phường/xã...", en: "Search house number, street name, ward..." })}
           />
         </div>
         <button type="button" onClick={handleSearch} disabled={busy}>
           <Crosshair size={16} />
-          <span>Tìm</span>
+          <span>{t({ vi: "Tìm", en: "Search" })}</span>
         </button>
         <button type="button" onClick={handleLocate} disabled={busy}>
           <LocateFixed size={16} />
-          <span>Định vị</span>
+          <span>{t({ vi: "Định vị", en: "Locate" })}</span>
         </button>
       </div>
 
@@ -469,7 +504,7 @@ export default function AddressMapPicker({
           </div>
           {suggestedAddress && onUseSuggestedAddress && (
             <button type="button" onClick={() => onUseSuggestedAddress(suggestedAddress)}>
-              Dùng địa chỉ này
+              {t({ vi: "Dùng địa chỉ này", en: "Use this address" })}
             </button>
           )}
         </div>
@@ -477,7 +512,7 @@ export default function AddressMapPicker({
 
       {searchResults.length > 1 && (
         <div className="address-map-results">
-          <p className="address-map-results-title">Kết quả gợi ý</p>
+          <p className="address-map-results-title">{t({ vi: "Kết quả gợi ý", en: "Suggested results" })}</p>
           {searchResults.map((result, index) => {
             const isSelected = selectedPoint
               && Math.abs(selectedPoint[0] - result.latitude) < 0.000001
@@ -492,7 +527,7 @@ export default function AddressMapPicker({
               >
                 <span className="address-map-result-rank">{index + 1}</span>
                 <span className="address-map-result-text">
-                  <strong>{result.type || result.category || "Địa chỉ"}</strong>
+                  <strong>{result.type || result.category || t({ vi: "Địa chỉ", en: "Address" })}</strong>
                   <small>{result.displayName}</small>
                 </span>
               </button>

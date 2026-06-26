@@ -6,11 +6,10 @@ import {
   Minus,
   Plus,
   ChevronRight,
-  ChevronLeft,
-  PartyPopper
+  ChevronLeft
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
-import { FREE_SHIPPING_THRESHOLD, formatShippingThreshold } from "../utils/shipping";
+import { FREE_SHIPPING_THRESHOLD } from "../utils/shipping";
 import { voucherAPI, userAPI } from "../services/api";
 import "./css/Cartpage.css";
 
@@ -18,10 +17,10 @@ const formatPrice = (p) => p.toLocaleString("vi-VN") + "đ";
 
 export default function CartPage() {
   const navigate = useNavigate();
-  const { cart, removeFromCart, updateQty, clearCart, getTotalPrice } = useCart();
+  const { cart, removeFromCart, updateQty, clearCart } = useCart();
   const [promoCode,    setPromoCode]    = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
-  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [, setAppliedVoucher] = useState(null);
   const [discount, setDiscount] = useState(0);
   const [selectedItems, setSelectedItems] = useState(new Set());
 

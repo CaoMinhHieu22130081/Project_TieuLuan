@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.uniquetee.entity.Wishlist;
 import com.uniquetee.repository.WishlistRepository;
@@ -34,6 +35,7 @@ public class WishlistService {
     /**
      * Thêm sản phẩm vào danh sách yêu thích
      */
+    @Transactional
     public Wishlist addToWishlist(Wishlist wishlist) {
         return wishlistRepository.save(wishlist);
     }
@@ -41,6 +43,7 @@ public class WishlistService {
     /**
      * Xoá sản phẩm khỏi danh sách yêu thích
      */
+    @Transactional
     public void removeFromWishlist(Integer userId, Integer productId) {
         wishlistRepository.deleteByUserIdAndProductId(userId, productId);
     }
@@ -48,6 +51,7 @@ public class WishlistService {
     /**
      * Xoá toàn bộ danh sách yêu thích của người dùng
      */
+    @Transactional
     public void clearWishlist(Integer userId) {
         List<Wishlist> wishlists = wishlistRepository.findByUserId(userId);
         wishlistRepository.deleteAll(wishlists);
@@ -70,6 +74,7 @@ public class WishlistService {
     /**
      * Xoá wish list theo ID
      */
+    @Transactional
     public void deleteWishlistById(Integer id) {
         wishlistRepository.deleteById(id);
     }

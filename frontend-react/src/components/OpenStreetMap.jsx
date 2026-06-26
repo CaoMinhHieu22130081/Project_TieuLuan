@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LocateFixed, MapPin, Navigation, RefreshCw } from "lucide-react";
+import { useLanguage } from "../i18n/LanguageContext";
 import "./OpenStreetMap.css";
 
 const DEFAULT_CENTER = [10.8702, 106.7922];
@@ -58,6 +59,7 @@ export default function OpenStreetMap({
   searchQuery = "",
   className = "",
 }) {
+  const { language, t } = useLanguage();
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const storeMarkerRef = useRef(null);
@@ -68,6 +70,9 @@ export default function OpenStreetMap({
   const [locating, setLocating] = useState(false);
   const [notice, setNotice] = useState("");
   const [userLocation, setUserLocation] = useState(null);
+  const displayAddress = language === "en" && /Khu phố 6|Linh Trung|Thủ Đức/i.test(address)
+    ? "Quarter 6, Linh Trung, Thu Duc, Ho Chi Minh City"
+    : address;
 
   useEffect(() => {
     setResolvedCenter(resolvedFallbackCenter);
@@ -85,7 +90,7 @@ export default function OpenStreetMap({
           format: "jsonv2",
           limit: "1",
           q: query,
-          "accept-language": "vi",
+          "accept-language": language,
         });
         const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
         if (!response.ok) return;
@@ -108,7 +113,7 @@ export default function OpenStreetMap({
     return () => {
       cancelled = true;
     };
-  }, [address, searchQuery]);
+  }, [address, language, searchQuery]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -145,7 +150,7 @@ export default function OpenStreetMap({
 
     const popupContent = `
       <strong>${escapeHtml(title)}</strong>
-      <span>${escapeHtml(address)}</span>
+      <span>${escapeHtml(displayAddress)}</span>
     `;
 
     if (!storeMarkerRef.current) {
@@ -157,11 +162,11 @@ export default function OpenStreetMap({
     }
 
     window.setTimeout(() => map.invalidateSize(), 100);
-  }, [address, resolvedCenter, title, zoom]);
+  }, [displayAddress, resolvedCenter, title, zoom]);
 
   const handleLocate = () => {
     if (!navigator.geolocation) {
-      setNotice("Trình duyệt không hỗ trợ định vị.");
+      setNotice(t({ vi: "Trình duyệt không hỗ trợ định vị.", en: "Browser does not support geolocation." }));
       return;
     }
 
@@ -177,7 +182,7 @@ export default function OpenStreetMap({
           if (!userMarkerRef.current) {
             userMarkerRef.current = L.marker(origin, { icon: createUserIcon() })
               .addTo(map)
-              .bindPopup("Vị trí của bạn", { className: "osm-popup" });
+              .bindPopup(t({ vi: "Vị trí của bạn", en: "Your location" }), { className: "osm-popup" });
           } else {
             userMarkerRef.current.setLatLng(origin);
           }
@@ -199,7 +204,10 @@ export default function OpenStreetMap({
         setLocating(false);
       },
       () => {
-        setNotice("Không thể lấy vị trí hiện tại. Hãy kiểm tra quyền định vị của trình duyệt.");
+        setNotice(t({
+          vi: "Không thể lấy vị trí hiện tại. Hãy kiểm tra quyền định vị của trình duyệt.",
+          en: "Unable to get current location. Please check browser location permissions.",
+        }));
         setLocating(false);
       },
       {
@@ -241,22 +249,28 @@ export default function OpenStreetMap({
 
       <div className="osm-panel">
         <div>
-          <p className="osm-eyebrow">Vị trí cửa hàng</p>
+          <p className="osm-eyebrow">{t({ vi: "Vị trí cửa hàng", en: "Store location" })}</p>
           <h3>{title}</h3>
-          <p>{address}</p>
+          <p>{displayAddress}</p>
           {notice && <span className="osm-notice">{notice}</span>}
         </div>
 
         <div className="osm-actions">
           <button type="button" className="osm-action-btn" onClick={handleLocate} disabled={locating}>
             <LocateFixed size={16} />
-            <span>{locating ? "Đang định vị" : "Vị trí của tôi"}</span>
+            <span>{locating ? t({ vi: "Đang định vị", en: "Locating" }) : t({ vi: "Vị trí của tôi", en: "My location" })}</span>
           </button>
           <a className="osm-action-btn primary" href={directionsUrl} target="_blank" rel="noreferrer">
             <Navigation size={16} />
-            <span>Chỉ đường</span>
+            <span>{t({ vi: "Chỉ đường", en: "Directions" })}</span>
           </a>
-          <button type="button" className="osm-icon-btn" onClick={handleReset} aria-label="Đặt lại bản đồ" title="Đặt lại bản đồ">
+          <button
+            type="button"
+            className="osm-icon-btn"
+            onClick={handleReset}
+            aria-label={t({ vi: "Đặt lại bản đồ", en: "Reset map" })}
+            title={t({ vi: "Đặt lại bản đồ", en: "Reset map" })}
+          >
             <RefreshCw size={16} />
           </button>
         </div>

@@ -9,13 +9,31 @@ const GUEST_CART_KEY = 'guestCart';
 // Khởi tạo BroadcastChannel để đồng bộ giữa các tab
 const cartChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('cart_sync_channel') : null;
 
+const readGuestCart = () => {
+  try {
+    const saved = localStorage.getItem(GUEST_CART_KEY);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Failed to read guest cart:', error);
+    localStorage.removeItem(GUEST_CART_KEY);
+    return [];
+  }
+};
+
 export function CartProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
+  const authenticated = isAuthenticated();
+  const authCartScope = authenticated && user?.id ? `user:${user.id}` : 'guest';
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Tránh vòng lặp gọi lại fetch do broadcast message
   const triggerBroadcast = useRef(false);
+  const previousCartScopeRef = useRef(authCartScope);
+  const cartRequestIdRef = useRef(0);
+  const skipNextGuestPersistRef = useRef(false);
 
   // Tạo unique ID cho guest cart item (product id + color + size)
   const generateCartItemId = (productId, colorObj, size) => {
@@ -42,92 +60,120 @@ export function CartProvider({ children }) {
   };
 
   const notifyOtherTabs = useCallback(() => {
-    if (cartChannel && isAuthenticated()) {
+    if (cartChannel && authenticated && user?.id) {
       cartChannel.postMessage({ type: 'SYNC_CART', userId: user.id });
     }
-  }, [user, isAuthenticated]);
+  }, [authenticated, user?.id]);
 
-  const loadBackendCart = useCallback(async (isBackgroundSync = false) => {
-    if (!user?.id) return;
+  const loadBackendCart = useCallback(async (isBackgroundSync = false, targetUserId = user?.id, requestId = cartRequestIdRef.current) => {
+    if (!targetUserId) return;
     if (!isBackgroundSync) setLoading(true);
     
     try {
-      const dbCart = await cartAPI.getUserCart(user.id);
+      const dbCart = await cartAPI.getUserCart(targetUserId);
       const normalized = dbCart.map(normalizeDbCartItem).filter(Boolean);
-      setCart(normalized);
+      if (cartRequestIdRef.current === requestId && authCartScope === `user:${targetUserId}`) {
+        setCart(normalized);
+      }
     } catch (err) {
       console.error('Failed to load DB cart:', err);
       // Nếu load lỗi, có thể thử load local storage để fallback hoặc để trống
     } finally {
-      if (!isBackgroundSync) setLoading(false);
+      if (!isBackgroundSync && cartRequestIdRef.current === requestId) setLoading(false);
     }
-  }, [user?.id]);
+  }, [authCartScope, user?.id]);
 
   // Handle cross-tab messages
   useEffect(() => {
     if (!cartChannel) return;
     const handleMessage = (event) => {
-      if (event.data?.type === 'SYNC_CART' && isAuthenticated() && event.data.userId === user?.id) {
+      if (event.data?.type === 'SYNC_CART' && authenticated && event.data.userId === user?.id) {
         // Tab khác vừa thay đổi cart, fetch lại từ DB
         loadBackendCart(true);
       }
     };
     cartChannel.addEventListener('message', handleMessage);
     return () => cartChannel.removeEventListener('message', handleMessage);
-  }, [isAuthenticated, user?.id, loadBackendCart]);
+  }, [authenticated, user?.id, loadBackendCart]);
+
+  useEffect(() => {
+    const previousScope = previousCartScopeRef.current;
+    if (previousScope !== authCartScope) {
+      cartRequestIdRef.current += 1;
+      setCart([]);
+      setLoading(true);
+    }
+
+    if (previousScope.startsWith('user:') && authCartScope === 'guest') {
+      skipNextGuestPersistRef.current = true;
+      localStorage.removeItem(GUEST_CART_KEY);
+      setLoading(false);
+    }
+    previousCartScopeRef.current = authCartScope;
+  }, [authCartScope]);
 
   // Load cart khi mount hoặc Auth state thay đổi
   useEffect(() => {
+    let cancelled = false;
+    const requestId = cartRequestIdRef.current + 1;
+    cartRequestIdRef.current = requestId;
+
     const fetchAndMergeCart = async () => {
       setLoading(true);
-      if (isAuthenticated() && user?.id) {
+      if (authenticated && user?.id) {
         try {
           // Xem thử guestCart có gì không, nếu có merge lên server 1 lần
-          const guestSaved = localStorage.getItem(GUEST_CART_KEY);
-          if (guestSaved) {
-            const guestItems = JSON.parse(guestSaved);
-            if (Array.isArray(guestItems) && guestItems.length > 0) {
-              const mergePayload = guestItems.map(item => ({
-                productId: item.productId,
-                color: item.color,
-                colorHex: item.colorHex,
-                size: item.size,
-                qty: item.qty
-              }));
-              await cartAPI.mergeCart(mergePayload);
-              // Merge xong thì xóa guest cart cũ
-              localStorage.removeItem(GUEST_CART_KEY);
-            }
+          const guestItems = readGuestCart();
+          if (guestItems.length > 0) {
+            const mergePayload = guestItems.map(item => ({
+              productId: item.productId,
+              color: item.color,
+              colorHex: item.colorHex,
+              size: item.size,
+              qty: item.qty
+            }));
+            await cartAPI.mergeCart(mergePayload);
+            if (cancelled || cartRequestIdRef.current !== requestId) return;
+            // Merge xong thì xóa guest cart cũ
+            localStorage.removeItem(GUEST_CART_KEY);
           }
-          await loadBackendCart();
+          await loadBackendCart(false, user.id, requestId);
         } catch (error) {
            console.error("Cart init error", error);
-           setLoading(false);
+           if (!cancelled && cartRequestIdRef.current === requestId) setLoading(false);
         }
       } else {
         // Chưa đăng nhập -> Load guest cart
-        const savedGuestCart = localStorage.getItem(GUEST_CART_KEY);
-        setCart(savedGuestCart ? JSON.parse(savedGuestCart) : []);
-        setLoading(false);
+        if (!cancelled && cartRequestIdRef.current === requestId && authCartScope === 'guest') {
+          setCart(readGuestCart());
+          setLoading(false);
+        }
       }
     };
     fetchAndMergeCart();
-  }, [isAuthenticated, user?.id, loadBackendCart]);
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticated, authCartScope, user?.id, loadBackendCart]);
 
   // Save guest cart vào localStorage nếu chưa đăng nhập
   useEffect(() => {
-    if (!loading && !isAuthenticated()) {
+    if (!loading && !authenticated) {
+      if (skipNextGuestPersistRef.current) {
+        skipNextGuestPersistRef.current = false;
+        return;
+      }
       try {
         localStorage.setItem(GUEST_CART_KEY, JSON.stringify(cart));
       } catch (err) {
         console.error('Failed to save guest cart:', err);
       }
     }
-  }, [cart, loading, isAuthenticated]);
+  }, [authenticated, cart, loading]);
 
   // Add to Cart
   const addToCart = async (product, color, size, qty = 1) => {
-    if (isAuthenticated() && user?.id) {
+    if (authenticated && user?.id) {
       // API call
       try {
         const payload = {
@@ -176,7 +222,7 @@ export function CartProvider({ children }) {
   // Remove from Cart
   const removeFromCart = async (cartItemId) => {
     const isGuestId = String(cartItemId).startsWith('guest-');
-    if (isAuthenticated() && !isGuestId) { // cartItemId là DB id
+    if (authenticated && !isGuestId) { // cartItemId là DB id
       try {
         await cartAPI.removeFromCart(cartItemId);
         setCart(prev => prev.filter(c => c.cartItemId != cartItemId));
@@ -197,7 +243,7 @@ export function CartProvider({ children }) {
     }
     
     const isGuestId = String(cartItemId).startsWith('guest-');
-    if (isAuthenticated() && !isGuestId) {
+    if (authenticated && !isGuestId) {
       try {
         await cartAPI.updateQty(cartItemId, qty);
         // Optimistic
@@ -216,7 +262,7 @@ export function CartProvider({ children }) {
 
   // Clear Cart
   const clearCart = async () => {
-    if (isAuthenticated() && user?.id) {
+    if (authenticated && user?.id) {
       try {
         await cartAPI.clearCart(user.id);
         setCart([]);

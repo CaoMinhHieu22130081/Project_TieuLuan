@@ -228,13 +228,15 @@ const ChatWidget = () => {
                                 {isConnected && <div className="status-dot"></div>}
                             </div>
                             <div>
-                                <div className="chat-title">Hỗ trợ UniqTee</div>
+                                <div className="chat-title">{t({ vi: "Hỗ trợ UniqTee", en: "UniqTee Support" })}</div>
                                 <div className="chat-subtitle">
-                                    {isConnected ? 'Sẵn sàng hỗ trợ' : 'Đang kết nối...'}
+                                    {isConnected
+                                        ? t({ vi: "Sẵn sàng hỗ trợ", en: "Ready to help" })
+                                        : t({ vi: "Đang kết nối...", en: "Connecting..." })}
                                 </div>
                             </div>
                         </div>
-                        <button onClick={toggleChat} className="chat-close-btn" aria-label="Đóng chat">✕</button>
+                        <button onClick={toggleChat} className="chat-close-btn" aria-label={t({ vi: "Đóng chat", en: "Close chat" })}>✕</button>
                     </div>
 
                     <div className="chat-messages" onClick={() => { setActiveMsgOptions(null); setShowEmojiPicker(false); }}>
@@ -243,9 +245,10 @@ const ChatWidget = () => {
                             <div className="chat-bot-welcome">
                                 <div className="bot-welcome-avatar">UT</div>
                                 <div className="bot-welcome-bubble">
-                                    {language === 'en'
-                                        ? `Hi ${user?.name || 'there'}! I am UniqTee's virtual assistant. How can we help you today?`
-                                        : `Chào ${user?.name || 'bạn'}! Mình là trợ lý ảo của UniqTee. Shop có thể giúp gì cho bạn hôm nay?`}
+                                    {t({
+                                        vi: `Chào ${user?.name || 'bạn'}! Mình là trợ lý ảo của UniqTee. Shop có thể giúp gì cho bạn hôm nay?`,
+                                        en: `Hi ${user?.name || 'there'}! I am UniqTee's virtual assistant. How can we help you today?`
+                                    })}
                                 </div>
                                 <div className="quick-replies-container">
                                     {QUICK_REPLIES.map((qr, index) => {
@@ -278,7 +281,7 @@ const ChatWidget = () => {
                                             <div className="msg-status-icon" style={{alignSelf: 'flex-end', marginBottom: '8px'}}><CustomCheckIcon size={12} /></div>
                                         )}
                                         <div className={`message-bubble message-${msg.senderRole} ${msg.isDeleted ? 'msg-deleted' : ''} ${!msg.isDeleted && isOnlyEmojis(msg.content) ? 'msg-only-emoji' : ''}`}>
-                                            {msg.isDeleted ? <span className="deleted-text"><CustomUndoIcon size={12} style={{marginRight: 4}}/> Tin nhắn đã thu hồi</span> : msg.content}
+                                            {msg.isDeleted ? <span className="deleted-text"><CustomUndoIcon size={12} style={{marginRight: 4}}/> {t({ vi: "Tin nhắn đã thu hồi", en: "Message unsent" })}</span> : msg.content}
                                             <span className="message-time">
                                                 {new Date(msg.sentAt).toLocaleTimeString(language === 'en' ? 'en-US' : 'vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                             </span>
@@ -295,7 +298,7 @@ const ChatWidget = () => {
                                                 {showOptions && (
                                                     <div className="msg-options-menu">
                                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteMsg(mId); }}>
-                                                            <CustomTrashIcon size={12} /> Thu hồi
+                                                            <CustomTrashIcon size={12} /> {t({ vi: "Thu hồi", en: "Unsend" })}
                                                         </button>
                                                     </div>
                                                 )}
@@ -320,12 +323,12 @@ const ChatWidget = () => {
                     </div>
 
                     <form className="chat-input-area" onSubmit={handleSend}>
-                        <button type="button" className="attach-button" title="Đính kèm (Demo)">
+                        <button type="button" className="attach-button" title={t({ vi: "Đính kèm (Demo)", en: "Attach (Demo)" })}>
                             <CustomAttachIcon size={18} />
                         </button>
                         
                         <div className="emoji-picker-container">
-                            <button type="button" className={`emoji-button ${showEmojiPicker ? 'active' : ''}`} title="Biểu tượng cảm xúc" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+                            <button type="button" className={`emoji-button ${showEmojiPicker ? 'active' : ''}`} title={t({ vi: "Biểu tượng cảm xúc", en: "Emoji" })} onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
                                 <CustomSmileIcon size={18} />
                             </button>
                             {showEmojiPicker && (
@@ -343,7 +346,7 @@ const ChatWidget = () => {
 
                         <input 
                             type="text" 
-                            placeholder="Nhập tin nhắn..." 
+                            placeholder={t({ vi: "Nhập tin nhắn...", en: "Type a message..." })}
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                         />
@@ -358,13 +361,13 @@ const ChatWidget = () => {
                 <div className="chat-login-modal">
                     <div className="chat-login-content">
                         <div className="login-icon">✿</div>
-                        <h3 className="login-title">Hỗ trợ UniqTee</h3>
-                        <p className="login-desc">Hãy đăng nhập để nhắn tin với hỗ trợ viên của chúng tôi</p>
+                        <h3 className="login-title">{t({ vi: "Hỗ trợ UniqTee", en: "UniqTee Support" })}</h3>
+                        <p className="login-desc">{t({ vi: "Hãy đăng nhập để nhắn tin với hỗ trợ viên của chúng tôi", en: "Please log in to chat with our support team" })}</p>
                         <button type="button" className="chat-login-btn" onClick={() => window.location.href = '/login'}>
-                            Đăng nhập ngay
+                            {t({ vi: "Đăng nhập ngay", en: "Log in now" })}
                         </button>
                         <button type="button" className="chat-cancel-btn" onClick={() => toggleChat()}>
-                            Đóng
+                            {t({ vi: "Đóng", en: "Close" })}
                         </button>
                     </div>
                 </div>
@@ -374,8 +377,8 @@ const ChatWidget = () => {
                 className="chat-button"
                 onPointerDown={handleButtonPointerDown}
                 onClick={handleButtonClick}
-                aria-label="Mở chat hỗ trợ"
-                title="Kéo để di chuyển"
+                aria-label={t({ vi: "Mở chat hỗ trợ", en: "Open support chat" })}
+                title={t({ vi: "Kéo để di chuyển", en: "Drag to move" })}
             >
                 {isOpen ? (
                     <CustomCloseIcon size={26} />

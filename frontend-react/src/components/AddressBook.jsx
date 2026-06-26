@@ -60,11 +60,13 @@ export default function AddressBook({ userId }) {
       longitude: mapLocation.longitude,
       ...(explicitAddress ? { detailAddress: explicitAddress } : {}),
     };
+    const resolvedDetailAddress = explicitAddress || parsedAddress.detailAddress || "";
 
     if (!ghnConfig.masterDataConfigured) {
       setFormData((current) => ({
         ...current,
         ...baseFormUpdate,
+        detailAddress: resolvedDetailAddress || current.detailAddress,
         provinceName: parsedAddress.provinceName || current.provinceName,
         districtName: parsedAddress.districtName || current.districtName,
         wardName: parsedAddress.wardName || current.wardName,
@@ -98,6 +100,7 @@ export default function AddressBook({ userId }) {
       setFormData((current) => ({
         ...current,
         ...baseFormUpdate,
+        detailAddress: resolvedDetailAddress || current.detailAddress,
         provinceId: matchedProvince?.provinceId || "",
         provinceName: matchedProvince?.provinceName || parsedAddress.provinceName || current.provinceName,
         districtId: matchedDistrict?.districtId || "",
@@ -107,9 +110,11 @@ export default function AddressBook({ userId }) {
       }));
     } catch (mapAddressError) {
       if (mapAddressResolveIdRef.current !== resolveId) return;
+      console.warn("Unable to resolve map address against GHN master data:", mapAddressError);
       setFormData((current) => ({
         ...current,
         ...baseFormUpdate,
+        detailAddress: resolvedDetailAddress || current.detailAddress,
         provinceName: parsedAddress.provinceName || current.provinceName,
         districtName: parsedAddress.districtName || current.districtName,
         wardName: parsedAddress.wardName || current.wardName,
@@ -276,25 +281,25 @@ export default function AddressBook({ userId }) {
   };
 
   if (loading) {
-    return <div className="profile-section"><p>Đang tải địa chỉ...</p></div>;
+    return <div className="profile-section"><p>{t({ vi: "Đang tải địa chỉ...", en: "Loading addresses..." })}</p></div>;
   }
 
   return (
     <div className="profile-section">
       <p className="profile-section-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span>
-          <span className="section-title-dot" /> Địa chỉ giao hàng
+          <span className="section-title-dot" /> {t({ vi: "Địa chỉ giao hàng", en: "Shipping addresses" })}
         </span>
         <button className="btn-primary" onClick={() => handleOpenModal()} style={{ padding: "8px 16px", fontSize: "0.9rem" }}>
-          + Thêm địa chỉ mới
+          + {t({ vi: "Thêm địa chỉ mới", en: "Add new address" })}
         </button>
       </p>
 
       {addresses.length === 0 ? (
         <div className="profile-empty-state">
           <p className="profile-empty-state-icon">📍</p>
-          <p className="profile-empty-state-title">Chưa có địa chỉ nào</p>
-          <p className="profile-empty-state-subtitle">Thêm địa chỉ giao hàng để thanh toán nhanh chóng hơn.</p>
+          <p className="profile-empty-state-title">{t({ vi: "Chưa có địa chỉ nào", en: "No addresses yet" })}</p>
+          <p className="profile-empty-state-subtitle">{t({ vi: "Thêm địa chỉ giao hàng để thanh toán nhanh chóng hơn.", en: "Add a shipping address to check out faster." })}</p>
         </div>
       ) : (
         <div className="address-list" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -315,7 +320,7 @@ export default function AddressBook({ userId }) {
                   <span style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>{address.receiverPhone}</span>
                   {address.isDefault && (
                     <span style={{ fontSize: "0.75rem", background: "var(--accent)", color: "#fff", padding: "2px 8px", borderRadius: "4px" }}>
-                      Mặc định
+                      {t({ vi: "Mặc định", en: "Default" })}
                     </span>
                   )}
                 </div>
@@ -326,9 +331,9 @@ export default function AddressBook({ userId }) {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
                 <div style={{ display: "flex", gap: "12px" }}>
-                  <button className="link-btn" onClick={() => handleOpenModal(address)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", padding: 0 }}>Cập nhật</button>
+                  <button className="link-btn" onClick={() => handleOpenModal(address)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", padding: 0 }}>{t({ vi: "Cập nhật", en: "Edit" })}</button>
                   {!address.isDefault && (
-                    <button className="link-btn" onClick={() => handleDelete(address.id)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0 }}>Xóa</button>
+                    <button className="link-btn" onClick={() => handleDelete(address.id)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0 }}>{t({ vi: "Xóa", en: "Delete" })}</button>
                   )}
                 </div>
                 {!address.isDefault && (
@@ -336,7 +341,7 @@ export default function AddressBook({ userId }) {
                     onClick={() => handleSetDefault(address.id)}
                     style={{ background: "none", border: "1px solid var(--border)", padding: "4px 8px", borderRadius: "4px", fontSize: "0.85rem", cursor: "pointer", color: "var(--text-primary)" }}
                   >
-                    Thiết lập mặc định
+                    {t({ vi: "Thiết lập mặc định", en: "Set as default" })}
                   </button>
                 )}
               </div>
@@ -354,20 +359,20 @@ export default function AddressBook({ userId }) {
             background: "var(--surface)", width: "100%", maxWidth: "860px", borderRadius: "8px",
             padding: "24px", maxHeight: "85vh", overflowY: "auto", position: "relative"
           }}>
-            <h3 style={{ marginTop: 0 }}>{editingAddress ? "Cập nhật địa chỉ" : "Thêm địa chỉ mới"}</h3>
+            <h3 style={{ marginTop: 0 }}>{editingAddress ? t({ vi: "Cập nhật địa chỉ", en: "Edit address" }) : t({ vi: "Thêm địa chỉ mới", en: "Add new address" })}</h3>
             {error && <div style={{ color: "red", marginBottom: "12px" }}>{error}</div>}
 
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div className="form-group" style={{ display: "flex", gap: "16px" }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", marginBottom: "6px" }}>Họ và tên</label>
+                  <label style={{ display: "block", marginBottom: "6px" }}>{t({ vi: "Họ và tên", en: "Full name" })}</label>
                   <input type="text" required value={formData.receiverName}
                     onChange={(e) => setFormData({ ...formData, receiverName: e.target.value })}
                     style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", marginBottom: "6px" }}>Số điện thoại</label>
+                  <label style={{ display: "block", marginBottom: "6px" }}>{t({ vi: "Số điện thoại", en: "Phone number" })}</label>
                   <input type="tel" required value={formData.receiverPhone}
                     onChange={(e) => setFormData({ ...formData, receiverPhone: e.target.value })}
                     style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
@@ -378,7 +383,7 @@ export default function AddressBook({ userId }) {
               {ghnConfig.masterDataConfigured && (
                 <>
                   <div className="form-group">
-                    <label style={{ display: "block", marginBottom: "6px" }}>Tỉnh / Thành phố {dataLoading.provinces && "..."}</label>
+                    <label style={{ display: "block", marginBottom: "6px" }}>{t({ vi: "Tỉnh / Thành phố", en: "Province / City" })} {dataLoading.provinces && "..."}</label>
                     <select required value={formData.provinceId}
                       onChange={(e) => {
                         const sel = e.target.options[e.target.selectedIndex];
@@ -386,7 +391,7 @@ export default function AddressBook({ userId }) {
                       }}
                       style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
                     >
-                      <option value="" style={{ background: "var(--bg-2)", color: "var(--text-primary)" }}>Chọn Tỉnh / Thành phố </option>
+                      <option value="" style={{ background: "var(--bg-2)", color: "var(--text-primary)" }}>{t({ vi: "Chọn Tỉnh / Thành phố", en: "Select province / city" })}</option>
                       {ghnProvinces.map((p) => (
                         <option key={p.provinceId} value={p.provinceId} style={{ background: "var(--bg-2)", color: "var(--text-primary)" }}>{p.provinceName}</option>
                       ))}
@@ -394,7 +399,7 @@ export default function AddressBook({ userId }) {
                   </div>
 
                   <div className="form-group">
-                    <label style={{ display: "block", marginBottom: "6px" }}>Quận / Huyện {dataLoading.districts && "..."}</label>
+                    <label style={{ display: "block", marginBottom: "6px" }}>{t({ vi: "Quận / Huyện", en: "District" })} {dataLoading.districts && "..."}</label>
                     <select required value={formData.districtId} disabled={!formData.provinceId}
                       onChange={(e) => {
                         const sel = e.target.options[e.target.selectedIndex];
@@ -402,7 +407,7 @@ export default function AddressBook({ userId }) {
                       }}
                       style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
                     >
-                      <option value="" style={{ background: "var(--bg-2)", color: "var(--text-primary)" }}>Chọn Quận / Huyện</option>
+                      <option value="" style={{ background: "var(--bg-2)", color: "var(--text-primary)" }}>{t({ vi: "Chọn Quận / Huyện", en: "Select district" })}</option>
                       {ghnDistricts.map((d) => (
                         <option key={d.districtId} value={d.districtId} style={{ background: "var(--bg-2)", color: "var(--text-primary)" }}>{d.districtName}</option>
                       ))}
@@ -410,7 +415,7 @@ export default function AddressBook({ userId }) {
                   </div>
 
                   <div className="form-group">
-                    <label style={{ display: "block", marginBottom: "6px" }}>Phường / Xã {dataLoading.wards && "..."}</label>
+                    <label style={{ display: "block", marginBottom: "6px" }}>{t({ vi: "Phường / Xã", en: "Ward" })} {dataLoading.wards && "..."}</label>
                     <select required value={formData.wardCode} disabled={!formData.districtId}
                       onChange={(e) => {
                         const sel = e.target.options[e.target.selectedIndex];
@@ -418,7 +423,7 @@ export default function AddressBook({ userId }) {
                       }}
                       style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)" }}
                     >
-                      <option value="" style={{ background: "var(--bg-2)", color: "var(--text-primary)" }}>Chọn Phường / Xã</option>
+                      <option value="" style={{ background: "var(--bg-2)", color: "var(--text-primary)" }}>{t({ vi: "Chọn Phường / Xã", en: "Select ward" })}</option>
                       {ghnWards.map((w) => (
                         <option key={w.wardCode} value={w.wardCode} style={{ background: "var(--bg-2)", color: "var(--text-primary)" }}>{w.wardName}</option>
                       ))}
@@ -428,26 +433,22 @@ export default function AddressBook({ userId }) {
               )}
 
               <div className="form-group">
-                <label style={{ display: "block", marginBottom: "6px" }}>Địa chỉ cụ thể</label>
+                <label style={{ display: "block", marginBottom: "6px" }}>{t({ vi: "Địa chỉ cụ thể", en: "Detailed address" })}</label>
                 <textarea required value={formData.detailAddress}
                   onChange={(e) => setFormData({ ...formData, detailAddress: e.target.value })}
-                  rows="3" placeholder="Số nhà, tên đường..."
+                  rows="3" placeholder={t({ vi: "Số nhà, tên đường...", en: "House number, street name..." })}
                   style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-2)", color: "var(--text-primary)", resize: "vertical" }}
                 />
               </div>
 
               <AddressMapPicker
                 compact
-                title="Chọn vị trí giao hàng"
+                title={t({ vi: "Chọn vị trí giao hàng", en: "Choose shipping location" })}
                 fullAddress={buildAddressText(formData)}
                 value={{ latitude: formData.latitude, longitude: formData.longitude }}
                 onLocationChange={(location) => {
                   currentMapLocationRef.current = location;
-                  setFormData((current) => ({
-                    ...current,
-                    latitude: location.latitude,
-                    longitude: location.longitude
-                  }));
+                  void handleMapLocationChange(location);
                 }}
                 onUseSuggestedAddress={(suggestedAddress) => {
                   if (currentMapLocationRef.current) {
@@ -466,13 +467,13 @@ export default function AddressBook({ userId }) {
                   <input type="checkbox" id="isDefault" checked={formData.isDefault}
                     onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
                   />
-                  <label htmlFor="isDefault">Đặt làm địa chỉ mặc định</label>
+                  <label htmlFor="isDefault">{t({ vi: "Đặt làm địa chỉ mặc định", en: "Set as default address" })}</label>
                 </div>
               )}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "16px" }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)} disabled={isSubmitting}>Trở lại</button>
-                <button type="submit" className="btn-primary" disabled={isSubmitting}>{isSubmitting ? "Đang lưu..." : "Hoàn thành"}</button>
+                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)} disabled={isSubmitting}>{t({ vi: "Trở lại", en: "Back" })}</button>
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>{isSubmitting ? t({ vi: "Đang lưu...", en: "Saving..." }) : t({ vi: "Hoàn thành", en: "Done" })}</button>
               </div>
             </form>
           </div>

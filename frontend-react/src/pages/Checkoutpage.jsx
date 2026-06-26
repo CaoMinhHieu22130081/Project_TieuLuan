@@ -287,6 +287,7 @@ export default function CheckoutPage() {
     (sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1),
     0
   );
+  const checkoutItemCount = checkoutItems.reduce((sum, item) => sum + Number(item.qty || 1), 0);
   const checkoutSignature = checkoutItems.map((item) => `${item.cartItemId}:${item.qty}`).join("|");
   const freeShippingEligible = isFreeShippingEligible(subtotal);
   const ghnReady = Boolean(ghnConfig.configured && ghnConfig.masterDataConfigured);
@@ -380,11 +381,10 @@ export default function CheckoutPage() {
         setQuoteLoading(true);
         setShippingError("");
 
-        const itemCount = checkoutItems.reduce((sum, item) => sum + Number(item.qty || 1), 0);
         const quote = await shippingAPI.quoteGhnFee({
           districtId: Number(shippingForm.districtId),
           wardCode: shippingForm.wardCode,
-          itemCount,
+          itemCount: checkoutItemCount,
           insuranceValue: subtotal,
         });
 
@@ -414,7 +414,7 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [ghnReady, freeShippingEligible, shippingForm.provinceId, shippingForm.districtId, shippingForm.wardCode, checkoutSignature, subtotal, ghnConfig.configured]);
+  }, [ghnReady, freeShippingEligible, shippingForm.provinceId, shippingForm.districtId, shippingForm.wardCode, checkoutItemCount, checkoutSignature, subtotal, ghnConfig.configured]);
 
   const shippingFee = freeShippingEligible ? 0 : Number(shippingQuote?.shippingFee ?? 0);
   const shippingServiceName = freeShippingEligible ? "Miễn phí" : (shippingQuote?.serviceName || "GHN");
@@ -537,11 +537,13 @@ export default function CheckoutPage() {
       longitude: mapLocation.longitude,
       ...(explicitAddress ? { address: explicitAddress } : {}),
     };
+    const resolvedStreetAddress = explicitAddress || parsedAddress.detailAddress || "";
 
     if (!ghnReady) {
       setShippingForm((current) => ({
         ...current,
         ...baseFormUpdate,
+        address: resolvedStreetAddress || current.address,
         city: parsedAddress.provinceName || current.city,
         district: parsedAddress.districtName || current.district,
         ward: parsedAddress.wardName || current.ward,
@@ -578,6 +580,7 @@ export default function CheckoutPage() {
       setShippingForm((current) => ({
         ...current,
         ...baseFormUpdate,
+        address: resolvedStreetAddress || current.address,
         provinceId: matchedProvince?.provinceId || "",
         city: matchedProvince?.provinceName || parsedAddress.provinceName || current.city,
         districtId: matchedDistrict?.districtId || "",
@@ -590,6 +593,7 @@ export default function CheckoutPage() {
       setShippingForm((current) => ({
         ...current,
         ...baseFormUpdate,
+        address: resolvedStreetAddress || current.address,
         city: parsedAddress.provinceName || current.city,
         district: parsedAddress.districtName || current.district,
         ward: parsedAddress.wardName || current.ward,
@@ -1093,11 +1097,7 @@ export default function CheckoutPage() {
                     value={{ latitude: shippingForm.latitude, longitude: shippingForm.longitude }}
                     onLocationChange={(location) => {
                       currentMapLocationRef.current = location;
-                        setShippingForm((current) => ({
-                        ...current,
-                        latitude: location.latitude,
-                        longitude: location.longitude
-                      }));
+                      void handleMapLocationChange(location);
                     }}
                     onUseSuggestedAddress={(suggestedAddress) => {
                       if (currentMapLocationRef.current) {

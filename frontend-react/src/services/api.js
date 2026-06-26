@@ -56,11 +56,11 @@ const requestJson = async (url, options = {}, fallbackMessage = 'Request failed'
     try {
       const errorData = await response.json();
       message = errorData.message || errorData.error || fallbackMessage;
-    } catch (parseError) {
+    } catch {
       try {
         const text = await response.text();
         message = text || fallbackMessage;
-      } catch (textError) {
+      } catch {
         message = fallbackMessage;
       }
     }
@@ -491,6 +491,20 @@ export const userAPI = {
 
   // Get current user info
   getCurrentUser: () => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData') || 'null');
+      if (userData?.id) {
+        return {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          role: userData.role,
+        };
+      }
+    } catch {
+      // Fall back to legacy keys below.
+    }
+
     return {
       id: localStorage.getItem('userId'),
       email: localStorage.getItem('userEmail'),

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { productAPI } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
+import { formatCurrency } from '../utils/i18nFormat';
 import '../pages/css/SearchBar.css';
 
 function highlightMatch(text, query) {
@@ -19,14 +20,14 @@ function highlightMatch(text, query) {
 function SearchBar({
   value = '',
   onChange,
-  placeholder = 'Tìm kiếm sản phẩm…',
+  placeholder,
   suggestions = [],
   onSearch,
   showSuggestions = true,
   autoFocus = false,
   enableAutoSearch = false, // Nếu true, sẽ gọi API search thay vì dùng suggestions
 }) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -184,14 +185,15 @@ function SearchBar({
     }
   };
 
-  const formatPrice = (p) => p.toLocaleString(language === 'en' ? 'en-US' : 'vi-VN') + 'đ';
+  const resolvedPlaceholder = placeholder || t({ vi: "Tìm kiếm sản phẩm...", en: "Search products..." });
+  const formatPrice = (p) => formatCurrency(p, language);
 
   const hasClear = Boolean(value);
   const voiceTitle = !speechSupported
-    ? 'Trình duyệt không hỗ trợ tìm kiếm bằng giọng nói'
+    ? t({ vi: "Trình duyệt không hỗ trợ tìm kiếm bằng giọng nói", en: "Your browser does not support voice search" })
     : listening
-      ? 'Dừng ghi âm'
-      : 'Tìm kiếm bằng giọng nói';
+      ? t({ vi: "Dừng ghi âm", en: "Stop recording" })
+      : t({ vi: "Tìm kiếm bằng giọng nói", en: "Voice search" });
 
   return (
     <div className={`searchbar-wrap ${focused ? 'focused' : ''}`} ref={wrapRef}>
@@ -210,9 +212,9 @@ function SearchBar({
           onChange={handleChange}
           onFocus={() => { setFocused(true); if (value.trim()) setOpen(true); }}
           onBlur={() => setFocused(false)}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           autoComplete="off"
-          aria-label="Tìm kiếm sản phẩm"
+          aria-label={t({ vi: "Tìm kiếm sản phẩm", en: "Search products" })}
           className="searchbar-input"
         />
 
@@ -242,7 +244,7 @@ function SearchBar({
             type="button"
             className="searchbar-clear"
             onClick={handleClear}
-            aria-label="Xoá tìm kiếm"
+            aria-label={t({ vi: "Xóa tìm kiếm", en: "Clear search" })}
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
               <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -281,7 +283,7 @@ function SearchBar({
 
           <li className="searchbar-footer" onMouseDown={handleSubmit}>
             <span>🔍</span>
-            <span>Tìm tất cả kết quả cho "<strong>{value}</strong>"</span>
+            <span>{t({ vi: "Tìm tất cả kết quả cho", en: "Search all results for" })} "<strong>{value}</strong>"</span>
             {searching && <span className="search-loading">⏳</span>}
           </li>
         </ul>
@@ -290,7 +292,11 @@ function SearchBar({
       {open && showSuggestions && value.trim().length > 0 && filtered.length === 0 && (
         <div className="searchbar-empty">
           <span>{searching ? '⏳' : '😔'}</span>
-          <p>{searching ? 'Đang tìm kiếm...' : `Không tìm thấy sản phẩm nào cho "${value}"`}</p>
+          <p>
+            {searching
+              ? t({ vi: "Đang tìm kiếm...", en: "Searching..." })
+              : t({ vi: `Không tìm thấy sản phẩm nào cho "${value}"`, en: `No products found for "${value}"` })}
+          </p>
         </div>
       )}
     </div>
