@@ -546,18 +546,20 @@
 
 .order-items-preview {
   display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-  max-height: 72px;
-  overflow: hidden;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 2px 0 6px;
 }
 
 .order-item-thumb {
-  width: 64px;
-  height: 76px;
+  width: 108px;
+  height: 124px;
   border-radius: 12px;
   overflow: hidden;
-  background: var(--surface-2);
+  background: #fff;
   flex-shrink: 0;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
 }
@@ -565,12 +567,12 @@
 .order-item-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .order-more-items {
-  width: 64px;
-  height: 76px;
+  width: 108px;
+  height: 124px;
   border-radius: 12px;
   background: var(--bg-3);
   border: 1px solid var(--border);
@@ -580,6 +582,16 @@
   font-size: 0.8rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
+}
+
+.order-detail-thumb {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
 }
 
 .order-card-footer {
@@ -1448,6 +1460,17 @@
 
   .profile-section {
     padding: 22px 18px;
+  }
+
+  .order-item-thumb,
+  .order-more-items {
+    width: 88px;
+    height: 104px;
+  }
+
+  .order-detail-thumb {
+    width: 82px;
+    height: 82px;
   }
 
   .profile-empty-state {

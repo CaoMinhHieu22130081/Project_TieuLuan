@@ -1266,9 +1266,9 @@ export default function ProfilePage() {
                                 {orderItems.map((item) => (
                                   <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                     <img
+                                      className="order-detail-thumb"
                                       src={item.image}
                                       alt={item.productName}
-                                      style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
                                     />
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                       <p style={{ fontWeight: 600, margin: 0 }}>{item.productName}</p>

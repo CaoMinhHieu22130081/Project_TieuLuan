@@ -8,6 +8,7 @@ import { WishlistProvider } from './context/WishlistContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
 import { LanguageProvider } from './i18n/LanguageContext';
+import { ThemeProvider } from './context/ThemeContext';
 import PublicI18nSync from './i18n/PublicI18nSync';
 import HomePage from './pages/Homepage';
 import ProductsPage from './pages/Productspage';
@@ -76,19 +77,21 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <LanguageProvider>
-        <AuthProvider>
-          <WishlistProvider>
-            <CartProvider>
-              <ToastProvider>
-                <ChatProvider>
-                  <AppContent />
-                </ChatProvider>
-              </ToastProvider>
-            </CartProvider>
-          </WishlistProvider>
-        </AuthProvider>
-      </LanguageProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <WishlistProvider>
+              <CartProvider>
+                <ToastProvider>
+                  <ChatProvider>
+                    <AppContent />
+                  </ChatProvider>
+                </ToastProvider>
+              </CartProvider>
+            </WishlistProvider>
+          </AuthProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </Router>
   );
 }

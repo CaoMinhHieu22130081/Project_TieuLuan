@@ -10,10 +10,13 @@ import {
   Trash2,
   Globe2,
   ChevronDown,
-  Check
+  Check,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { headerTranslations, LANGUAGES } from '../i18n/translations';
 import { formatCurrency } from '../utils/i18nFormat';
@@ -340,6 +343,7 @@ export default function Header() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { getTotalItems } = useCart();
+  const { isDark, toggleTheme } = useTheme();
   const { language, currentLanguage, setLanguage, t } = useLanguage();
   const copy = headerTranslations.nav;
   const languageMenuRef = useRef(null);
@@ -414,6 +418,15 @@ export default function Header() {
           </nav>
 
           <div className="nav-actions">
+            <button
+              type="button"
+              className="nav-icon-btn theme-toggle-btn"
+              onClick={toggleTheme}
+              aria-label={isDark ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
+              title={isDark ? "Chế độ sáng" : "Chế độ tối"}
+            >
+              {isDark ? <Sun size={19} /> : <Moon size={19} />}
+            </button>
             {canSwitchLanguage && (
               <div className="language-menu-wrap" ref={languageMenuRef}>
                 <button

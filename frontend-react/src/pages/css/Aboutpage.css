@@ -3,7 +3,7 @@
    ══════════════════════════════════════════════════════════════ */
 
 .about-dystopia-wrapper {
-  background: #d7c8d5; /* Soft slate background */
+  background: var(--bg-3);
   color: var(--text-primary);
   min-height: 100vh;
   padding-bottom: 80px;
@@ -49,7 +49,7 @@
   font-family: var(--font-display);
   font-size: clamp(3rem, 7vw, 6rem);
   font-weight: 900;
-  color: #fff;
+  color: var(--text-primary);
   line-height: 1.1;
   text-transform: uppercase;
   letter-spacing: -0.02em;
@@ -109,7 +109,7 @@
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
 }
 
 .image-box img {
@@ -207,7 +207,7 @@
   text-transform: uppercase;
   position: relative;
   margin-bottom: 24px;
-  color: #fff;
+  color: var(--text-primary);
   line-height: 1.1;
 }
 
@@ -310,8 +310,8 @@
 
 .neon-stat-card {
   position: relative;
-  background: linear-gradient(180deg, #fbf7fb 0%, #f2e8f1 100%);
-  border: 1px solid #d4c5d1;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--border);
   border-radius: 20px;
   padding: 40px 20px;
   text-align: center;
@@ -320,7 +320,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 14px 34px rgba(112, 38, 74, 0.12);
+  box-shadow: var(--shadow-card);
   transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
 }
 .neon-stat-card:hover {
@@ -379,13 +379,13 @@
 }
 
 .vision-glass-panel {
-  background: linear-gradient(180deg, #fbf7fb 0%, #f2e8f1 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
   backdrop-filter: blur(12px);
-  border: 1px solid #d4c5d1;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 50px 60px;
   position: relative;
-  box-shadow: 0 24px 56px rgba(112, 38, 74, 0.16);
+  box-shadow: var(--shadow-card);
 }
 .vision-glass-panel::before {
   content: '';
@@ -401,7 +401,7 @@
   font-family: var(--font-mono);
   font-size: 0.65rem;
   color: var(--text-secondary);
-  border-bottom: 1px solid #d4c5d1;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 15px;
   margin-bottom: 30px;
   text-transform: uppercase;

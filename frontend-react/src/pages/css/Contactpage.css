@@ -3,7 +3,7 @@
    ══════════════════════════════════════════════════════════════ */
 
 .contact-cyber-wrapper {
-  background: #d7c8d5;
+  background: var(--bg-3);
   color: var(--text-primary);
   min-height: 100vh;
   padding: 80px 20px;
@@ -76,9 +76,9 @@
   align-items: flex-start;
   gap: 20px;
   padding: 20px 24px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-left: 3px solid rgba(255,255,255,0.1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-2);
   border-radius: 12px;
   transition: all 0.3s;
 }
@@ -96,9 +96,9 @@
   align-items: center;
   justify-content: center;
   width: 40px; height: 40px;
-  background: rgba(255,255,255,0.05);
+  background: var(--surface-2);
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border);
 }
 .inf-card:hover .inf-icon {
   background: rgba(var(--accent-rgb), 0.2);
@@ -201,12 +201,12 @@
 }
 
 .cyber-form-card {
-  background: linear-gradient(180deg, #fbf7fb 0%, #f2e8f1 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
   backdrop-filter: blur(16px);
-  border: 1px solid #d4c5d1;
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 40px;
-  box-shadow: 0 24px 56px rgba(112, 38, 74, 0.16);
+  box-shadow: var(--shadow-card);
   position: relative;
   overflow: hidden;
 }
@@ -222,7 +222,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
-  border-bottom: 1px solid #d4c5d1;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 15px;
 }
 .form-header h3 {
@@ -261,8 +261,8 @@
 .cyber-input-group input,
 .cyber-input-group textarea {
   width: 100%;
-  background: #fffafd;
-  border: 1px solid #bdaabd;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
   border-radius: 8px;
   padding: 16px;
   color: var(--text-primary);
@@ -295,7 +295,7 @@
 .cyber-input-group input:not(:placeholder-shown),
 .cyber-input-group textarea:not(:placeholder-shown) {
   border-color: rgba(var(--accent-rgb), 0.7);
-  background: #ffffff;
+  background: var(--surface-2);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
 }
 
@@ -307,7 +307,7 @@
   left: 12px;
   font-size: 0.65rem;
   color: var(--accent);
-  background: #fbf7fb;
+  background: var(--surface);
   padding: 0 4px;
   border-radius: 4px;
 }
@@ -407,7 +407,7 @@
 }
 
 .cyber-btn-outline {
-  background: #fffafd;
+  background: var(--surface);
   border: 1px solid var(--border-2);
   color: var(--text-primary);
   padding: 12px 24px;

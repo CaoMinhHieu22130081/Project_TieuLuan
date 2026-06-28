@@ -2,6 +2,7 @@
 .products-page {
   min-height: 100vh;
   padding: 100px 0 80px;
+  background: var(--bg);
 }
 
 /* ── Page Header ── */

@@ -311,9 +311,10 @@ export default function AddressBook({ userId }) {
               background: "var(--bg-2)",
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "flex-start"
+              alignItems: "flex-start",
+              gap: "16px"
             }}>
-              <div>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
                   <h4 style={{ margin: 0, fontSize: "1.1rem" }}>{address.receiverName}</h4>
                   <span style={{ color: "var(--text-secondary)" }}>|</span>
@@ -329,11 +330,11 @@ export default function AddressBook({ userId }) {
                   <p style={{ margin: 0 }}>{address.wardName}, {address.districtName}, {address.provinceName}</p>
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end", flexShrink: 0 }}>
                 <div style={{ display: "flex", gap: "12px" }}>
-                  <button className="link-btn" onClick={() => handleOpenModal(address)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", padding: 0 }}>{t({ vi: "Cập nhật", en: "Edit" })}</button>
+                  <button className="link-btn" onClick={() => handleOpenModal(address)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", padding: 0, whiteSpace: "nowrap", lineHeight: 1 }}>{t({ vi: "Cập nhật", en: "Edit" })}</button>
                   {!address.isDefault && (
-                    <button className="link-btn" onClick={() => handleDelete(address.id)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0 }}>{t({ vi: "Xóa", en: "Delete" })}</button>
+                    <button className="link-btn" onClick={() => handleDelete(address.id)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0, whiteSpace: "nowrap", lineHeight: 1 }}>{t({ vi: "Xóa", en: "Delete" })}</button>
                   )}
                 </div>
                 {!address.isDefault && (
